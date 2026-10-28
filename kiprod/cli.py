@@ -56,6 +56,20 @@ def doctor() -> None:
     typer.echo(f"KiProd M1: Python core available; kicad-cli: {state}")
 
 
+@app.command()
+def project(
+    project: Path = typer.Option(Path.cwd(), exists=True, file_okay=True, dir_okay=True),
+) -> None:
+    """Show discovered KiCad project inputs and assembly variants."""
+    try:
+        discovered = discover(project)
+    except ProjectNotFoundError as exc:
+        raise typer.BadParameter(str(exc), param_hint="--project") from exc
+    typer.echo(f"Project: {discovered.pro_file}")
+    typer.echo(f"Schematics: {len(discovered.schematics)}; boards: {len(discovered.boards)}")
+    typer.echo("Variants: " + (", ".join(discovered.variants) or "none"))
+
+
 @app.command("export-bom")
 def export_kicad_bom(
     schematic: Path = typer.Argument(..., exists=True, dir_okay=False),

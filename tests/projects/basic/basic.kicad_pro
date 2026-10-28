@@ -1,1 +1,5 @@
-{}
+{
+  "schematic": {
+    "variants": [{"name": "lite"}, {"name": "production"}]
+  }
+}

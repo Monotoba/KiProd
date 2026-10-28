@@ -9,7 +9,8 @@
 - [x] Write JSON and CSV artifacts with provenance; test source and generated-BOM paths.
 - [x] Add a `kicad-cli` BOM export adapter; runtime availability is reported by `doctor`.
 - [x] Reconcile imported BOM CSV MPN fields with schematic data by reference.
-- [ ] Add golden fixtures from real KiCad 10 projects and detect design variants.
+- [x] Detect named design variants from KiCad 10 project metadata.
+- [ ] Add golden fixtures from real KiCad 10 projects and produce variant-specific normalized BOMs.
 
 ## M2 — Configuration and defaults policy
 

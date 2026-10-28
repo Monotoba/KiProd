@@ -18,7 +18,9 @@ REVIEWED_BOM = Path(__file__).parent / "fixtures" / "reviewed_bom.csv"
 
 
 def test_builds_grouped_bom_and_honors_dnp() -> None:
-    bom = build(discover(FIXTURE))
+    project = discover(FIXTURE)
+    assert project.variants == ["lite", "production"]
+    bom = build(project)
     assert len(bom.lines) == 2
     resistor = next(line for line in bom.lines if line.mpn)
     assert resistor.references == ["R1", "R2"]
@@ -63,3 +65,9 @@ def test_export_adapter_uses_kicad_cli_with_requested_variant(tmp_path: Path) ->
         patch("kiprod.kicad.cli_adapter.subprocess.run", side_effect=fake_run),
     ):
         assert export_bom(FIXTURE / "basic.kicad_sch", output, "production") == output
+
+
+def test_project_command_lists_detected_variants() -> None:
+    result = CliRunner().invoke(app, ["project", "--project", str(FIXTURE)])
+    assert result.exit_code == 0, result.output
+    assert "Variants: lite, production" in result.output

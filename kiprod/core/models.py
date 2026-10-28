@@ -17,6 +17,7 @@ class Project(BaseModel):
     pro_file: Path
     schematics: list[Path]
     boards: list[Path]
+    variants: list[str] = Field(default_factory=list)
     input_hashes: dict[str, str]
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 
 from kiprod.core.models import Project
@@ -12,6 +13,23 @@ class ProjectNotFoundError(ValueError):
 
 def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _variants(pro_file: Path) -> list[str]:
+    """Read the named assembly variants stored by KiCad 10 in the project JSON."""
+    try:
+        data = json.loads(pro_file.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ProjectNotFoundError(f"invalid KiCad project JSON: {pro_file}") from exc
+    schematic = data.get("schematic", {})
+    variants = schematic.get("variants", []) if isinstance(schematic, dict) else []
+    if not isinstance(variants, list):
+        return []
+    return sorted(
+        item["name"]
+        for item in variants
+        if isinstance(item, dict) and isinstance(item.get("name"), str) and item["name"]
+    )
 
 
 def discover(project_path: Path) -> Project:
@@ -37,5 +55,6 @@ def discover(project_path: Path) -> Project:
         pro_file=pro_file,
         schematics=schematics,
         boards=boards,
+        variants=_variants(pro_file),
         input_hashes={str(path.relative_to(root)): _digest(path) for path in files},
     )
