@@ -24,6 +24,7 @@ def test_builds_grouped_bom_and_honors_dnp() -> None:
     assert resistor.references == ["R1", "R2"]
     assert resistor.quantity == 2
     assert resistor.sources[0].path == "basic.kicad_sch"
+    assert all("R3" not in line.references and "R4" not in line.references for line in bom.lines)
 
 
 def test_cli_writes_traceable_json_and_csv(tmp_path: Path) -> None:

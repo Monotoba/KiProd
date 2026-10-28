@@ -22,14 +22,21 @@ def _fields(symbol: list[SExpr]) -> dict[str, str]:
     return fields
 
 
+def _child_value(symbol: list[SExpr], label: str, default: str = "") -> str:
+    nodes = children(symbol, label)
+    if not nodes:
+        return default
+    value = atom(nodes[0], 1)
+    return value if value is not None else default
+
+
 def _part(symbol: list[SExpr], source_path: Path, root: Path) -> Part | None:
     fields = _fields(symbol)
     reference = fields.get("Reference")
     if not reference or reference.startswith("#"):
         return None
-    in_bom_nodes = children(symbol, "in_bom")
-    in_bom = atom(in_bom_nodes[0], 1) if in_bom_nodes else "yes"
-    dnp = fields.get("DNP") or fields.get("dnp")
+    in_bom = _child_value(symbol, "in_bom", "yes")
+    dnp = _child_value(symbol, "dnp") or fields.get("DNP") or fields.get("dnp")
     if not _truthy(in_bom) or _truthy(dnp):
         return None
     mpn = fields.get("MPN") or fields.get("Manufacturer Part Number") or None

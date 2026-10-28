@@ -16,4 +16,7 @@
   (symbol (lib_id "Device:R") (in_bom yes)
     (property "Reference" "R3")
     (property "Value" "1k")
-    (property "DNP" "yes")))
+    (property "DNP" "yes"))
+  (symbol (lib_id "Device:R") (in_bom yes) (dnp yes)
+    (property "Reference" "R4")
+    (property "Value" "1k")))
