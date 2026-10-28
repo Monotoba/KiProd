@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+*.egg-info/
+
+# Per-project KiProd working state and potentially NDA-covered source responses.
+docs/production/.kiprod/
+docs/production/quotes/latest/
+docs/production/quotes/runs/*/raw/
