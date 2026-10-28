@@ -19,6 +19,17 @@ DEFAULT_CONFIG: dict[str, object] = {
     "quantities": {"boards": [1, 5, 25, 50, 100, 200, 400, 500, 1000]},
 }
 
+DEFAULT_TOML = """# Project-local KiProd settings. Secrets belong in the OS keyring.
+
+[paths]
+production = "docs/production"
+config = "docs/production/quotes/config"
+state = "docs/production/.kiprod"
+
+[quantities]
+boards = [1, 5, 25, 50, 100, 200, 400, 500, 1000]
+"""
+
 
 class ConfigError(ValueError):
     pass

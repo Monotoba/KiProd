@@ -7,10 +7,13 @@ import typer
 
 from kiprod.core.artifacts import write_bom
 from kiprod.core.bom import build
+from kiprod.core.config import DEFAULT_TOML, ConfigError, load, project_config_path
 from kiprod.core.project import ProjectNotFoundError, discover
 from kiprod.kicad.cli_adapter import KiCadCliError, export_bom, version
 
 app = typer.Typer(help="Build traceable KiCad production artifacts.", no_args_is_help=True)
+config_app = typer.Typer(help="Manage layered project configuration.", no_args_is_help=True)
+app.add_typer(config_app, name="config")
 
 
 def _build_bom(
@@ -97,3 +100,56 @@ def export_kicad_bom(
     except KiCadCliError as exc:
         raise typer.BadParameter(str(exc)) from exc
     typer.echo(f"Wrote {path}")
+
+
+def _project_root(project: Path) -> Path:
+    candidate = project.resolve()
+    if candidate.suffix == ".kicad_pro" and candidate.is_file():
+        return candidate.parent
+    projects = sorted(candidate.glob("*.kicad_pro")) if candidate.is_dir() else []
+    if len(projects) == 1:
+        return candidate
+    raise typer.BadParameter(
+        f"expected exactly one .kicad_pro in {candidate}", param_hint="--project"
+    )
+
+
+@config_app.command("init")
+def config_init(
+    project: Path = typer.Option(Path.cwd(), exists=True, file_okay=True, dir_okay=True),
+    force: bool = typer.Option(False, help="Replace an existing project configuration."),
+) -> None:
+    """Create the project-local configuration template."""
+    destination = project_config_path(_project_root(project))
+    if destination.exists() and not force:
+        raise typer.BadParameter(
+            f"configuration already exists: {destination}; use --force to replace it"
+        )
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(DEFAULT_TOML, encoding="utf-8")
+    typer.echo(f"Wrote {destination}")
+
+
+@config_app.command("show")
+def config_show(
+    project: Path = typer.Option(Path.cwd(), exists=True, file_okay=True, dir_okay=True),
+) -> None:
+    """Print effective configuration after all layers are applied."""
+    try:
+        settings = load(_project_root(project))
+    except ConfigError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    typer.echo(settings.model_dump_json(indent=2))
+
+
+@config_app.command("validate")
+def config_validate(
+    project: Path = typer.Option(Path.cwd(), exists=True, file_okay=True, dir_okay=True),
+) -> None:
+    """Validate the effective configuration."""
+    try:
+        load(_project_root(project))
+    except ConfigError as exc:
+        typer.echo(f"Invalid configuration: {exc}", err=True)
+        raise typer.Exit(code=5) from exc
+    typer.echo("Configuration is valid.")

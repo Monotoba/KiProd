@@ -1,6 +1,6 @@
 # KiProd task list
 
-## M1 — Ingest, export, and BOM CLI (in progress)
+## M1 — Ingest, export, and BOM CLI (complete)
 
 - [x] Create isolated Git repository, project metadata, local developer scripts, and test fixture.
 - [x] Discover a KiCad project and hash its relevant source files.
@@ -16,8 +16,8 @@
 
 ## M2 — Configuration and defaults policy
 
-- [ ] Layer built-in, user, project, and CLI TOML settings.
-- [ ] Implement default / flag / error / guess / inherit / ignore with exit codes.
+- [x] Layer built-in, user, and project TOML settings; expose config init/show/validate CLI commands.
+- [x] Implement default / flag / error / guess / inherit / ignore policy resolution.
 - [ ] Validate quantities, including add/remove and range shorthand.
 
 ## Later milestones (blocked on prior acceptance)

@@ -3,7 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
 
+from kiprod.cli import app
 from kiprod.core.config import ConfigError, load, parse_quantities, update_quantities
 
 
@@ -24,3 +26,13 @@ def test_quantities_support_ranges_and_changes() -> None:
 def test_rejects_invalid_quantity_ranges() -> None:
     with pytest.raises(ConfigError):
         parse_quantities("10..1:1")
+
+
+def test_config_cli_initializes_and_shows_project_settings(tmp_path: Path) -> None:
+    (tmp_path / "demo.kicad_pro").write_text("{}")
+    runner = CliRunner()
+    init = runner.invoke(app, ["config", "init", "--project", str(tmp_path)])
+    assert init.exit_code == 0, init.output
+    show = runner.invoke(app, ["config", "show", "--project", str(tmp_path)])
+    assert show.exit_code == 0, show.output
+    assert '"boards": [' in show.output
