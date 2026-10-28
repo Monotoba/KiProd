@@ -16,6 +16,8 @@ from kiprod.kicad.cli_adapter import export_bom
 FIXTURE = Path(__file__).parent / "projects" / "basic"
 REVIEWED_BOM = Path(__file__).parent / "fixtures" / "reviewed_bom.csv"
 GOLDEN_BOM = Path(__file__).parent / "golden" / "basic.normalized.json"
+NATIVE_FIXTURE = Path(__file__).parent / "projects" / "native_counter"
+NATIVE_GOLDEN_BOM = Path(__file__).parent / "golden" / "native_counter.normalized.json"
 
 
 def test_builds_grouped_bom_and_honors_dnp() -> None:
@@ -33,6 +35,11 @@ def test_builds_grouped_bom_and_honors_dnp() -> None:
 def test_basic_fixture_matches_normalized_bom_golden_file() -> None:
     bom = build(discover(FIXTURE))
     assert json.loads(bom.model_dump_json()) == json.loads(GOLDEN_BOM.read_text())
+
+
+def test_native_kicad_fixture_matches_normalized_bom_golden_file() -> None:
+    bom = build(discover(NATIVE_FIXTURE))
+    assert json.loads(bom.model_dump_json()) == json.loads(NATIVE_GOLDEN_BOM.read_text())
 
 
 def test_cli_writes_traceable_json_and_csv(tmp_path: Path) -> None:

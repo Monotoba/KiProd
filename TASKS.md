@@ -12,7 +12,7 @@
 - [x] Detect named design variants from KiCad 10 project metadata.
 - [x] Produce variant-specific normalized BOMs using `kicad-cli`'s authoritative export.
 - [x] Add a golden normalized-BOM fixture for regression checks.
-- [ ] Add a golden fixture exported from a full real KiCad 10 project.
+- [x] Add a golden fixture from a full real KiCad 10 project.
 
 ## M2 — Configuration and defaults policy
 

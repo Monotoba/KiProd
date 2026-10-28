@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "project": "native_counter",
+  "input_hashes": {
+    "native_counter.kicad_pro": "0ddbaf09ca3a8629b9239f8d25df88d5fadfbd46ee7b0e5cc7aaf2aede48a953",
+    "native_counter.kicad_sch": "facfcaf3787262ec68c217340d5256b4f99b44af0d75b13fd077b12920620f40"
+  },
+  "lines": [
+    {
+      "line_id": "3339bfeb8801",
+      "references": ["Vclk1", "Vupd1"],
+      "quantity": 2,
+      "value": "VPULSE",
+      "footprint": "",
+      "mpn": null,
+      "fields": {
+        "Reference": "Vclk1",
+        "Value": "VPULSE",
+        "Footprint": "",
+        "Datasheet": "~",
+        "Description": "Voltage source, pulse",
+        "Sim.Pins": "1=+ 2=-",
+        "Sim.Type": "PULSE",
+        "Sim.Device": "V",
+        "Sim.Params": "y1=0 y2=5 td=1u tr=1u tf=1u tw=10u per=24u"
+      },
+      "sources": [
+        {"path": "native_counter.kicad_sch", "reference": "Vclk1"},
+        {"path": "native_counter.kicad_sch", "reference": "Vupd1"}
+      ]
+    },
+    {
+      "line_id": "049dffeb496a",
+      "references": ["U1"],
+      "quantity": 1,
+      "value": "up-down",
+      "footprint": "",
+      "mpn": null,
+      "fields": {
+        "Reference": "U1",
+        "Value": "up-down",
+        "Footprint": "",
+        "Datasheet": "",
+        "Description": "3 Bit Up-Down Counter",
+        "Sim.Library": "state-machine-3b-count.lib",
+        "Sim.Name": "3bcounter",
+        "Sim.Device": "SUBCKT",
+        "Sim.Pins": "1=clock 2=updown 3=out_b0 4=out_b1 5=out_b2"
+      },
+      "sources": [{"path": "native_counter.kicad_sch", "reference": "U1"}]
+    }
+  ],
+  "imported_bom": null
+}
