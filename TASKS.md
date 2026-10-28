@@ -7,8 +7,9 @@
 - [x] Read KiCad schematic S-expressions without importing KiCad.
 - [x] Build a deterministic normalized BOM, honoring `in_bom` / DNP markers.
 - [x] Write JSON and CSV artifacts with provenance; test source and generated-BOM paths.
-- [ ] Add `kicad-cli` export adapter and golden fixtures from real KiCad 10 projects.
-- [ ] Detect variants and reconcile imported BOM CSVs with schematic data.
+- [x] Add a `kicad-cli` BOM export adapter; runtime availability is reported by `doctor`.
+- [x] Reconcile imported BOM CSV MPN fields with schematic data by reference.
+- [ ] Add golden fixtures from real KiCad 10 projects and detect design variants.
 
 ## M2 — Configuration and defaults policy
 

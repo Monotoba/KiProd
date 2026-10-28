@@ -7,26 +7,32 @@ import typer
 from kiprod.core.artifacts import write_bom
 from kiprod.core.bom import build
 from kiprod.core.project import ProjectNotFoundError, discover
+from kiprod.kicad.cli_adapter import KiCadCliError, export_bom, version
 
 app = typer.Typer(help="Build traceable KiCad production artifacts.", no_args_is_help=True)
 
 
-def _build_bom(project: Path, output_dir: Path | None) -> tuple[Path, Path]:
+def _build_bom(
+    project: Path, output_dir: Path | None, imported_bom: Path | None = None
+) -> tuple[Path, Path]:
     try:
         discovered = discover(project)
     except ProjectNotFoundError as exc:
         raise typer.BadParameter(str(exc), param_hint="--project") from exc
     destination = output_dir or discovered.root / "docs" / "production" / "bom"
-    return write_bom(build(discovered), destination)
+    return write_bom(build(discovered, imported_bom), destination)
 
 
 @app.command()
 def bom(
     project: Path = typer.Option(Path.cwd(), exists=True, file_okay=True, dir_okay=True),
     output_dir: Path | None = typer.Option(None, help="Directory for generated BOM artifacts."),
+    import_bom: Path | None = typer.Option(
+        None, exists=True, dir_okay=False, help="CSV BOM to reconcile."
+    ),
 ) -> None:
     """Build a normalized BOM without requiring a KiCad installation."""
-    json_path, csv_path = _build_bom(project, output_dir)
+    json_path, csv_path = _build_bom(project, output_dir, import_bom)
     typer.echo(f"Wrote {json_path}")
     typer.echo(f"Wrote {csv_path}")
 
@@ -45,4 +51,20 @@ def run(
 @app.command()
 def doctor() -> None:
     """Report M1 runtime capabilities without requiring KiCad."""
-    typer.echo("KiProd M1: Python core available; kicad-cli export adapter pending.")
+    cli_version = version()
+    state = cli_version or "not found"
+    typer.echo(f"KiProd M1: Python core available; kicad-cli: {state}")
+
+
+@app.command("export-bom")
+def export_kicad_bom(
+    schematic: Path = typer.Argument(..., exists=True, dir_okay=False),
+    output: Path = typer.Option(..., "--output", "-o"),
+    variant: str | None = typer.Option(None),
+) -> None:
+    """Use kicad-cli to produce an ungrouped BOM CSV for inspection or import."""
+    try:
+        path = export_bom(schematic, output, variant)
+    except KiCadCliError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    typer.echo(f"Wrote {path}")

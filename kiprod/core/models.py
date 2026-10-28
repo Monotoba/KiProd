@@ -45,3 +45,4 @@ class NormalizedBOM(BaseModel):
     project: str
     input_hashes: dict[str, str]
     lines: list[BOMLine]
+    imported_bom: str | None = None

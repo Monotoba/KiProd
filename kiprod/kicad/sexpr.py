@@ -4,7 +4,6 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-
 _TOKEN = re.compile(r'\s*(?:(\()|(\))|("(?:\\.|[^"\\])*")|([^\s()]+))')
 
 
@@ -43,7 +42,9 @@ def parse(text: str) -> list[SExpr]:
             raw = match.group(3) or match.group(4)
             if raw is None:
                 continue
-            value = bytes(raw[1:-1], "utf-8").decode("unicode_escape") if raw.startswith('"') else raw
+            value = (
+                bytes(raw[1:-1], "utf-8").decode("unicode_escape") if raw.startswith('"') else raw
+            )
             if not stack:
                 raise ValueError("atom outside a list")
             stack[-1].append(Atom(value))
@@ -59,11 +60,17 @@ def children(node: SExpr, label: str) -> list[list[SExpr]]:
 
 
 def head(node: list[SExpr]) -> str | None:
-    return node[0].value if node and isinstance(node[0], Atom) else None
+    if not node:
+        return None
+    first = node[0]
+    return first.value if isinstance(first, Atom) else None
 
 
 def atom(node: list[SExpr], index: int) -> str | None:
-    return node[index].value if len(node) > index and isinstance(node[index], Atom) else None
+    if len(node) <= index:
+        return None
+    value = node[index]
+    return value.value if isinstance(value, Atom) else None
 
 
 def walk(node: SExpr) -> list[list[SExpr]]:

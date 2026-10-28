@@ -12,7 +12,10 @@ def write_bom(bom: NormalizedBOM, output_dir: Path) -> tuple[Path, Path]:
     csv_path = output_dir / "bom.csv"
     json_path.write_text(bom.model_dump_json(indent=2) + "\n", encoding="utf-8")
     with csv_path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=["references", "quantity", "value", "footprint", "mpn"])
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=["references", "quantity", "value", "footprint", "mpn"],
+        )
         writer.writeheader()
         for line in bom.lines:
             writer.writerow(

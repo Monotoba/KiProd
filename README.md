@@ -18,6 +18,10 @@ KiCad embedded-Python dependency.
 The BOM command writes `docs/production/bom/bom.normalized.json` and `bom.csv`
 in the selected KiCad project. Pass `--output-dir DIR` to write elsewhere.
 
+To enrich schematic data from a reviewed CSV, use `--import-bom reviewed.csv`.
+`kiprod export-bom board.kicad_sch -o exported.csv` delegates CSV export to a
+locally installed `kicad-cli` without making it a core dependency.
+
 ## Development
 
 `TASKS.md` is the maintained implementation plan. The detailed product
