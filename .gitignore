@@ -8,6 +8,9 @@ build/
 dist/
 *.egg-info/
 
+# KiCad's per-user local project preferences.
+*.kicad_prl
+
 # Per-project KiProd working state and potentially NDA-covered source responses.
 docs/production/.kiprod/
 docs/production/quotes/latest/

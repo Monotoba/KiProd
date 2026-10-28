@@ -15,6 +15,7 @@ from kiprod.kicad.cli_adapter import export_bom
 
 FIXTURE = Path(__file__).parent / "projects" / "basic"
 REVIEWED_BOM = Path(__file__).parent / "fixtures" / "reviewed_bom.csv"
+GOLDEN_BOM = Path(__file__).parent / "golden" / "basic.normalized.json"
 
 
 def test_builds_grouped_bom_and_honors_dnp() -> None:
@@ -27,6 +28,11 @@ def test_builds_grouped_bom_and_honors_dnp() -> None:
     assert resistor.quantity == 2
     assert resistor.sources[0].path == "basic.kicad_sch"
     assert all("R3" not in line.references and "R4" not in line.references for line in bom.lines)
+
+
+def test_basic_fixture_matches_normalized_bom_golden_file() -> None:
+    bom = build(discover(FIXTURE))
+    assert json.loads(bom.model_dump_json()) == json.loads(GOLDEN_BOM.read_text())
 
 
 def test_cli_writes_traceable_json_and_csv(tmp_path: Path) -> None:
