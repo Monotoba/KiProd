@@ -17,7 +17,7 @@
 ## M2 — Configuration and defaults policy
 
 - [x] Layer built-in, user, and project TOML settings; expose config init/show/validate CLI commands.
-- [x] Implement default / flag / error / guess / inherit / ignore policy resolution.
+- [x] Implement default / flag / error / guess / inherit / ignore policy resolution and non-interactive exit 3 handling.
 - [x] Validate quantities, including add/remove and range shorthand.
 
 ## Later milestones (blocked on prior acceptance)

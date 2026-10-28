@@ -10,6 +10,8 @@ from typing import Any
 
 from pydantic import BaseModel, field_validator
 
+from kiprod.core.defaults import Rule
+
 DEFAULT_CONFIG: dict[str, object] = {
     "paths": {
         "production": "docs/production",
@@ -57,6 +59,7 @@ class Quantities(BaseModel):
 class Settings(BaseModel):
     paths: Paths
     quantities: Quantities
+    components: dict[str, dict[str, Rule]] = {}
 
 
 def _merge(base: dict[str, object], override: Mapping[str, Any]) -> dict[str, object]:

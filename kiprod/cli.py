@@ -14,6 +14,7 @@ from kiprod.core.config import (
     project_config_path,
     update_quantities,
 )
+from kiprod.core.constraints import check, write
 from kiprod.core.project import ProjectNotFoundError, discover
 from kiprod.kicad.cli_adapter import KiCadCliError, export_bom, version
 
@@ -68,12 +69,16 @@ def run(
     qty: str | None = typer.Option(None, help="Replace quantities; supports 1,10..100:10."),
     add_qty: list[int] = typer.Option([], help="Add a board quantity; repeat as needed."),
     remove_qty: list[int] = typer.Option([], help="Remove a board quantity; repeat as needed."),
+    non_interactive: bool = typer.Option(
+        False, help="Fail rather than request missing attributes."
+    ),
 ) -> None:
     """Run the currently available offline pipeline stages."""
     del no_send
     try:
+        settings = load(_project_root(project))
         quantities = update_quantities(
-            load(_project_root(project)).quantities.boards,
+            settings.quantities.boards,
             replacement=qty,
             add=add_qty,
             remove=remove_qty,
@@ -81,7 +86,19 @@ def run(
     except ConfigError as exc:
         typer.echo(f"Invalid quantities: {exc}", err=True)
         raise typer.Exit(code=5) from exc
-    json_path, _ = _build_bom(project, None)
+    try:
+        discovered = discover(project)
+    except ProjectNotFoundError as exc:
+        raise typer.BadParameter(str(exc), param_hint="--project") from exc
+    bom = build(discovered)
+    json_path, _ = write_bom(bom, discovered.root / "docs" / "production" / "bom")
+    findings = check(bom, settings.components, interactive=not non_interactive)
+    if findings:
+        under_constrained = write(
+            findings, discovered.root / "docs" / "production" / "bom" / "under_constrained.csv"
+        )
+        typer.echo(f"Under-constrained parts: {under_constrained}", err=True)
+        raise typer.Exit(code=3)
     typer.echo("Board quantities: " + ", ".join(str(value) for value in quantities))
     typer.echo(f"M1 complete: {json_path}")
 
