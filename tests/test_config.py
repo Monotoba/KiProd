@@ -36,3 +36,26 @@ def test_config_cli_initializes_and_shows_project_settings(tmp_path: Path) -> No
     show = runner.invoke(app, ["config", "show", "--project", str(tmp_path)])
     assert show.exit_code == 0, show.output
     assert '"boards": [' in show.output
+
+
+def test_run_accepts_quantity_replacement_and_changes(tmp_path: Path) -> None:
+    project = tmp_path / "demo"
+    project.mkdir()
+    (project / "demo.kicad_pro").write_text("{}")
+    (project / "demo.kicad_sch").write_text("(kicad_sch)")
+    result = CliRunner().invoke(
+        app,
+        [
+            "run",
+            "--project",
+            str(project),
+            "--qty",
+            "1,10..30:10",
+            "--remove-qty",
+            "20",
+            "--add-qty",
+            "50",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "Board quantities: 1, 10, 30, 50" in result.output

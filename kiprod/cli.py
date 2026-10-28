@@ -7,7 +7,13 @@ import typer
 
 from kiprod.core.artifacts import write_bom
 from kiprod.core.bom import build
-from kiprod.core.config import DEFAULT_TOML, ConfigError, load, project_config_path
+from kiprod.core.config import (
+    DEFAULT_TOML,
+    ConfigError,
+    load,
+    project_config_path,
+    update_quantities,
+)
 from kiprod.core.project import ProjectNotFoundError, discover
 from kiprod.kicad.cli_adapter import KiCadCliError, export_bom, version
 
@@ -59,10 +65,24 @@ def bom(
 def run(
     project: Path = typer.Option(Path.cwd(), exists=True, file_okay=True, dir_okay=True),
     no_send: bool = typer.Option(True, help="Reserved: no external dispatch is implemented in M1."),
+    qty: str | None = typer.Option(None, help="Replace quantities; supports 1,10..100:10."),
+    add_qty: list[int] = typer.Option([], help="Add a board quantity; repeat as needed."),
+    remove_qty: list[int] = typer.Option([], help="Remove a board quantity; repeat as needed."),
 ) -> None:
     """Run the currently available offline pipeline stages."""
     del no_send
+    try:
+        quantities = update_quantities(
+            load(_project_root(project)).quantities.boards,
+            replacement=qty,
+            add=add_qty,
+            remove=remove_qty,
+        )
+    except ConfigError as exc:
+        typer.echo(f"Invalid quantities: {exc}", err=True)
+        raise typer.Exit(code=5) from exc
     json_path, _ = _build_bom(project, None)
+    typer.echo("Board quantities: " + ", ".join(str(value) for value in quantities))
     typer.echo(f"M1 complete: {json_path}")
 
 

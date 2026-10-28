@@ -18,7 +18,7 @@
 
 - [x] Layer built-in, user, and project TOML settings; expose config init/show/validate CLI commands.
 - [x] Implement default / flag / error / guess / inherit / ignore policy resolution.
-- [ ] Validate quantities, including add/remove and range shorthand.
+- [x] Validate quantities, including add/remove and range shorthand.
 
 ## Later milestones (blocked on prior acceptance)
 
