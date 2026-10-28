@@ -75,6 +75,27 @@ def _imported_fields(path: Path) -> tuple[dict[str, dict[str, str]], set[str]]:
     return parts, set(parts)
 
 
+def read_exported_parts(project: Project, exported_bom: Path) -> list[Part]:
+    """Use an authoritative kicad-cli BOM CSV as the source for a selected variant."""
+    imported, _ = _imported_fields(exported_bom)
+    parts: list[Part] = []
+    for reference, fields in imported.items():
+        if _truthy(fields.get("dnp")):
+            continue
+        mpn = fields.get("mpn") or fields.get("manufacturer part number") or None
+        parts.append(
+            Part(
+                reference=reference,
+                value=fields.get("value", ""),
+                footprint=fields.get("footprint", ""),
+                mpn=mpn,
+                fields=fields,
+                source=SourceRef(path=f"kicad-cli:{exported_bom.name}", reference=reference),
+            )
+        )
+    return sorted(parts, key=lambda item: item.reference)
+
+
 def _merge_imported(part: Part, fields: dict[str, str]) -> Part:
     mpn = part.mpn or fields.get("mpn") or fields.get("manufacturer part number") or None
     merged = dict(part.fields)
@@ -110,9 +131,20 @@ def _group_key(part: Part) -> tuple[str, ...]:
     return ("design", part.value, part.footprint)
 
 
-def build(project: Project, existing_bom: Path | None = None) -> NormalizedBOM:
+def build(
+    project: Project,
+    existing_bom: Path | None = None,
+    exported_bom: Path | None = None,
+) -> NormalizedBOM:
     groups: dict[tuple[str, ...], list[Part]] = defaultdict(list)
-    for part in read_parts(project, existing_bom):
+    if existing_bom and exported_bom:
+        raise ValueError("an imported BOM cannot be combined with a variant export")
+    parts = (
+        read_exported_parts(project, exported_bom)
+        if exported_bom
+        else read_parts(project, existing_bom)
+    )
+    for part in parts:
         groups[_group_key(part)].append(part)
     lines: list[BOMLine] = []
     for key, parts in sorted(groups.items()):
@@ -134,5 +166,11 @@ def build(project: Project, existing_bom: Path | None = None) -> NormalizedBOM:
         project=project.pro_file.stem,
         input_hashes=project.input_hashes,
         lines=lines,
-        imported_bom=str(existing_bom) if existing_bom else None,
+        imported_bom=(
+            str(existing_bom)
+            if existing_bom
+            else f"kicad-cli:{exported_bom.name}"
+            if exported_bom
+            else None
+        ),
     )

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import typer
 
@@ -13,14 +14,27 @@ app = typer.Typer(help="Build traceable KiCad production artifacts.", no_args_is
 
 
 def _build_bom(
-    project: Path, output_dir: Path | None, imported_bom: Path | None = None
+    project: Path,
+    output_dir: Path | None,
+    imported_bom: Path | None = None,
+    variant: str | None = None,
 ) -> tuple[Path, Path]:
     try:
         discovered = discover(project)
     except ProjectNotFoundError as exc:
         raise typer.BadParameter(str(exc), param_hint="--project") from exc
     destination = output_dir or discovered.root / "docs" / "production" / "bom"
-    return write_bom(build(discovered, imported_bom), destination)
+    if variant is None:
+        return write_bom(build(discovered, imported_bom), destination)
+    if imported_bom is not None:
+        raise typer.BadParameter("--import-bom cannot be combined with --variant")
+    if variant not in discovered.variants:
+        raise typer.BadParameter(
+            f"unknown variant {variant!r}; use `kiprod project` to list variants"
+        )
+    with TemporaryDirectory(prefix="kiprod-variant-") as temporary:
+        exported = export_bom(discovered.main_schematic, Path(temporary) / "variant.csv", variant)
+        return write_bom(build(discovered, exported_bom=exported), destination)
 
 
 @app.command()
@@ -30,9 +44,10 @@ def bom(
     import_bom: Path | None = typer.Option(
         None, exists=True, dir_okay=False, help="CSV BOM to reconcile."
     ),
+    variant: str | None = typer.Option(None, help="Named KiCad design variant."),
 ) -> None:
     """Build a normalized BOM without requiring a KiCad installation."""
-    json_path, csv_path = _build_bom(project, output_dir, import_bom)
+    json_path, csv_path = _build_bom(project, output_dir, import_bom, variant)
     typer.echo(f"Wrote {json_path}")
     typer.echo(f"Wrote {csv_path}")
 

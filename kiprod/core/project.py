@@ -49,10 +49,18 @@ def discover(project_path: Path) -> Project:
         raise ProjectNotFoundError(f"KiCad project not found: {pro_file}")
     schematics = sorted(root.rglob("*.kicad_sch"))
     boards = sorted(root.rglob("*.kicad_pcb"))
+    main_schematic = root / f"{pro_file.stem}.kicad_sch"
+    if not main_schematic.is_file():
+        if len(schematics) != 1:
+            raise ProjectNotFoundError(
+                f"could not identify root schematic for {pro_file}; expected {main_schematic.name}"
+            )
+        main_schematic = schematics[0]
     files = [pro_file, *schematics, *boards]
     return Project(
         root=root,
         pro_file=pro_file,
+        main_schematic=main_schematic,
         schematics=schematics,
         boards=boards,
         variants=_variants(pro_file),

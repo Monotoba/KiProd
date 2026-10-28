@@ -71,3 +71,31 @@ def test_project_command_lists_detected_variants() -> None:
     result = CliRunner().invoke(app, ["project", "--project", str(FIXTURE)])
     assert result.exit_code == 0, result.output
     assert "Variants: lite, production" in result.output
+
+
+def test_cli_uses_kicad_export_for_a_named_variant(tmp_path: Path) -> None:
+    def fake_export(_: Path, output: Path, variant: str | None) -> Path:
+        assert variant == "production"
+        output.write_text(
+            "Reference,Value,Footprint,MPN,Quantity,DNP\n"
+            "R1,R-variant,Resistor_SMD:R_0603_1608Metric,VARIANT-MPN,1,\n"
+        )
+        return output
+
+    with patch("kiprod.cli.export_bom", side_effect=fake_export):
+        result = CliRunner().invoke(
+            app,
+            [
+                "bom",
+                "--project",
+                str(FIXTURE),
+                "--variant",
+                "production",
+                "--output-dir",
+                str(tmp_path),
+            ],
+        )
+    assert result.exit_code == 0, result.output
+    payload = json.loads((tmp_path / "bom.normalized.json").read_text())
+    assert payload["lines"][0]["mpn"] == "VARIANT-MPN"
+    assert payload["lines"][0]["sources"][0]["path"] == "kicad-cli:variant.csv"

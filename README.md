@@ -22,6 +22,10 @@ To enrich schematic data from a reviewed CSV, use `--import-bom reviewed.csv`.
 `kiprod export-bom board.kicad_sch -o exported.csv` delegates CSV export to a
 locally installed `kicad-cli` without making it a core dependency.
 
+Use `kiprod project --project DIR` to discover named KiCad 10 design variants.
+`kiprod bom --project DIR --variant NAME` uses KiCad's own variant-aware BOM
+export, so variant DNP and field overrides are applied before normalization.
+
 ## Development
 
 `TASKS.md` is the maintained implementation plan. The detailed product

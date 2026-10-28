@@ -15,6 +15,7 @@ class SourceRef(BaseModel):
 class Project(BaseModel):
     root: Path
     pro_file: Path
+    main_schematic: Path
     schematics: list[Path]
     boards: list[Path]
     variants: list[str] = Field(default_factory=list)

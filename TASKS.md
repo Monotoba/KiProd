@@ -10,7 +10,8 @@
 - [x] Add a `kicad-cli` BOM export adapter; runtime availability is reported by `doctor`.
 - [x] Reconcile imported BOM CSV MPN fields with schematic data by reference.
 - [x] Detect named design variants from KiCad 10 project metadata.
-- [ ] Add golden fixtures from real KiCad 10 projects and produce variant-specific normalized BOMs.
+- [x] Produce variant-specific normalized BOMs using `kicad-cli`'s authoritative export.
+- [ ] Add golden fixtures from real KiCad 10 projects.
 
 ## M2 — Configuration and defaults policy
 
