@@ -27,9 +27,11 @@ Use `kiprod project --project DIR` to discover named KiCad 10 design variants.
 export, so variant DNP and field overrides are applied before normalization.
 
 `kiprod board --project DIR --fab-notes fab-notes.txt` includes an explicitly
-documented boards-per-panel count in the board metrics. The option is repeatable;
-conflicting counts fail rather than silently choosing one. Without a supplied note,
-the value remains unknown.
+documented boards-per-panel count in the board metrics. It discovers likely
+fabrication and panelization notes by filename; `--fab-notes` adds files explicitly.
+Text and PDF notes are supported, with PDF text extraction requiring `pdftotext`.
+Conflicting counts fail rather than silently choosing one. Without a supplied or
+discovered note, the value remains unknown.
 
 Project and supplier plugins live under
 `docs/production/quotes/config/suppliers/`. Use `kiprod plugins list` to inspect

@@ -6,7 +6,10 @@ import pytest
 
 from kiprod.analysis.assembly import extract as extract_assembly
 from kiprod.analysis.capabilities import check_assembly, check_board
-from kiprod.analysis.panelization import extract_boards_per_panel
+from kiprod.analysis.panelization import (
+    discover_fabrication_notes,
+    extract_boards_per_panel,
+)
 from kiprod.analysis.placements import write_placements
 from kiprod.core.models import AssemblySpec, BoardSpec, Placement
 from kiprod.kicad.board import extract
@@ -133,6 +136,37 @@ def test_extracts_explicit_boards_per_panel_from_fabrication_notes(tmp_path: Pat
 
 def test_panel_count_is_unknown_without_explicit_fabrication_notes() -> None:
     assert extract_boards_per_panel([]) == (None, None)
+
+
+def test_discovers_fabrication_notes_by_filename(tmp_path: Path) -> None:
+    notes_dir = tmp_path / "docs"
+    notes_dir.mkdir()
+    notes = notes_dir / "fabrication-notes.md"
+    notes.write_text("Boards per panel: 4", encoding="utf-8")
+    (tmp_path / "ordinary.md").write_text("Boards per panel: 8", encoding="utf-8")
+    hidden = tmp_path / ".private"
+    hidden.mkdir()
+    (hidden / "fab-notes.txt").write_text("Boards per panel: 16", encoding="utf-8")
+    assert discover_fabrication_notes(tmp_path) == [notes]
+
+
+def test_extracts_panel_count_from_pdf_text(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import subprocess
+    from types import SimpleNamespace
+
+    import kiprod.analysis.panelization as panelization
+
+    pdf = tmp_path / "fab-notes.pdf"
+    pdf.write_bytes(b"placeholder")
+    monkeypatch.setattr(panelization.shutil, "which", lambda _: "/usr/bin/pdftotext")
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(stdout="Boards per panel: 6"),
+    )
+    assert extract_boards_per_panel([pdf]) == (6, str(pdf))
 
 
 def test_panel_count_rejects_conflicting_fabrication_notes(tmp_path: Path) -> None:

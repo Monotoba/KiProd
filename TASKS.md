@@ -53,7 +53,8 @@
 - [x] Extract BGA/QFN/LGA counts and finest observed pad pitch; compare them with declared assembly supplier limits.
 - [x] Identify components explicitly marked `Programming` or `Requires Programming` and check supplier support.
 - [x] Extract an explicit boards-per-panel value from supplied fabrication-note text files, retaining its source and rejecting conflicts.
-- [ ] Automatically discover fabrication notes and parse PDF/other fab documentation; project board-file count and requested production quantities are already reported separately.
+- [x] Discover likely fabrication/panel notes by filename and parse text or PDF documentation; project board-file count and requested production quantities are already reported separately.
+- [ ] Support additional fab-note naming conventions and scanned PDFs that require OCR.
 
 ## Later milestones
 
