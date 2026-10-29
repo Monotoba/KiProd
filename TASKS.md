@@ -34,9 +34,13 @@
 - [x] Add CLI plugin discovery, health checks, and source-backed catalog search.
 - [ ] Add a production supplier protocol adapter before making live supplier calls.
 
-## Later milestones (blocked on prior acceptance)
+## M4 — Analysis and reports (in progress)
 
-- [ ] M4: traceable analysis and reports.
+- [x] Calculate source-backed component landed costs with MOQ, order multiple, price breaks, attrition, and ancillary costs.
+- [ ] Build supplier comparisons and traceable Markdown/XLSX reports.
+
+## Later milestones
+
 - [ ] M5: board/assembly extraction and RFQs.
 - [ ] M6: signed email RFQs and inbox.
 - [ ] M7: typed AI/review layer.
