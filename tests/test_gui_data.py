@@ -11,11 +11,23 @@ from kiprod.core.models import Offer, PriceBreak, SourceRef
 from kiprod.core.project import discover
 from kiprod.gui import (
     _create_comparison,
+    _evidence_path,
     _load_project,
     _quote_results,
     _regenerate_comparison,
 )
 from kiprod.rfq.quote_import import ExtractedOffer, QuoteImportResult
+
+
+def test_review_evidence_path_is_confined_to_project(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    source = project / "design.kicad_sch"
+    source.write_text("(kicad_sch)", encoding="utf-8")
+
+    assert _evidence_path(project, "design.kicad_sch") == source.resolve()
+    with pytest.raises(ValueError, match="escapes"):
+        _evidence_path(project, "../../outside.txt")
 
 
 def test_gui_workflow_writes_bom_review_and_board_outputs(tmp_path: Path) -> None:

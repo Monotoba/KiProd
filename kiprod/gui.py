@@ -113,6 +113,14 @@ def _quote_results(project: Project) -> tuple[list[Path], list[tuple[Path, Quote
     return reply_paths, offer_results
 
 
+def _evidence_path(project_root: Path, source_path: str) -> Path:
+    root = project_root.resolve()
+    candidate = (root / source_path).resolve()
+    if not candidate.is_relative_to(root):
+        raise ValueError("review evidence path escapes the selected project")
+    return candidate
+
+
 def _qt() -> tuple[Any, ...]:
     try:
         from PySide6.QtCore import QObject, Qt, QThread, QUrl, Signal  # type: ignore[import-not-found]
@@ -409,6 +417,9 @@ def run_gui(project_path: Path | None = None) -> int:
             self.review_comment.setPlaceholderText("Review comment (required for dismiss/defer)")
             decision_layout.addWidget(self.review_details, 1)
             decision_layout.addWidget(self.review_comment)
+            self.open_evidence_button = QPushButton("Open source evidence")
+            self.open_evidence_button.clicked.connect(self.open_selected_evidence)
+            decision_layout.addWidget(self.open_evidence_button)
             decision_buttons = QHBoxLayout()
             for label, disposition in (
                 ("Accept", "accept"),
@@ -781,6 +792,27 @@ def run_gui(project_path: Path | None = None) -> int:
             self.log.appendPlainText(
                 f"Recorded {disposition} for {findings[row].code} in {self.review_decision_path}"
             )
+
+        def open_selected_evidence(self) -> None:
+            row = self.review_table.currentRow()
+            findings = getattr(self, "current_findings", [])
+            if self.current_project_path is None or not 0 <= row < len(findings):
+                return
+            sources = findings[row].evidence
+            if not sources:
+                QMessageBox.information(
+                    self, "No source evidence", "This finding has no recorded source file."
+                )
+                return
+            try:
+                source = _evidence_path(self.current_project_path, sources[0].path)
+            except ValueError as exc:
+                QMessageBox.warning(self, "Invalid evidence path", str(exc))
+                return
+            if not source.is_file():
+                QMessageBox.warning(self, "Evidence file not found", str(source))
+                return
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(source)))
 
         def refresh_settings(self, project: Project) -> None:
             try:

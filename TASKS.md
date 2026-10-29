@@ -108,7 +108,7 @@
 - [x] Edit and persist MPN overrides in the normalized BOM with a visible user source and under-constrained filter.
 - [ ] Show provenance badges for every editable BOM field.
 - [ ] Add approval-gated MPN and supplier part-number write-back to KiCad schematics.
-- [ ] Add direct source-file navigation from review evidence.
+- [x] Open cited review evidence files while confining paths to the selected project.
 - [x] Generate and persist scalar supplier settings from manifests while preserving unknown plugin keys and excluding secrets.
 - [ ] Integrate keyring credential status and supplier-specific results/docs panes.
 - [ ] Add board-house and assembler settings/results panes with capability checks.
