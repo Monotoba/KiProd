@@ -1,0 +1,1 @@
+"""Bundled supplier adapter examples."""

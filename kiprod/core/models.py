@@ -54,3 +54,19 @@ class NormalizedBOM(BaseModel):
 class ResolvedField(BaseModel):
     value: str
     source: str
+
+
+class PriceBreak(BaseModel):
+    quantity: int
+    unit_price: float
+    currency: str
+
+
+class Offer(BaseModel):
+    supplier_id: str
+    supplier_part_number: str
+    manufacturer_part_number: str
+    price_breaks: list[PriceBreak]
+    stock: int | None = None
+    lead_time_days: int | None = None
+    source_ref: SourceRef

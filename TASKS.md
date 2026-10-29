@@ -29,7 +29,8 @@
 - [x] Execute adapter methods in a timed subprocess with a restricted environment.
 - [x] Exercise adapter calls against recorded supplier fixtures.
 - [x] Enforce network permissions through an HTTPS-only allowlisted HTTP client with fixture replay, caching, retries, and throttling.
-- [ ] Add recorded supplier adapter fixtures for real supplier protocols.
+- [x] Add a recorded catalog adapter example with validated offers and required source references.
+- [ ] Add a production supplier protocol adapter fixture before making live supplier calls.
 
 ## Later milestones (blocked on prior acceptance)
 
