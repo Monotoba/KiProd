@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 import kiprod.rfq.package as rfq_package
+from kiprod.rfq.approval import approve_package, has_current_approval, package_sha256
 
 
 def _mock_tools(monkeypatch: pytest.MonkeyPatch, *, scan_status: int = 0) -> None:
@@ -73,6 +74,28 @@ def test_scanner_failure_blocks_package_creation(
     with pytest.raises(RuntimeError, match="malware detected"):
         rfq_package.build_package({"bom.csv": source}, tmp_path / "package.zip", "test-key")
     assert not (tmp_path / "package.zip").exists()
+
+
+def test_approval_is_bound_to_exact_package_bytes(tmp_path: Path) -> None:
+    package = tmp_path / "package.zip"
+    database = tmp_path / "state.sqlite"
+    package.write_bytes(b"signed archive bytes")
+    digest = package_sha256(package)
+
+    record = approve_package(package, database, "operator", expected_hash=digest)
+
+    assert record.package_sha256 == digest
+    assert record.user == "operator"
+    assert has_current_approval(package, database)
+    package.write_bytes(b"changed archive bytes")
+    assert not has_current_approval(package, database)
+
+
+def test_approval_rejects_package_changed_after_hash_review(tmp_path: Path) -> None:
+    package = tmp_path / "package.zip"
+    package.write_bytes(b"new package")
+    with pytest.raises(ValueError, match="changed"):
+        approve_package(package, tmp_path / "state.sqlite", "operator", expected_hash="0" * 64)
 
 
 @pytest.mark.parametrize("name", ["../secret.txt", "/etc/passwd", "folder\\file.txt"])

@@ -38,6 +38,10 @@ Create a local signed RFQ archive from explicitly selected files with
 `kiprod rfq package bom.csv cpl.csv --output package.zip --signing-key KEY_ID`,
 then verify it with `kiprod rfq verify package.zip`. This requires local `clamscan`
 and `gpg` executables and never sends the package.
+Record a human approval for that exact archive with `kiprod rfq approve package.zip`;
+the CLI shows its SHA-256 before confirmation and stores the approval in the local
+`.kiprod/state.sqlite` audit database. `kiprod rfq approval-status package.zip` reports
+whether the current archive bytes still match an approval.
 
 Project and supplier plugins live under
 `docs/production/quotes/config/suppliers/`. Use `kiprod plugins list` to inspect

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import getpass
 import importlib.util
 import json
 import shutil
@@ -33,6 +34,7 @@ from kiprod.kicad.cli_adapter import KiCadCliError, export_bom, export_placement
 from kiprod.plugins.host import PluginError, discover_plugins
 from kiprod.reports.markdown import comparison_markdown
 from kiprod.reports.run_archive import archive_inputs, input_paths, load_manifest
+from kiprod.rfq.approval import approve_package, has_current_approval, package_sha256
 from kiprod.rfq.package import build_package, verify_package
 
 app = typer.Typer(help="Build traceable KiCad production artifacts.", no_args_is_help=True)
@@ -69,6 +71,45 @@ def rfq_verify(package: Path = typer.Argument(..., exists=True, dir_okay=False))
     except (OSError, RuntimeError, ValueError) as exc:
         raise typer.BadParameter(str(exc)) from exc
     typer.echo("Verified RFQ package files: " + ", ".join(files))
+
+
+@rfq_app.command("approve")
+def rfq_approve(
+    package: Path = typer.Argument(..., exists=True, dir_okay=False),
+    database: Path = typer.Option(
+        Path("docs/production/.kiprod/state.sqlite"),
+        "--database",
+        help="Local RFQ audit database.",
+    ),
+    user: str = typer.Option(
+        getpass.getuser(), "--user", help="Name recorded in the approval log."
+    ),
+) -> None:
+    """Record interactive approval for the exact current package bytes."""
+    digest = package_sha256(package)
+    typer.echo(f"Package SHA-256: {digest}")
+    if not typer.confirm("Approve this exact RFQ package?"):
+        raise typer.Exit(code=2)
+    try:
+        record = approve_package(package, database, user, expected_hash=digest)
+    except (OSError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    typer.echo(f"Approval {record.approval_id} recorded for {record.user} at {record.approved_at}")
+
+
+@rfq_app.command("approval-status")
+def rfq_approval_status(
+    package: Path = typer.Argument(..., exists=True, dir_okay=False),
+    database: Path = typer.Option(
+        Path("docs/production/.kiprod/state.sqlite"), "--database", help="Local RFQ audit database."
+    ),
+) -> None:
+    """Check whether an approval matches the package's current bytes."""
+    if has_current_approval(package, database):
+        typer.echo(f"Current package is approved: {package_sha256(package)}")
+        return
+    typer.echo(f"Current package has no matching approval: {package_sha256(package)}")
+    raise typer.Exit(code=1)
 
 
 def _build_bom(
