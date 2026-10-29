@@ -34,6 +34,11 @@ Scanned PDFs fall back to local OCR with `pdftoppm` and `tesseract`. Conflicting
 counts fail rather than silently choosing one. Without a supplied or discovered
 note, the value remains unknown.
 
+Create a local signed RFQ archive from explicitly selected files with
+`kiprod rfq package bom.csv cpl.csv --output package.zip --signing-key KEY_ID`,
+then verify it with `kiprod rfq verify package.zip`. This requires local `clamscan`
+and `gpg` executables and never sends the package.
+
 Project and supplier plugins live under
 `docs/production/quotes/config/suppliers/`. Use `kiprod plugins list` to inspect
 available plugins, `kiprod plugins test PLUGIN_ID` for an isolated health check,

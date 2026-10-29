@@ -56,8 +56,15 @@
 - [x] Discover likely fabrication/panel notes by filename and parse text or PDF documentation; project board-file count and requested production quantities are already reported separately.
 - [x] Support common fabrication, panel, assembly, manufacturing, and Gerber note filenames, with local OCR fallback for scanned PDFs.
 
+## M6 — Signed email RFQs and inbox (in progress)
+
+- [x] Package only explicitly selected files, generate a SHA-256 manifest, block scanner failures, sign with GPG, and verify archive contents/signature.
+- [ ] Add package path and content privacy scanning, approval records bound to package hashes, and payload-change invalidation.
+- [ ] Add email composition and a stateful dispatch workflow that cannot send without approval.
+- [ ] Match captured inbox messages by RFQ number and import structured quote attachments.
+- [ ] Add fixture-based PDF/XLSX/CSV response extraction and confidence review queue.
+
 ## Later milestones
 
-- [ ] M6: signed email RFQs and inbox.
 - [ ] M7: typed AI/review layer.
 - [ ] M8–M10: GUI, KiCad launchers, and hardening.

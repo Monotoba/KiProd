@@ -33,12 +33,42 @@ from kiprod.kicad.cli_adapter import KiCadCliError, export_bom, export_placement
 from kiprod.plugins.host import PluginError, discover_plugins
 from kiprod.reports.markdown import comparison_markdown
 from kiprod.reports.run_archive import archive_inputs, input_paths, load_manifest
+from kiprod.rfq.package import build_package, verify_package
 
 app = typer.Typer(help="Build traceable KiCad production artifacts.", no_args_is_help=True)
 config_app = typer.Typer(help="Manage layered project configuration.", no_args_is_help=True)
 app.add_typer(config_app, name="config")
 plugins_app = typer.Typer(help="Discover and validate supplier plugins.", no_args_is_help=True)
 app.add_typer(plugins_app, name="plugins")
+rfq_app = typer.Typer(help="Create and verify local supplier RFQ packages.", no_args_is_help=True)
+app.add_typer(rfq_app, name="rfq")
+
+
+@rfq_app.command("package")
+def rfq_package(
+    files: list[Path] = typer.Argument(..., exists=True, dir_okay=False, readable=True),
+    output: Path = typer.Option(..., "--output", "-o"),
+    signing_key: str = typer.Option(..., "--signing-key", help="Local GPG key ID or fingerprint."),
+) -> None:
+    """Scan, sign, and zip only the explicitly selected files; never send email."""
+    names = [path.name for path in files]
+    if len(names) != len(set(names)):
+        raise typer.BadParameter("input files must have unique filenames")
+    try:
+        package = build_package(dict(zip(names, files, strict=True)), output, signing_key)
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    typer.echo(f"Wrote signed RFQ package {package}")
+
+
+@rfq_app.command("verify")
+def rfq_verify(package: Path = typer.Argument(..., exists=True, dir_okay=False)) -> None:
+    """Verify RFQ package file hashes, contents, and detached GPG signature."""
+    try:
+        files = verify_package(package)
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    typer.echo("Verified RFQ package files: " + ", ".join(files))
 
 
 def _build_bom(
