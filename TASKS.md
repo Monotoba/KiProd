@@ -111,7 +111,8 @@
 - [x] Open cited review evidence files while confining paths to the selected project.
 - [x] Generate and persist scalar supplier settings from manifests while preserving unknown plugin keys and excluding secrets.
 - [ ] Integrate keyring credential status and supplier-specific results/docs panes.
-- [ ] Add board-house and assembler settings/results panes with capability checks.
+- [x] Show board-house and assembler declared limits against extracted board and assembly metrics.
+- [ ] Add supplier-specific board/assembly settings and offer-result panes.
 - [x] Confirm, correct, or reject imported offer candidates in the GUI with append-only decisions and source references.
 - [x] Open the project-stored quote file cited by a selected candidate.
 - [ ] Highlight the cited row/cell or PDF span and review queued rows without extracted offers.

@@ -18,6 +18,7 @@ from kiprod.ai.review_decisions import (
     record_decision,
 )
 from kiprod.analysis.assembly import extract as extract_assembly
+from kiprod.analysis.capabilities import check_assembly, check_board
 from kiprod.analysis.comparison import Comparison, compare
 from kiprod.analysis.landed import LandedCost
 from kiprod.analysis.panelization import discover_fabrication_notes, extract_boards_per_panel
@@ -436,6 +437,22 @@ def run_gui(project_path: Path | None = None) -> int:
             self.assembly_table = QTableWidget(0, 2)
             self.assembly_table.setHorizontalHeaderLabels(["Assembly metric", "Value"])
             self.assembly_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+            self.board_checks_table = QTableWidget(0, 5)
+            self.board_checks_table.setHorizontalHeaderLabels(
+                ["Supplier", "Status", "Metric", "Project value", "Supplier limit"]
+            )
+            self.board_checks_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+            board_page = QTabWidget()
+            board_page.addTab(self.board_table, "Extracted metrics")
+            board_page.addTab(self.board_checks_table, "Supplier checks")
+            self.assembly_checks_table = QTableWidget(0, 5)
+            self.assembly_checks_table.setHorizontalHeaderLabels(
+                ["Supplier", "Status", "Metric", "Project value", "Supplier limit"]
+            )
+            self.assembly_checks_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+            assembly_page = QTabWidget()
+            assembly_page.addTab(self.assembly_table, "Extracted metrics")
+            assembly_page.addTab(self.assembly_checks_table, "Supplier checks")
             self.bom_table = QTableWidget(0, 6)
             self.bom_table.setHorizontalHeaderLabels(
                 ["References", "Qty", "Value", "Footprint", "MPN", "MPN source"]
@@ -532,8 +549,8 @@ def run_gui(project_path: Path | None = None) -> int:
             self.tabs.addTab(self.project_page, "Project")
             self.tabs.addTab(bom_page, "BOM & Specs")
             self.tabs.addTab(review_page, "Review")
-            self.tabs.addTab(self.board_table, "Boards")
-            self.tabs.addTab(self.assembly_table, "Assembly")
+            self.tabs.addTab(board_page, "Boards")
+            self.tabs.addTab(assembly_page, "Assembly")
             supplier_splitter = QSplitter(Qt.Orientation.Horizontal)
             supplier_splitter.addWidget(self.plugins_table)
             supplier_splitter.addWidget(supplier_details)
@@ -677,6 +694,7 @@ def run_gui(project_path: Path | None = None) -> int:
                 assembly_spec.model_dump() if assembly_spec else {},
             )
             self.refresh_plugins(project)
+            self.refresh_supplier_checks(board_spec, assembly_spec)
             self.refresh_quote_files(project)
             self.refresh_reports()
             self.open_folder_button.setEnabled(True)
@@ -937,6 +955,62 @@ def run_gui(project_path: Path | None = None) -> int:
                 for column, value in enumerate(values):
                     self.plugins_table.setItem(row, column, QTableWidgetItem(value))
             self.plugins_table.selectRow(0)
+
+        def refresh_supplier_checks(
+            self, board_spec: BoardSpec | None, assembly_spec: AssemblySpec | None
+        ) -> None:
+            self._fill_capability_checks(
+                self.board_checks_table, board_spec, "pcb_fab", check_board
+            )
+            self._fill_capability_checks(
+                self.assembly_checks_table, assembly_spec, "pcb_assembly", check_assembly
+            )
+
+        def _fill_capability_checks(
+            self, table: Any, spec: Any, capability: str, checker: Any
+        ) -> None:
+            table.setRowCount(0)
+            if spec is None:
+                return
+            plugins = getattr(self, "plugins", [])
+            matching = [
+                plugin
+                for plugin in plugins
+                if isinstance(plugin.manifest.capabilities.get(capability), dict)
+            ]
+            if not matching:
+                table.setRowCount(1)
+                table.setItem(0, 0, QTableWidgetItem("(none configured)"))
+                table.setItem(0, 1, QTableWidgetItem("No supplier capability manifest"))
+                return
+            rows: list[list[str]] = []
+            for plugin in matching:
+                findings = checker(spec, plugin.manifest)
+                if findings:
+                    for finding in findings:
+                        rows.append(
+                            [
+                                plugin.manifest.name,
+                                "Review",
+                                finding.field,
+                                str(finding.required),
+                                str(finding.limit),
+                            ]
+                        )
+                else:
+                    rows.append(
+                        [
+                            plugin.manifest.name,
+                            "No reported violation",
+                            "",
+                            "",
+                            "",
+                        ]
+                    )
+            table.setRowCount(len(rows))
+            for row, values in enumerate(rows):
+                for column, value in enumerate(values):
+                    table.setItem(row, column, QTableWidgetItem(value))
 
         def show_plugin_details(
             self, row: int, column: int, previous_row: int, previous_column: int

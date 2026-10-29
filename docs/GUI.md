@@ -10,7 +10,8 @@ Install the optional desktop toolkit into the project environment:
 Omit `--project` to open the window first and choose a project. The current M8
 workflow discovers project inputs and variants, builds and saves the normalized
 BOM and deterministic review, extracts board and assembly metrics where a board is
-present, and refreshes the local supplier and quote views. Work runs in a background
+present, checks those metrics against declared supplier capability limits, and
+refreshes the local supplier and quote views. Work runs in a background
 thread; the run bar shows progress and the lower drawer records output paths and
 warnings.
 
