@@ -64,7 +64,7 @@
 - [x] Inspect Office XML metadata/hidden sheets, PDF metadata/optional-content layers, and KiCad saved layer visibility.
 - [x] Verify privacy checks do not flag the native KiCad 10 counter project fixture.
 - [x] Add a local privacy preflight command for selected RFQ files with blocking exit status.
-- [ ] Validate against additional real CAD exports and review false-positive rates.
+- [x] Validate clean-project false-positive rate against four installed KiCad template projects (12 native project, schematic, and board files; 0 findings). Results and scope limits: `docs/PRIVACY_VALIDATION.md`.
 - [x] Compose local email drafts with a verified signed package attached and record the RFQ in `awaiting_approval`.
 - [x] Require approval of the exact saved email payload before the workflow can transition to `sent`.
 - [x] Add SMTP/STARTTLS delivery of the exact approved email bytes; log failures and leave those RFQs retryable.
