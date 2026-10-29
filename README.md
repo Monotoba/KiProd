@@ -48,6 +48,11 @@ message with `kiprod rfq approve request.eml`; the CLI shows its SHA-256 before
 confirmation and stores the approval in `.kiprod/state.sqlite`. Approval status becomes
 invalid if the message bytes change. `kiprod rfq status KP-board-20261029-1` shows its
 current state.
+After approval, `kiprod rfq send KP-board-20261029-1 --smtp-host smtp.example.com`
+sends the exact approved `.eml` bytes over certificate-validated STARTTLS. Add
+`--username ACCOUNT` to authenticate; the password is read from the
+`KIPROD_SMTP_PASSWORD` environment variable (or the variable named by
+`--password-env`). Delivery failures are recorded and leave the RFQ retryable.
 
 Project and supplier plugins live under
 `docs/production/quotes/config/suppliers/`. Use `kiprod plugins list` to inspect

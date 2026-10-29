@@ -79,7 +79,13 @@ def has_current_approval(package: Path, database: Path) -> bool:
     """Return true only when an approval matches the package's current bytes."""
     if not package.is_file() or not database.is_file():
         return False
-    digest = package_sha256(package)
+    return has_hash_approval(package_sha256(package), database)
+
+
+def has_hash_approval(digest: str, database: Path) -> bool:
+    """Check whether an exact payload hash has an audit approval record."""
+    if not database.is_file():
+        return False
     with sqlite3.connect(database, timeout=10) as connection:
         try:
             exists = connection.execute(

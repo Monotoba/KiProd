@@ -64,7 +64,7 @@
 - [ ] Expand privacy scanning to structured Office/PDF metadata and format-specific hidden-layer states.
 - [x] Compose local email drafts with a verified signed package attached and record the RFQ in `awaiting_approval`.
 - [x] Require approval of the exact saved email payload before the workflow can transition to `sent`.
-- [ ] Add SMTP/TLS delivery, with failures retained for retry and no external send without approval.
+- [x] Add SMTP/STARTTLS delivery of the exact approved email bytes; log failures and leave those RFQs retryable.
 - [ ] Match captured inbox messages by RFQ number and import structured quote attachments.
 - [ ] Add fixture-based PDF/XLSX/CSV response extraction and confidence review queue.
 

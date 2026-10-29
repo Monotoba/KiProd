@@ -55,6 +55,16 @@ def _connect(database: Path) -> sqlite3.Connection:
             FOREIGN KEY (rfq_id) REFERENCES rfqs(rfq_id)
         )"""
     )
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS rfq_delivery_attempts (
+            attempt_id INTEGER PRIMARY KEY,
+            rfq_id TEXT NOT NULL,
+            attempted_at TEXT NOT NULL,
+            succeeded INTEGER NOT NULL,
+            detail TEXT NOT NULL,
+            FOREIGN KEY (rfq_id) REFERENCES rfqs(rfq_id)
+        )"""
+    )
     connection.commit()
     return connection
 
@@ -146,3 +156,20 @@ def transition_rfq(database: Path, rfq_id: str, next_state: str) -> RFQStatus:
         updated = dict(row)
         updated.update(state=next_state, updated_at=now)
     return RFQStatus.model_validate(updated)
+
+
+def record_delivery_attempt(
+    database: Path, rfq_id: str, *, succeeded: bool, detail: str = ""
+) -> None:
+    if not database.is_file():
+        raise ValueError(f"unknown RFQ database: {database}")
+    now = datetime.now(UTC).isoformat()
+    with _connect(database) as connection:
+        exists = connection.execute("SELECT 1 FROM rfqs WHERE rfq_id = ?", (rfq_id,)).fetchone()
+        if exists is None:
+            raise ValueError(f"unknown RFQ ID: {rfq_id}")
+        connection.execute(
+            "INSERT INTO rfq_delivery_attempts "
+            "(rfq_id, attempted_at, succeeded, detail) VALUES (?, ?, ?, ?)",
+            (rfq_id, now, int(succeeded), detail[:1000]),
+        )

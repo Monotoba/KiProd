@@ -3,6 +3,7 @@ from __future__ import annotations
 import getpass
 import importlib.util
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -35,6 +36,7 @@ from kiprod.plugins.host import PluginError, discover_plugins
 from kiprod.reports.markdown import comparison_markdown
 from kiprod.reports.run_archive import archive_inputs, input_paths, load_manifest
 from kiprod.rfq.approval import approve_package, has_current_approval, package_sha256
+from kiprod.rfq.delivery import send_approved_rfq
 from kiprod.rfq.email import create_email_draft
 from kiprod.rfq.package import build_package, verify_package
 from kiprod.rfq.workflow import get_rfq_status, register_email_draft
@@ -125,6 +127,37 @@ def rfq_status(
         f"{status.rfq_id}: {status.state}; recipient {status.recipient}; "
         f"email SHA-256 {status.payload_sha256}"
     )
+
+
+@rfq_app.command("send")
+def rfq_send(
+    rfq_id: str = typer.Argument(...),
+    smtp_host: str = typer.Option(..., "--smtp-host"),
+    smtp_port: int = typer.Option(587, "--smtp-port"),
+    username: str | None = typer.Option(None, "--username"),
+    password_env: str = typer.Option("KIPROD_SMTP_PASSWORD", "--password-env"),
+    database: Path = typer.Option(
+        Path("docs/production/.kiprod/state.sqlite"),
+        "--database",
+        help="Local RFQ audit database.",
+    ),
+) -> None:
+    """Send an approved exact email over SMTP STARTTLS; failures remain retryable."""
+    password = os.environ.get(password_env) if username else None
+    if username and password is None:
+        raise typer.BadParameter(f"SMTP password environment variable is not set: {password_env}")
+    try:
+        status = send_approved_rfq(
+            database,
+            rfq_id,
+            smtp_host,
+            smtp_port=smtp_port,
+            username=username,
+            password=password,
+        )
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    typer.echo(f"RFQ {status.rfq_id} sent to {status.recipient}; state is {status.state}")
 
 
 @rfq_app.command("approve")

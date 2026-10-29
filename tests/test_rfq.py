@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import smtplib
+import sqlite3
 import subprocess
 import zipfile
 from email import policy
@@ -8,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+import kiprod.rfq.delivery as rfq_delivery
 import kiprod.rfq.package as rfq_package
 from kiprod.rfq.approval import approve_package, has_current_approval, package_sha256
 from kiprod.rfq.email import create_email_draft
@@ -224,6 +227,138 @@ def test_changed_email_cannot_use_its_old_approval_to_enter_sent(
 
     with pytest.raises(ValueError, match="exact saved email"):
         transition_rfq(database, "KP-test-2", "sent")
+
+
+class FakeSMTP:
+    instances: list[FakeSMTP] = []
+    fail: bool = False
+
+    def __init__(self, host: str, port: int, timeout: float) -> None:
+        self.host = host
+        self.port = port
+        self.timeout = timeout
+        self.raw_message: bytes | None = None
+        self.instances.append(self)
+
+    def __enter__(self) -> FakeSMTP:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        return None
+
+    def ehlo(self) -> None:
+        pass
+
+    def starttls(self, *, context: object) -> None:
+        assert context is not None
+
+    def login(self, username: str, password: str) -> None:
+        assert username == "account"
+        assert password == "secret"
+
+    def sendmail(self, sender: str, recipients: list[str], message: bytes) -> dict[str, object]:
+        assert sender == "buyer@example.test"
+        assert recipients == ["quotes@example.test"]
+        self.raw_message = message
+        if self.fail:
+            raise smtplib.SMTPConnectError(421, b"temporary failure")
+        return {}
+
+
+def _approved_draft(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, rfq_id: str
+) -> tuple[Path, Path, bytes]:
+    _mock_tools(monkeypatch)
+    source = tmp_path / f"{rfq_id}.csv"
+    source.write_text("Ref,Qty\nR1,1\n", encoding="utf-8")
+    package = rfq_package.build_package(
+        {source.name: source}, tmp_path / f"{rfq_id}.zip", "test-key"
+    )
+    draft = create_email_draft(
+        rfq_id=rfq_id,
+        sender="buyer@example.test",
+        recipient="quotes@example.test",
+        subject=f"RFQ {rfq_id}",
+        body="Quote request.",
+        package=package,
+        output=tmp_path / f"{rfq_id}.eml",
+    )
+    database = tmp_path / "state.sqlite"
+    register_email_draft(database, rfq_id, "quotes@example.test", draft)
+    approve_package(draft, database, "operator")
+    return database, draft, draft.read_bytes()
+
+
+def test_send_uses_tls_and_transmits_exact_approved_bytes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    FakeSMTP.instances = []
+    FakeSMTP.fail = False
+    monkeypatch.setattr(rfq_delivery.smtplib, "SMTP", FakeSMTP)
+    database, draft, approved_bytes = _approved_draft(tmp_path, monkeypatch, "KP-send-1")
+
+    status = rfq_delivery.send_approved_rfq(
+        database,
+        "KP-send-1",
+        "smtp.example.test",
+        username="account",
+        password="secret",
+    )
+
+    assert status.state == "sent"
+    assert FakeSMTP.instances[0].raw_message == approved_bytes
+    assert FakeSMTP.instances[0].host == "smtp.example.test"
+    assert draft.read_bytes() == approved_bytes
+    with sqlite3.connect(database) as connection:
+        attempt = connection.execute(
+            "SELECT succeeded FROM rfq_delivery_attempts WHERE rfq_id = ?", ("KP-send-1",)
+        ).fetchone()
+    assert attempt == (1,)
+
+
+def test_unapproved_email_never_connects_to_smtp(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    FakeSMTP.instances = []
+    monkeypatch.setattr(rfq_delivery.smtplib, "SMTP", FakeSMTP)
+    _mock_tools(monkeypatch)
+    source = tmp_path / "bom.csv"
+    source.write_text("Ref,Qty\n", encoding="utf-8")
+    package = rfq_package.build_package({"bom.csv": source}, tmp_path / "pkg.zip", "test-key")
+    draft = create_email_draft(
+        rfq_id="KP-unapproved-1",
+        sender="buyer@example.test",
+        recipient="quotes@example.test",
+        subject="RFQ KP-unapproved-1",
+        body="Quote this.",
+        package=package,
+        output=tmp_path / "request.eml",
+    )
+    database = tmp_path / "state.sqlite"
+    register_email_draft(database, "KP-unapproved-1", "quotes@example.test", draft)
+
+    with pytest.raises(ValueError, match="not approved"):
+        rfq_delivery.send_approved_rfq(database, "KP-unapproved-1", "smtp.example.test")
+    assert FakeSMTP.instances == []
+
+
+def test_smtp_failure_is_logged_and_rfq_remains_retryable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    FakeSMTP.instances = []
+    FakeSMTP.fail = True
+    monkeypatch.setattr(rfq_delivery.smtplib, "SMTP", FakeSMTP)
+    database, _, _ = _approved_draft(tmp_path, monkeypatch, "KP-send-2")
+
+    with pytest.raises(RuntimeError, match="remains retryable"):
+        rfq_delivery.send_approved_rfq(database, "KP-send-2", "smtp.example.test")
+
+    assert get_rfq_status(database, "KP-send-2").state == "awaiting_approval"
+    with sqlite3.connect(database) as connection:
+        attempt = connection.execute(
+            "SELECT succeeded FROM rfq_delivery_attempts WHERE rfq_id = ?", ("KP-send-2",)
+        ).fetchone()
+    assert attempt == (0,)
 
 
 @pytest.mark.parametrize("name", ["../secret.txt", "/etc/passwd", "folder\\file.txt"])
