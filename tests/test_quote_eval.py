@@ -110,3 +110,77 @@ def test_quote_fixture_evaluation_fails_when_review_policy_changes(tmp_path: Pat
     assert not report.review_policy_passed
     assert not report.cases[0].review_policy_passed
     assert "review policy" in (report.cases[0].error or "")
+
+
+def test_quote_fixture_evaluation_accepts_currency_from_case_metadata(tmp_path: Path) -> None:
+    fixture_dir = tmp_path / "samples"
+    fixture_dir.mkdir()
+    (fixture_dir / "supplier.csv").write_text(
+        "MPN,SKU,Quantity,Unit Price\nMPN-1,SKU-1,10,$0.25\n",
+        encoding="utf-8",
+    )
+    expected = tmp_path / "expected.json"
+    expected.write_text(
+        json.dumps(
+            {
+                "fixtures": [
+                    {
+                        "path": "supplier.csv",
+                        "currency": "USD",
+                        "rows": [
+                            {
+                                "mpn": "MPN-1",
+                                "spn": "SKU-1",
+                                "quantity": 10,
+                                "unit_price": 0.25,
+                                "currency": "USD",
+                            }
+                        ],
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    report = evaluate_quote_fixtures(fixture_dir, expected)
+
+    assert report.passed
+    assert report.field_accuracy == 1.0
+    assert report.precision == 1.0
+    assert report.recall == 1.0
+
+
+def test_quote_fixture_evaluation_checks_expected_review_queue_count(tmp_path: Path) -> None:
+    fixture_dir = tmp_path / "samples"
+    fixture_dir.mkdir()
+    (fixture_dir / "rfq_quote.csv").write_bytes((FIXTURES / "rfq_quote.csv").read_bytes())
+    (fixture_dir / "no-match.csv").write_text(
+        "DigiKey Part Number,Manufacturer Part Number,Quantity 1,Unit Price 1\n,,10,\n",
+        encoding="utf-8",
+    )
+    expected = tmp_path / "expected.json"
+    spec = json.loads((FIXTURES / "rfq_quote_expected.json").read_text(encoding="utf-8"))
+    spec["fixtures"] = [
+        {"path": "rfq_quote.csv", "rows": spec["fixtures"][0]["rows"]},
+        {
+            "path": "no-match.csv",
+            "currency": "USD",
+            "review_required": False,
+            "review_item_count": 1,
+            "rows": [],
+        },
+    ]
+    expected.write_text(json.dumps(spec), encoding="utf-8")
+
+    report = evaluate_quote_fixtures(fixture_dir, expected)
+
+    assert report.passed
+    assert report.cases[1].review_items == 1
+    assert report.cases[1].review_policy_passed
+
+    spec["fixtures"][1]["review_item_count"] = 0
+    expected.write_text(json.dumps(spec), encoding="utf-8")
+    failed_report = evaluate_quote_fixtures(fixture_dir, expected)
+    assert not failed_report.passed
+    assert not failed_report.cases[1].review_policy_passed

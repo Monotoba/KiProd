@@ -21,6 +21,7 @@ _ALIASES: dict[str, set[str]] = {
     "mpn": {
         "mpn",
         "manufacturerpartnumber",
+        "mfrpartnumber",
         "manufacturerpn",
         "mfrpartno",
         "mfrpn",
@@ -31,6 +32,8 @@ _ALIASES: dict[str, set[str]] = {
         "suppliernumber",
         "suppliersku",
         "vendorpartno",
+        "mouserpartnumber",
+        "digikeypartnumber",
         "sku",
         "partnumber",
     },
@@ -41,11 +44,22 @@ _ALIASES: dict[str, set[str]] = {
         "qtybreak",
         "pricebreakqty",
         "orderqty",
+        "orderquantity",
+        "quantity1",
     },
-    "unit_price": {"unitprice", "priceeach", "priceperunit", "unitcost", "unitpriceusd"},
+    "unit_price": {
+        "unitprice",
+        "priceeach",
+        "priceperunit",
+        "unitcost",
+        "unitpriceusd",
+        "orderunitpriceusd",
+        "unitprice1",
+        "unitprice1usd",
+    },
     "currency": {"currency", "ccy"},
-    "stock": {"stock", "stockquantity", "availablequantity"},
-    "lead_time_days": {"leadtimedays", "leaddays", "leadtime"},
+    "stock": {"stock", "stockquantity", "availablequantity", "availability"},
+    "lead_time_days": {"leadtimedays", "leadtimeindays", "leaddays", "leadtime"},
 }
 _REQUIRED = {"mpn", "spn", "quantity", "unit_price", "currency"}
 _CONFIDENCE_THRESHOLD = 0.85
@@ -75,33 +89,75 @@ def _header_key(value: object) -> str:
     return re.sub(r"[^a-z0-9]", "", str(value or "").casefold())
 
 
-def _header_map(headers: list[object]) -> tuple[dict[str, int], list[str]]:
+def _currency_in_headers(headers: list[object]) -> str | None:
+    codes = {
+        match.group(1).upper()
+        for header in headers
+        if "price" in _header_key(header)
+        if (match := re.search(r"\b([A-Z]{3})\b", str(header), re.IGNORECASE))
+    }
+    return next(iter(codes)) if len(codes) == 1 else None
+
+
+def _header_map(
+    headers: list[object], *, currency_provided: bool = False
+) -> tuple[dict[str, int], list[str]]:
     mapping: dict[str, int] = {}
     issues: list[str] = []
+    price_column_ranks: dict[int, int] = {}
     reverse = {alias: key for key, aliases in _ALIASES.items() for alias in aliases}
     for index, header in enumerate(headers):
-        key = reverse.get(_header_key(header))
+        normalized = _header_key(header)
+        key = reverse.get(normalized)
         if key is None:
             continue
         if key in mapping:
-            issues.append(f"multiple columns map to {key}")
+            if key == "unit_price":
+                rank = {
+                    "orderunitpriceusd": 100,
+                    "unitpriceusd": 80,
+                    "unitprice1usd": 70,
+                    "unitprice1": 60,
+                    "unitprice": 50,
+                }.get(normalized, 0)
+                if rank > price_column_ranks.get(mapping[key], 0):
+                    mapping[key] = index
+                    price_column_ranks[index] = rank
+            else:
+                issues.append(f"multiple columns map to {key}")
         else:
             mapping[key] = index
-    missing = sorted(_REQUIRED - mapping.keys())
+            if key == "unit_price":
+                price_column_ranks[index] = {
+                    "orderunitpriceusd": 100,
+                    "unitpriceusd": 80,
+                    "unitprice1usd": 70,
+                    "unitprice1": 60,
+                    "unitprice": 50,
+                }.get(normalized, 0)
+    if "currency" not in mapping:
+        if _currency_in_headers(headers) is not None:
+            mapping["currency"] = -2
+    required = _REQUIRED - ({"currency"} if currency_provided else set())
+    missing = sorted(required - mapping.keys())
     if missing:
         issues.append("missing required columns: " + ", ".join(missing))
     return mapping, issues
 
 
 def _find_table_header(
-    headers: list[object], rows: list[list[object]], *, search_rows: int = 15
+    headers: list[object],
+    rows: list[list[object]],
+    *,
+    search_rows: int = 15,
+    currency_provided: bool = False,
 ) -> tuple[list[object], list[list[object]], int]:
     """Find a complete quote table header near the top of a CSV/XLSX export."""
-    _, issues = _header_map(headers)
+    _, issues = _header_map(headers, currency_provided=currency_provided)
     if not issues:
         return headers, rows, 2
     for index, candidate in enumerate(rows[:search_rows]):
-        _, candidate_issues = _header_map(candidate)
+        _, candidate_issues = _header_map(candidate, currency_provided=currency_provided)
         if not candidate_issues:
             return candidate, rows[index + 1 :], index + 3
     return headers, rows, 2
@@ -302,7 +358,7 @@ def _cell(row: list[object], mapping: dict[str, int], name: str) -> str:
 
 
 def _positive_int(value: str, field: str) -> int:
-    number = Decimal(value)
+    number = Decimal(value.replace(",", "").strip())
     if number != number.to_integral_value() or number <= 0:
         raise ValueError(f"{field} must be a positive integer")
     return int(number)
@@ -311,7 +367,7 @@ def _positive_int(value: str, field: str) -> int:
 def _optional_int(value: str, field: str) -> int | None:
     if not value:
         return None
-    number = Decimal(value)
+    number = Decimal(value.replace(",", "").strip())
     if number != number.to_integral_value() or number < 0:
         raise ValueError(f"{field} must be a non-negative integer")
     return int(number)
@@ -333,10 +389,14 @@ def parse_quote_attachment(
     used_ocr = False
     if suffix == ".csv":
         headers, rows = _read_csv(path)
-        headers, rows, first_data_row = _find_table_header(headers, rows)
+        headers, rows, first_data_row = _find_table_header(
+            headers, rows, currency_provided=currency is not None
+        )
     elif suffix in {".xlsx", ".xlsm"}:
         headers, rows = _read_xlsx(path)
-        headers, rows, first_data_row = _find_table_header(headers, rows)
+        headers, rows, first_data_row = _find_table_header(
+            headers, rows, currency_provided=currency is not None
+        )
     elif suffix == ".pdf":
         headers, rows, used_ocr = _read_pdf(path)
         source_kind = "block"
@@ -345,7 +405,8 @@ def parse_quote_attachment(
         raise ValueError(f"unsupported quote attachment format: {suffix or 'unknown'}")
     if not supplier_id.strip():
         raise ValueError("supplier ID must be non-empty")
-    mapping, header_issues = _header_map(headers)
+    mapping, header_issues = _header_map(headers, currency_provided=currency is not None)
+    inferred_currency = _currency_in_headers(headers)
     if currency is not None:
         normalized_currency = currency.strip().upper()
         if not re.fullmatch(r"[A-Z]{3}", normalized_currency):
@@ -388,7 +449,9 @@ def parse_quote_attachment(
         if not any(str(value or "").strip() for value in row):
             continue
         values = _row_value(row, mapping)
-        if mapping.get("currency") == -1 or (not values.get("currency") and currency is not None):
+        if mapping.get("currency") == -2:
+            values["currency"] = inferred_currency or ""
+        elif mapping.get("currency") == -1 or (not values.get("currency") and currency is not None):
             values["currency"] = normalized_currency
         reference = SourceRef(path=source_path, reference=f"{source_kind}:{row_number}")
         mpn = values.get("mpn", "")
@@ -402,7 +465,8 @@ def parse_quote_attachment(
                 raise ValueError("currency must be a three-letter code")
             key = (mpn, spn, row_currency)
             quantity = _positive_int(values.get("quantity", ""), "quantity")
-            unit_price = Decimal(values.get("unit_price", ""))
+            unit_price_text = values.get("unit_price", "").replace(",", "").replace("$", "").strip()
+            unit_price = Decimal(unit_price_text)
             if not unit_price.is_finite() or unit_price < 0:
                 raise ValueError("unit price must be a finite non-negative amount")
             numeric_price = float(unit_price)

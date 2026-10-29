@@ -71,6 +71,53 @@ def test_currency_can_be_supplied_explicitly_when_missing_from_csv(tmp_path: Pat
     assert not result.review_queue
 
 
+def test_mouser_export_headers_infer_currency_and_parse_formatted_price(
+    tmp_path: Path,
+) -> None:
+    quote = tmp_path / "mouser-export.csv"
+    quote.write_text(
+        "Mfr Part Number (Input),Description (Input),Mfr Part Number,Mouser Part Number,"
+        "Manufacturer Name,Description,Unit Price 1 (USD),Price 2 (USD),Price 3 (USD),"
+        "Order Quantity,Order Unit Price (USD),Price 4 (USD),Price 5 (USD),Min./Mult.,"
+        "Availability,Lead Time in Days\n"
+        "MPN-1,Part description,MPN-1,MOU-1,Maker,Part description,,,,1,$0.12,,,1/1,"
+        '"2,599,476",98\n',
+        encoding="utf-8",
+    )
+
+    result = parse_quote_attachment(quote, "com.kiprod.supplier.mouser")
+
+    assert len(result.offers) == 1
+    offer = result.offers[0].offer
+    assert offer.manufacturer_part_number == "MPN-1"
+    assert offer.supplier_part_number == "MOU-1"
+    assert offer.price_breaks[0].quantity == 1
+    assert offer.price_breaks[0].unit_price == 0.12
+    assert offer.price_breaks[0].currency == "USD"
+    assert offer.stock == 2_599_476
+    assert offer.lead_time_days == 98
+    assert not result.review_queue
+
+
+def test_digikey_export_without_matching_products_sends_rows_to_review(
+    tmp_path: Path,
+) -> None:
+    quote = tmp_path / "digikey-export.csv"
+    quote.write_text(
+        "Terms of Use,https://supplier.example.test/terms\n"
+        "DigiKey Part Number,Manufacturer,Manufacturer Part Number,Requested Part Number,"
+        "Quantity 1,Unit Price 1,Product Notes\n"
+        ",,,KP-01,10,,No matching product was found\n",
+        encoding="utf-8",
+    )
+
+    result = parse_quote_attachment(quote, "com.kiprod.supplier.digikey", currency="USD")
+
+    assert result.offers == []
+    assert len(result.review_queue) == 1
+    assert "part numbers are required" in result.review_queue[0].issue
+
+
 def test_conflicting_duplicate_break_is_held_for_review(tmp_path: Path) -> None:
     quote = tmp_path / "quote.csv"
     quote.write_text(

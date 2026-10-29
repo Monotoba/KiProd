@@ -82,9 +82,11 @@ def _evaluate_case(
     *,
     supplier_id: str,
     expected_review: bool | None,
+    expected_review_items: int | None,
+    currency: str | None,
 ) -> FixtureEvaluation:
     try:
-        result = parse_quote_attachment(fixture, supplier_id)
+        result = parse_quote_attachment(fixture, supplier_id, currency=currency)
     except ValueError as exc:
         if fixture.suffix.casefold() in {".xlsx", ".xlsm"} and "kiprod[reports]" in str(exc):
             return FixtureEvaluation(
@@ -109,7 +111,7 @@ def _evaluate_case(
             precision=0.0,
             recall=0.0,
             review_items=0,
-            review_policy_passed=expected_review is None,
+            review_policy_passed=expected_review is None and expected_review_items is None,
             error=str(exc),
         )
     actual_rows = _actual_rows(result)
@@ -137,7 +139,9 @@ def _evaluate_case(
     )
     recall = exact_rows / len(expected_rows) if expected_rows else (1.0 if not actual_rows else 0.0)
     actual_review = any(offer.requires_review for offer in result.offers)
-    review_policy_passed = expected_review is None or actual_review == expected_review
+    review_policy_passed = (expected_review is None or actual_review == expected_review) and (
+        expected_review_items is None or len(result.review_queue) == expected_review_items
+    )
     return FixtureEvaluation(
         fixture=fixture.name,
         expected_rows=len(expected_rows),
@@ -173,6 +177,13 @@ def evaluate_quote_fixtures(
         expected_review = case.get("review_required")
         if expected_review is not None and not isinstance(expected_review, bool):
             raise ValueError(f"review_required must be a boolean for fixture {fixture.name}")
+        expected_review_items = case.get("review_item_count")
+        if expected_review_items is not None and (
+            isinstance(expected_review_items, bool)
+            or not isinstance(expected_review_items, int)
+            or expected_review_items < 0
+        ):
+            raise ValueError(f"review_item_count must be a non-negative integer for {fixture.name}")
         if not fixture.is_file():
             cases.append(
                 FixtureEvaluation(
@@ -184,7 +195,7 @@ def evaluate_quote_fixtures(
                     precision=0.0,
                     recall=0.0,
                     review_items=0,
-                    review_policy_passed=expected_review is None,
+                    review_policy_passed=expected_review is None and expected_review_items is None,
                     error=f"fixture not found: {fixture}",
                 )
             )
@@ -195,6 +206,8 @@ def evaluate_quote_fixtures(
                     rows,
                     supplier_id=supplier_id,
                     expected_review=expected_review,
+                    expected_review_items=expected_review_items,
+                    currency=(str(case["currency"]) if case.get("currency") is not None else None),
                 )
             )
     evaluated = [case for case in cases if not case.skipped]
