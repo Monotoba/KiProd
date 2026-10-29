@@ -106,7 +106,7 @@
 - [x] Document GUI setup and launch.
 - [x] Persist append-only accept/dismiss/defer review decisions with comments in a separate project artifact.
 - [x] Edit and persist MPN overrides in the normalized BOM with a visible user source and under-constrained filter.
-- [ ] Show provenance badges for every editable BOM field.
+- [x] Show provenance badges for every editable BOM field (currently MPN only).
 - [ ] Add approval-gated MPN and supplier part-number write-back to KiCad schematics.
 - [x] Open cited review evidence files while confining paths to the selected project.
 - [x] Generate and persist scalar supplier settings from manifests while preserving unknown plugin keys and excluding secrets.
