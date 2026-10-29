@@ -47,6 +47,8 @@ The Best mix tab selects the lowest extended-price source per required MPN withi
 each quantity and currency group, then applies the selected source's supplier-level
 shipping, NRE, duty, and fees once per selected supplier. Each line retains its
 quote source reference, and uncovered MPNs remain visible as gaps.
+The Charts tab shows landed cost per board and weighted score bars, grouped by
+quantity and currency so incomparable groups are not plotted together.
 
 The current GUI provides an editable MPN column with a source label and a filter for
 lines missing MPNs or footprints. MPN overrides are saved in

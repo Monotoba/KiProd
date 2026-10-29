@@ -4,6 +4,7 @@ import json
 import sys
 from collections.abc import Callable
 from datetime import UTC, datetime
+from html import escape
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, cast
@@ -100,6 +101,49 @@ def _regenerate_comparison(run_dir: Path) -> Comparison:
         result.model_dump_json(indent=2) + "\n", encoding="utf-8"
     )
     return result
+
+
+def _comparison_chart_html(comparison: Comparison) -> str:
+    """Render dependency-free bar charts, keeping unlike quantity/currency groups apart."""
+    if not comparison.rows:
+        return "<html><body><p>No comparison rows are available.</p></body></html>"
+    groups: dict[tuple[int, str], list[Any]] = {}
+    for row in comparison.rows:
+        groups.setdefault((row.board_quantity, row.currency), []).append(row)
+    sections = [
+        "<html><body><h1>Supplier comparison charts</h1>",
+        "<p>Bars are scaled within each board quantity and currency group. "
+        "Weighted score is lower-is-better; its bar shows score magnitude.</p>",
+    ]
+
+    def append_bar_row(label: str, width: float, color: str, value: str) -> str:
+        return (
+            "<tr><td width='170'>"
+            f"{escape(label)}</td><td><table width='100%' cellspacing='0' cellpadding='0'>"
+            f"<tr><td width='{width:.2f}%' bgcolor='{color}'>&nbsp;</td>"
+            "<td>&nbsp;</td></tr></table></td><td align='right'>"
+            f"{escape(value)}</td></tr>"
+        )
+
+    for (quantity, currency), rows in sorted(groups.items()):
+        sections.append(f"<h2>{quantity} boards · {escape(currency)}</h2>")
+        max_cost = max(float(row.per_board) for row in rows)
+        max_score = max(row.ranking_score for row in rows)
+        sections.append("<h3>Landed cost per board</h3><table width='100%'>")
+        for row in rows:
+            width = float(row.per_board) / max_cost * 100 if max_cost else 0
+            sections.append(
+                append_bar_row(row.supplier_id, width, "#3976b9", f"{row.per_board} {currency}")
+            )
+        sections.append("</table><h3>Weighted score (lower is better)</h3><table width='100%'>")
+        for row in rows:
+            width = row.ranking_score / max_score * 100 if max_score else 0
+            sections.append(
+                append_bar_row(row.supplier_id, width, "#cf8640", f"{row.ranking_score:.3f}")
+            )
+        sections.append("</table>")
+    sections.append("</body></html>")
+    return "".join(sections)
 
 
 def _plugin_paths(project: Project) -> list[Path]:
@@ -621,9 +665,12 @@ def run_gui(project_path: Path | None = None) -> int:
                 ]
             )
             self.best_mix_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+            self.comparison_chart = QTextBrowser()
+            self.comparison_chart.setOpenExternalLinks(False)
             self.comparison_views = QTabWidget()
             self.comparison_views.addTab(self.comparison_table, "Supplier ranking")
             self.comparison_views.addTab(self.best_mix_table, "Best mix")
+            self.comparison_views.addTab(self.comparison_chart, "Charts")
             compare_layout.addWidget(self.comparison_views, 1)
             self.coverage_label = QLabel("Choose saved landed-cost JSON files to compare.")
             compare_layout.addWidget(self.coverage_label)
@@ -1638,6 +1685,7 @@ def run_gui(project_path: Path | None = None) -> int:
             self.comparison_views.setCurrentWidget(self.comparison_table)
 
         def show_comparison(self, comparison: Comparison) -> None:
+            self.comparison_chart.setHtml(_comparison_chart_html(comparison))
             self.comparison_table.setRowCount(len(comparison.rows))
             for row, item in enumerate(comparison.rows):
                 values = [

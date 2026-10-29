@@ -10,6 +10,7 @@ from kiprod.analysis.landed import LandedCost, LandedLine
 from kiprod.core.models import Offer, PriceBreak, SourceRef
 from kiprod.core.project import discover
 from kiprod.gui import (
+    _comparison_chart_html,
     _create_comparison,
     _evidence_path,
     _load_project,
@@ -125,6 +126,10 @@ def test_gui_comparison_archives_inputs_and_regenerates_only_after_hash_check(
     comparison, run_dir = _create_comparison(project, [input_file], bom_json)
 
     assert comparison.rows[0].supplier_id == "supplier-a"
+    chart_html = _comparison_chart_html(comparison)
+    assert "Supplier comparison charts" in chart_html
+    assert "10 boards" in chart_html
+    assert "supplier-a" in chart_html
     assert (run_dir / "comparison.md").is_file()
     assert (run_dir / "comparison.json").is_file()
     (run_dir / "comparison.md").unlink()
