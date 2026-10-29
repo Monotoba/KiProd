@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/Monotoba/KiProd/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Monotoba/KiProd/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/Monotoba/KiProd?display_name=tag)](https://github.com/Monotoba/KiProd/releases)
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC--BY--NC--SA--4.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 
 KiProd creates a traceable production package from a KiCad project: a normalized
 BOM, production review findings, supplier quotes, and comparison reports.
@@ -18,6 +19,16 @@ It also edits saved MPN overrides, compares landed-cost records, regenerates
 hash-verified reports, and edits project board quantities.
 Supplier-specific live adapters and KiCad launchers have not shipped. Live email,
 mailbox, and model operations require user-provided credentials and configuration.
+
+## License
+
+KiProd is licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/).
+Use requires attribution, noncommercial purposes, and share-alike licensing for
+adaptations. Commercial use is not permitted without separate written permission.
+This includes selling source or packaged copies, bundling KiProd into a paid
+product, charging for hosted access, and paid hosting, implementation,
+consulting, or support services that use the project. Third-party components
+remain under their own licenses. See [LICENSE](LICENSE) for details.
 
 ## Quick start
 

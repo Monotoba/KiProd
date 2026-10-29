@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Traceable KiCad production package and quoting assistant"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = "CC-BY-NC-SA-4.0"
 authors = [{ name = "KiProd contributors" }]
 dependencies = ["pydantic>=2.7", "typer>=0.12"]
 
