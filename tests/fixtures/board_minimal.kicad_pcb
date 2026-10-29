@@ -1,0 +1,15 @@
+(kicad_pcb
+  (version 20240108)
+  (general (thickness 1.6))
+  (layers
+    (0 "F.Cu" signal)
+    (2 "B.Cu" signal)
+    (9 "F.Adhes" user)
+    (25 "Edge.Cuts" user))
+  (setup
+    (min_track_width 0.075)
+    (min_via_drill 0.2))
+  (gr_line (start 10 20) (end 50 20) (layer "Edge.Cuts"))
+  (gr_line (start 50 20) (end 50 30) (layer "Edge.Cuts"))
+  (gr_line (start 50 30) (end 10 30) (layer "Edge.Cuts"))
+  (gr_line (start 10 30) (end 10 20) (layer "Edge.Cuts")))

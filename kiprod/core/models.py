@@ -22,6 +22,16 @@ class Project(BaseModel):
     input_hashes: dict[str, str]
 
 
+class BoardSpec(BaseModel):
+    source: str
+    layers: int
+    thickness_mm: float | None = None
+    width_mm: float | None = None
+    height_mm: float | None = None
+    min_track_mm: float | None = None
+    min_drill_mm: float | None = None
+
+
 class Part(BaseModel):
     reference: str
     value: str = ""

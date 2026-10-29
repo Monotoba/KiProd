@@ -9,6 +9,7 @@ from tempfile import TemporaryDirectory
 
 import typer
 
+from kiprod.analysis.capabilities import check_board
 from kiprod.analysis.comparison import compare
 from kiprod.analysis.landed import LandedCost
 from kiprod.core.artifacts import write_bom
@@ -22,6 +23,7 @@ from kiprod.core.config import (
 )
 from kiprod.core.constraints import apply, write
 from kiprod.core.project import ProjectNotFoundError, discover
+from kiprod.kicad.board import extract as extract_board
 from kiprod.kicad.cli_adapter import KiCadCliError, export_bom, version
 from kiprod.plugins.host import PluginError, discover_plugins
 from kiprod.reports.markdown import comparison_markdown
@@ -136,6 +138,38 @@ def project(
     typer.echo(f"Project: {discovered.pro_file}")
     typer.echo(f"Schematics: {len(discovered.schematics)}; boards: {len(discovered.boards)}")
     typer.echo("Variants: " + (", ".join(discovered.variants) or "none"))
+
+
+@app.command("board")
+def inspect_board(
+    project: Path = typer.Option(Path.cwd(), exists=True, file_okay=True, dir_okay=True),
+    plugin_id: str | None = typer.Option(None, "--supplier", help="Optional fab plugin to check."),
+) -> None:
+    """Extract board fabrication metrics and optionally check supplier limits."""
+    try:
+        discovered = discover(project)
+    except ProjectNotFoundError as exc:
+        raise typer.BadParameter(str(exc), param_hint="--project") from exc
+    if not discovered.boards:
+        raise typer.BadParameter("project has no .kicad_pcb board")
+    board = extract_board(discovered.boards[0])
+    typer.echo(board.model_dump_json(indent=2))
+    if plugin_id:
+        try:
+            plugin = next(
+                (
+                    item
+                    for item in discover_plugins(_plugin_paths(project))
+                    if item.manifest.id == plugin_id
+                ),
+                None,
+            )
+        except PluginError as exc:
+            raise typer.BadParameter(str(exc)) from exc
+        if plugin is None:
+            raise typer.BadParameter(f"plugin not found: {plugin_id}")
+        findings = check_board(board, plugin.manifest)
+        typer.echo(json.dumps([item.model_dump() for item in findings], indent=2))
 
 
 @app.command("export-bom")

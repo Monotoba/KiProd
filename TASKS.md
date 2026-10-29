@@ -42,9 +42,15 @@
 - [x] Add cross-quantity supplier matrix and JSON comparison output for reproducible report regeneration.
 - [ ] Add full saved-run manifest and report regeneration command.
 
+## M5 — Board and assembly (in progress)
+
+- [x] Extract copper layers, board thickness, outline bounds, minimum track, and drill metrics from PCB S-expressions.
+- [x] Compare extracted fabrication metrics against declared supplier limits.
+- [ ] Extract stack-up, finish, board count, and placement/assembly parameters.
+- [ ] Generate and map pick-and-place data to assembler formats.
+
 ## Later milestones
 
-- [ ] M5: board/assembly extraction and RFQs.
 - [ ] M6: signed email RFQs and inbox.
 - [ ] M7: typed AI/review layer.
 - [ ] M8–M10: GUI, KiCad launchers, and hardening.
