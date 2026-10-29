@@ -9,9 +9,10 @@ RFQ packaging, approval-gated SMTP delivery, and Graph/Gmail inbox polling. The
 generic catalog protocol, typed AI review contracts, an OpenAI-compatible model
 adapter, native OpenAI and Anthropic adapters, and role-based request budgets are
 available; versioned project prompt overrides are supported. The first desktop GUI
-slice covers project discovery, BOM generation, deterministic review, and report
-opening. Supplier-specific live adapters and KiCad launchers have not shipped. Live email, mailbox, and model operations
-require user-provided credentials and configuration.
+slice covers project discovery, BOM generation, deterministic review, board and
+assembly metrics, supplier manifest discovery, and local quote review.
+Supplier-specific live adapters and KiCad launchers have not shipped. Live email,
+mailbox, and model operations require user-provided credentials and configuration.
 
 ## Quick start
 
@@ -103,3 +104,4 @@ AI provider setup, prompt overrides, budgets, and model evaluation are described
 Install the optional desktop dependency with `./scripts/setup-gui.sh`, then launch
 the workspace with `./scripts/run.sh gui --project PATH` (or omit `--project` to
 choose a project after startup).
+See [`docs/GUI.md`](docs/GUI.md) for the current views and workflow limits.

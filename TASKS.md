@@ -96,12 +96,14 @@
 - [x] Add project selection and a run bar with project/variant context and background BOM generation.
 - [x] Show normalized BOM and deterministic review findings from generated artifacts.
 - [x] List, open, and regenerate supported BOM/review artifacts from the GUI.
-- [ ] Add components/supplier view backed by plugin manifests and stored offers.
+- [x] Add a supplier view driven by plugin manifests, including safe credential labels and stored offer candidates.
 - [x] Add board and assembly metric views backed by existing analysis engines.
-- [ ] Add quotes inbox, comparison, and full reports views backed by stored run data.
+- [x] List captured reply messages and inspect imported source-backed offer candidates.
+- [ ] Add comparison and full reports views backed by stored run data.
 - [ ] Add editable project settings views.
-- [ ] Add status/log drawer with progress, warnings, and output-folder shortcuts.
-- [ ] Add automated GUI smoke coverage and document platform setup/launch.
+- [x] Add run progress, warning/error messages, and output-folder shortcuts.
+- [x] Add automated headless GUI workflow smoke coverage for generated artifacts and quote-data loading.
+- [x] Document GUI setup and launch.
 
 ## Later milestones
 

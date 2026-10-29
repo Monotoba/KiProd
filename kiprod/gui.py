@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, cast
@@ -15,6 +16,43 @@ from kiprod.core.models import AssemblySpec, BoardSpec, NormalizedBOM, Project
 from kiprod.core.project import discover
 from kiprod.kicad.board import extract as extract_board
 from kiprod.kicad.cli_adapter import export_bom
+from kiprod.plugins.host import PluginError, discover_plugins
+from kiprod.plugins.models import Manifest
+from kiprod.rfq.quote_import import QuoteImportResult
+
+
+def _plugin_paths(project: Project) -> list[Path]:
+    return [
+        project.root / "docs" / "production" / "quotes" / "config" / "suppliers",
+        Path.home() / ".config" / "kiprod" / "suppliers",
+        Path(__file__).resolve().parent / "plugins" / "suppliers",
+    ]
+
+
+def _quote_results(project: Project) -> tuple[list[Path], list[tuple[Path, QuoteImportResult]]]:
+    reply_root = project.root / "docs" / "production" / ".kiprod" / "replies"
+    reply_paths: list[Path] = []
+    if reply_root.is_dir():
+        for path in sorted(reply_root.rglob("*.eml")):
+            resolved = path.resolve()
+            if resolved.is_relative_to(reply_root.resolve()) and resolved.is_file():
+                reply_paths.append(resolved)
+
+    quote_root = project.root / "docs" / "production" / "quotes"
+    offer_results: list[tuple[Path, QuoteImportResult]] = []
+    if quote_root.is_dir():
+        for path in sorted(quote_root.rglob("*.json")):
+            if "config" in path.relative_to(quote_root).parts:
+                continue
+            try:
+                resolved = path.resolve()
+                if not resolved.is_relative_to(quote_root.resolve()):
+                    continue
+                result = QuoteImportResult.model_validate_json(resolved.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            offer_results.append((resolved, result))
+    return reply_paths, offer_results
 
 
 def _qt() -> tuple[Any, ...]:
@@ -31,6 +69,7 @@ def _qt() -> tuple[Any, ...]:
             QMainWindow,
             QMessageBox,
             QPlainTextEdit,
+            QProgressBar,
             QPushButton,
             QSplitter,
             QTableWidget,
@@ -59,6 +98,7 @@ def _qt() -> tuple[Any, ...]:
         QMainWindow,
         QMessageBox,
         QPlainTextEdit,
+        QProgressBar,
         QPushButton,
         QSplitter,
         QTabWidget,
@@ -70,7 +110,9 @@ def _qt() -> tuple[Any, ...]:
 
 
 def _load_project(
-    project_path: Path, variant: str | None
+    project_path: Path,
+    variant: str | None,
+    progress: Callable[[int, str], None] | None = None,
 ) -> tuple[
     Project,
     NormalizedBOM,
@@ -81,6 +123,8 @@ def _load_project(
     Path,
 ]:
     project = discover(project_path)
+    if progress:
+        progress(10, "Project discovered")
     if variant:
         if variant not in project.variants:
             raise ValueError(f"unknown project variant: {variant}")
@@ -89,14 +133,20 @@ def _load_project(
             bom = build(project, exported_bom=exported)
     else:
         bom = build(project)
+    if progress:
+        progress(35, "Normalized BOM built")
     output_dir = project.root / "docs" / "production" / "bom"
     json_path, csv_path = write_bom(bom, output_dir)
     report = review_bom(bom)
     review_path = output_dir / "review.deterministic.json"
     review_path.write_text(report.model_dump_json(indent=2) + "\n", encoding="utf-8")
+    if progress:
+        progress(60, "BOM and deterministic review saved")
     board_spec: BoardSpec | None = None
     assembly_spec: AssemblySpec | None = None
     if project.boards:
+        if progress:
+            progress(70, "Extracting board and assembly metrics")
         board_spec = extract_board(project.boards[0])
         notes = discover_fabrication_notes(project.root)
         boards_per_panel, panel_count_source = extract_boards_per_panel(notes)
@@ -116,6 +166,10 @@ def _load_project(
             + "\n",
             encoding="utf-8",
         )
+    elif progress:
+        progress(90, "No PCB found; board and assembly analysis skipped")
+    if progress:
+        progress(95, "Refreshing supplier and quote views")
     return project, bom, report, board_spec, assembly_spec, json_path, csv_path
 
 
@@ -136,6 +190,7 @@ def run_gui(project_path: Path | None = None) -> int:
         QMainWindow,
         QMessageBox,
         QPlainTextEdit,
+        QProgressBar,
         QPushButton,
         QSplitter,
         QTabWidget,
@@ -148,6 +203,7 @@ def run_gui(project_path: Path | None = None) -> int:
     class ProjectWorker(QObject):  # type: ignore[valid-type,misc]
         completed = Signal(object)
         failed = Signal(str)
+        progress = Signal(int, str)
         finished = Signal()
 
         def __init__(self, path: Path, variant: str | None) -> None:
@@ -157,7 +213,9 @@ def run_gui(project_path: Path | None = None) -> int:
 
         def run(self) -> None:
             try:
-                self.completed.emit(_load_project(self.path, self.variant))
+                self.completed.emit(
+                    _load_project(self.path, self.variant, progress=self.progress.emit)
+                )
             except Exception as exc:  # Surface file/tool errors in the status drawer.
                 self.failed.emit(f"{type(exc).__name__}: {exc}")
             finally:
@@ -182,6 +240,10 @@ def run_gui(project_path: Path | None = None) -> int:
             self.variant_combo = QComboBox()
             self.variant_combo.addItem("Default variant", "")
             self.run_button = QPushButton("Build BOM and review")
+            self.progress_bar = QProgressBar()
+            self.progress_bar.setRange(0, 100)
+            self.progress_bar.setValue(0)
+            self.progress_bar.setFormat("Ready")
             self.open_folder_button = QPushButton("Open output folder")
             self.open_folder_button.setEnabled(False)
             run_bar.addWidget(QLabel("Project"))
@@ -189,6 +251,7 @@ def run_gui(project_path: Path | None = None) -> int:
             run_bar.addWidget(browse_button)
             run_bar.addWidget(self.variant_combo)
             run_bar.addWidget(self.run_button)
+            run_bar.addWidget(self.progress_bar)
             run_bar.addWidget(self.open_folder_button)
             root_layout.addLayout(run_bar)
 
@@ -196,6 +259,32 @@ def run_gui(project_path: Path | None = None) -> int:
             self.tabs = QTabWidget()
             self.project_page = QPlainTextEdit()
             self.project_page.setReadOnly(True)
+            self.plugins_table = QTableWidget(0, 3)
+            self.plugins_table.setHorizontalHeaderLabels(["Supplier", "Resources", "Status"])
+            self.plugins_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+            self.plugins_table.currentCellChanged.connect(self.show_plugin_details)
+            self.plugin_details = QPlainTextEdit()
+            self.plugin_details.setReadOnly(True)
+            self.quotes_tabs = QTabWidget()
+            self.reply_table = QTableWidget(0, 2)
+            self.reply_table.setHorizontalHeaderLabels(["Captured reply", "Path"])
+            self.reply_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+            self.reply_table.cellDoubleClicked.connect(self.open_reply)
+            self.offer_table = QTableWidget(0, 4)
+            self.offer_table.setHorizontalHeaderLabels(
+                ["Offer file", "Supplier", "Offers", "Needs review"]
+            )
+            self.offer_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+            self.offer_table.cellDoubleClicked.connect(self.open_offer_file)
+            self.offer_table.currentCellChanged.connect(self.show_offer_details)
+            self.offer_details = QPlainTextEdit()
+            self.offer_details.setReadOnly(True)
+            offer_splitter = QSplitter(Qt.Orientation.Horizontal)
+            offer_splitter.addWidget(self.offer_table)
+            offer_splitter.addWidget(self.offer_details)
+            offer_splitter.setSizes([500, 500])
+            self.quotes_tabs.addTab(self.reply_table, "Captured replies")
+            self.quotes_tabs.addTab(offer_splitter, "Imported offers")
             self.board_table = QTableWidget(0, 2)
             self.board_table.setHorizontalHeaderLabels(["Board metric", "Value"])
             self.board_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -228,6 +317,11 @@ def run_gui(project_path: Path | None = None) -> int:
             self.tabs.addTab(self.review_table, "Review")
             self.tabs.addTab(self.board_table, "Boards")
             self.tabs.addTab(self.assembly_table, "Assembly")
+            supplier_splitter = QSplitter(Qt.Orientation.Horizontal)
+            supplier_splitter.addWidget(self.plugins_table)
+            supplier_splitter.addWidget(self.plugin_details)
+            self.tabs.addTab(supplier_splitter, "Components")
+            self.tabs.addTab(self.quotes_tabs, "Quotes Inbox")
             self.tabs.addTab(self.reports_list, "Reports")
             self.tabs.addTab(settings_page, "Settings")
             splitter.addWidget(self.tabs)
@@ -261,6 +355,8 @@ def run_gui(project_path: Path | None = None) -> int:
                 return
             project_path = Path(path_text).expanduser()
             self.run_button.setEnabled(False)
+            self.progress_bar.setValue(0)
+            self.progress_bar.setFormat("Starting…")
             self.statusBar().showMessage("Building normalized BOM and deterministic review…")
             self.log.appendPlainText(f"Loading project: {project_path}")
             self.thread = QThread(self)
@@ -269,6 +365,7 @@ def run_gui(project_path: Path | None = None) -> int:
             self.thread.started.connect(self.worker.run)
             self.worker.completed.connect(self.on_completed)
             self.worker.failed.connect(self.on_failed)
+            self.worker.progress.connect(self.on_progress)
             self.worker.finished.connect(self.thread.quit)
             self.worker.finished.connect(self.worker.deleteLater)
             self.thread.finished.connect(self.thread.deleteLater)
@@ -336,6 +433,8 @@ def run_gui(project_path: Path | None = None) -> int:
                 self.assembly_table,
                 assembly_spec.model_dump() if assembly_spec else {},
             )
+            self.refresh_plugins(project)
+            self.refresh_quote_files(project)
             self.refresh_reports()
             self.open_folder_button.setEnabled(True)
             self.log.appendPlainText(
@@ -343,6 +442,17 @@ def run_gui(project_path: Path | None = None) -> int:
                 f"{len(report.findings)} deterministic findings."
             )
             self.statusBar().showMessage(f"Ready — {len(bom.lines)} BOM lines")
+            self.progress_bar.setValue(100)
+            self.progress_bar.setFormat("Complete")
+            if not project.boards:
+                self.log.appendPlainText(
+                    "WARNING: No PCB found; board and assembly views are empty."
+                )
+
+        def on_progress(self, value: int, message: str) -> None:
+            self.progress_bar.setValue(value)
+            self.progress_bar.setFormat(message)
+            self.statusBar().showMessage(message)
 
         @staticmethod
         def _fill_metrics(table: Any, metrics: dict[str, Any]) -> None:
@@ -350,6 +460,104 @@ def run_gui(project_path: Path | None = None) -> int:
             for row, (name, value) in enumerate(metrics.items()):
                 table.setItem(row, 0, QTableWidgetItem(name.replace("_", " ").title()))
                 table.setItem(row, 1, QTableWidgetItem(json.dumps(value, sort_keys=True)))
+
+        def refresh_plugins(self, project: Project) -> None:
+            self.plugins_table.setRowCount(0)
+            self.plugin_details.clear()
+            try:
+                plugins = discover_plugins(_plugin_paths(project))
+            except PluginError as exc:
+                self.plugin_details.setPlainText(f"Plugin discovery failed:\n{exc}")
+                return
+            self.plugins = plugins
+            self.plugins_table.setRowCount(len(plugins))
+            if not plugins:
+                self.plugin_details.setPlainText(
+                    "No supplier plugins are installed. Add a validated plugin under the project "
+                    "or user supplier configuration folder."
+                )
+                return
+            for row, plugin in enumerate(plugins):
+                manifest = plugin.manifest
+                resources = ", ".join(manifest.resource_types) or "unspecified"
+                values = [manifest.name, resources, "Manifest found"]
+                for column, value in enumerate(values):
+                    self.plugins_table.setItem(row, column, QTableWidgetItem(value))
+            self.plugins_table.selectRow(0)
+
+        def show_plugin_details(
+            self, row: int, column: int, previous_row: int, previous_column: int
+        ) -> None:
+            del column, previous_row, previous_column
+            plugins = getattr(self, "plugins", [])
+            if row < 0 or row >= len(plugins):
+                return
+            manifest: Manifest = plugins[row].manifest
+            settings = [
+                f"{field.get('label', field.get('key', 'Field'))} "
+                f"({field.get('key', '')}; {field.get('type', 'string')})"
+                for field in manifest.fields
+            ]
+            credential_labels = [credential.label for credential in manifest.credentials]
+            capabilities = json.dumps(manifest.capabilities, indent=2, sort_keys=True)
+            self.plugin_details.setPlainText(
+                f"{manifest.name} ({manifest.id})\nVersion: {manifest.version}\n"
+                f"Resources: {', '.join(manifest.resource_types) or 'unspecified'}\n\n"
+                "Settings fields from manifest:\n"
+                + ("\n".join(settings) or "(none)")
+                + "\n\nCredential labels (values are never shown):\n"
+                + ("\n".join(credential_labels) or "(none)")
+                + "\n\nCapabilities:\n"
+                + capabilities
+            )
+
+        def refresh_quote_files(self, project: Project) -> None:
+            reply_paths, offer_results = _quote_results(project)
+            self.reply_table.setRowCount(len(reply_paths))
+            for row, path in enumerate(reply_paths):
+                self.reply_table.setItem(row, 0, QTableWidgetItem(path.name))
+                self.reply_table.setItem(row, 1, QTableWidgetItem(str(path)))
+
+            self.offer_results = offer_results
+            self.offer_table.setRowCount(len(offer_results))
+            for row, (path, result) in enumerate(offer_results):
+                self.offer_table.setItem(row, 0, QTableWidgetItem(path.name))
+                self.offer_table.setItem(row, 1, QTableWidgetItem(result.supplier_id))
+                self.offer_table.setItem(row, 2, QTableWidgetItem(str(len(result.offers))))
+                self.offer_table.setItem(row, 3, QTableWidgetItem(str(len(result.review_queue))))
+
+        def open_reply(self, row: int, column: int) -> None:
+            del column
+            item = self.reply_table.item(row, 1)
+            if item:
+                QDesktopServices.openUrl(QUrl.fromLocalFile(item.text()))
+
+        def open_offer_file(self, row: int, column: int) -> None:
+            del column
+            results = getattr(self, "offer_results", [])
+            if 0 <= row < len(results):
+                QDesktopServices.openUrl(QUrl.fromLocalFile(str(results[row][0])))
+
+        def show_offer_details(
+            self, row: int, column: int, previous_row: int, previous_column: int
+        ) -> None:
+            del column, previous_row, previous_column
+            results = getattr(self, "offer_results", [])
+            if not 0 <= row < len(results):
+                return
+            _path, result = results[row]
+            self.offer_details.setPlainText(
+                json.dumps(
+                    {
+                        "supplier_id": result.supplier_id,
+                        "source_file": result.source_file,
+                        "offers": [item.model_dump() for item in result.offers],
+                        "review_queue": [item.model_dump() for item in result.review_queue],
+                    },
+                    indent=2,
+                    ensure_ascii=False,
+                )
+            )
 
         def on_failed(self, message: str) -> None:
             self.log.appendPlainText("ERROR: " + message)
