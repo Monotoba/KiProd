@@ -35,7 +35,9 @@ from kiprod.plugins.host import PluginError, discover_plugins
 from kiprod.reports.markdown import comparison_markdown
 from kiprod.reports.run_archive import archive_inputs, input_paths, load_manifest
 from kiprod.rfq.approval import approve_package, has_current_approval, package_sha256
+from kiprod.rfq.email import create_email_draft
 from kiprod.rfq.package import build_package, verify_package
+from kiprod.rfq.workflow import get_rfq_status, register_email_draft
 
 app = typer.Typer(help="Build traceable KiCad production artifacts.", no_args_is_help=True)
 config_app = typer.Typer(help="Manage layered project configuration.", no_args_is_help=True)
@@ -73,9 +75,61 @@ def rfq_verify(package: Path = typer.Argument(..., exists=True, dir_okay=False))
     typer.echo("Verified RFQ package files: " + ", ".join(files))
 
 
+@rfq_app.command("draft")
+def rfq_draft(
+    rfq_id: str = typer.Argument(...),
+    package: Path = typer.Argument(..., exists=True, dir_okay=False),
+    recipient: str = typer.Option(..., "--to"),
+    sender: str = typer.Option(..., "--from"),
+    subject: str = typer.Option(..., "--subject"),
+    body_file: Path = typer.Option(..., "--body", exists=True, dir_okay=False),
+    output: Path = typer.Option(..., "--output", "-o"),
+    database: Path = typer.Option(
+        Path("docs/production/.kiprod/state.sqlite"),
+        "--database",
+        help="Local RFQ audit database.",
+    ),
+) -> None:
+    """Create a verified local email draft; this command does not send messages."""
+    try:
+        draft = create_email_draft(
+            rfq_id=rfq_id,
+            sender=sender,
+            recipient=recipient,
+            subject=subject,
+            body=body_file.read_text(encoding="utf-8"),
+            package=package,
+            output=output,
+        )
+        status = register_email_draft(database, rfq_id, recipient, draft)
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    typer.echo(f"Wrote email draft {draft}")
+    typer.echo(f"RFQ {status.rfq_id}: {status.state}; email SHA-256 {status.payload_sha256}")
+
+
+@rfq_app.command("status")
+def rfq_status(
+    rfq_id: str = typer.Argument(...),
+    database: Path = typer.Option(
+        Path("docs/production/.kiprod/state.sqlite"),
+        "--database",
+        help="Local RFQ audit database.",
+    ),
+) -> None:
+    """Show the current state and payload hash for one RFQ."""
+    status = get_rfq_status(database, rfq_id)
+    if status is None:
+        raise typer.BadParameter(f"unknown RFQ ID: {rfq_id}")
+    typer.echo(
+        f"{status.rfq_id}: {status.state}; recipient {status.recipient}; "
+        f"email SHA-256 {status.payload_sha256}"
+    )
+
+
 @rfq_app.command("approve")
 def rfq_approve(
-    package: Path = typer.Argument(..., exists=True, dir_okay=False),
+    payload: Path = typer.Argument(..., exists=True, dir_okay=False),
     database: Path = typer.Option(
         Path("docs/production/.kiprod/state.sqlite"),
         "--database",
@@ -85,13 +139,13 @@ def rfq_approve(
         getpass.getuser(), "--user", help="Name recorded in the approval log."
     ),
 ) -> None:
-    """Record interactive approval for the exact current package bytes."""
-    digest = package_sha256(package)
-    typer.echo(f"Package SHA-256: {digest}")
-    if not typer.confirm("Approve this exact RFQ package?"):
+    """Record interactive approval for the exact current file bytes."""
+    digest = package_sha256(payload)
+    typer.echo(f"Payload SHA-256: {digest}")
+    if not typer.confirm("Approve this exact RFQ payload?"):
         raise typer.Exit(code=2)
     try:
-        record = approve_package(package, database, user, expected_hash=digest)
+        record = approve_package(payload, database, user, expected_hash=digest)
     except (OSError, ValueError) as exc:
         raise typer.BadParameter(str(exc)) from exc
     typer.echo(f"Approval {record.approval_id} recorded for {record.user} at {record.approved_at}")
@@ -99,16 +153,16 @@ def rfq_approve(
 
 @rfq_app.command("approval-status")
 def rfq_approval_status(
-    package: Path = typer.Argument(..., exists=True, dir_okay=False),
+    payload: Path = typer.Argument(..., exists=True, dir_okay=False),
     database: Path = typer.Option(
         Path("docs/production/.kiprod/state.sqlite"), "--database", help="Local RFQ audit database."
     ),
 ) -> None:
-    """Check whether an approval matches the package's current bytes."""
-    if has_current_approval(package, database):
-        typer.echo(f"Current package is approved: {package_sha256(package)}")
+    """Check whether an approval matches the file's current bytes."""
+    if has_current_approval(payload, database):
+        typer.echo(f"Current payload is approved: {package_sha256(payload)}")
         return
-    typer.echo(f"Current package has no matching approval: {package_sha256(package)}")
+    typer.echo(f"Current payload has no matching approval: {package_sha256(payload)}")
     raise typer.Exit(code=1)
 
 

@@ -81,7 +81,12 @@ def has_current_approval(package: Path, database: Path) -> bool:
         return False
     digest = package_sha256(package)
     with sqlite3.connect(database, timeout=10) as connection:
-        exists = connection.execute(
-            "SELECT 1 FROM rfq_approvals WHERE package_sha256 = ? LIMIT 1", (digest,)
-        ).fetchone()
+        try:
+            exists = connection.execute(
+                "SELECT 1 FROM rfq_approvals WHERE package_sha256 = ? LIMIT 1", (digest,)
+            ).fetchone()
+        except sqlite3.OperationalError as exc:
+            if "no such table" in str(exc):
+                return False
+            raise
     return exists is not None

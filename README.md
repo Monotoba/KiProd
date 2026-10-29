@@ -40,10 +40,14 @@ then verify it with `kiprod rfq verify package.zip`. This requires local `clamsc
 and `gpg` executables and never sends the package.
 Package staging also blocks text files containing the current user's home path or
 username and files with explicit hidden-layer markers.
-Record a human approval for that exact archive with `kiprod rfq approve package.zip`;
-the CLI shows its SHA-256 before confirmation and stores the approval in the local
-`.kiprod/state.sqlite` audit database. `kiprod rfq approval-status package.zip` reports
-whether the current archive bytes still match an approval.
+Create a local message draft with `kiprod rfq draft KP-board-20261029-1 package.zip
+--to quotes@example.com --from buyer@example.com --subject "RFQ KP-board-20261029-1"
+--body request.txt --output request.eml`. It verifies and attaches the signed archive,
+then records the RFQ as `awaiting_approval`; it does not send email. Approve the exact
+message with `kiprod rfq approve request.eml`; the CLI shows its SHA-256 before
+confirmation and stores the approval in `.kiprod/state.sqlite`. Approval status becomes
+invalid if the message bytes change. `kiprod rfq status KP-board-20261029-1` shows its
+current state.
 
 Project and supplier plugins live under
 `docs/production/quotes/config/suppliers/`. Use `kiprod plugins list` to inspect

@@ -62,7 +62,9 @@
 - [x] Add interactive approval records bound to exact package hashes and invalidate approval status when package bytes change.
 - [x] Block package creation when staged text contains local home paths, the current username, or an explicit hidden-layer marker.
 - [ ] Expand privacy scanning to structured Office/PDF metadata and format-specific hidden-layer states.
-- [ ] Add email composition and a stateful dispatch workflow that cannot send without approval.
+- [x] Compose local email drafts with a verified signed package attached and record the RFQ in `awaiting_approval`.
+- [x] Require approval of the exact saved email payload before the workflow can transition to `sent`.
+- [ ] Add SMTP/TLS delivery, with failures retained for retry and no external send without approval.
 - [ ] Match captured inbox messages by RFQ number and import structured quote attachments.
 - [ ] Add fixture-based PDF/XLSX/CSV response extraction and confidence review queue.
 

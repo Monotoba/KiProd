@@ -2,13 +2,21 @@ from __future__ import annotations
 
 import subprocess
 import zipfile
+from email import policy
+from email.parser import BytesParser
 from pathlib import Path
 
 import pytest
 
 import kiprod.rfq.package as rfq_package
 from kiprod.rfq.approval import approve_package, has_current_approval, package_sha256
+from kiprod.rfq.email import create_email_draft
 from kiprod.rfq.privacy import scan_privacy
+from kiprod.rfq.workflow import (
+    get_rfq_status,
+    register_email_draft,
+    transition_rfq,
+)
 
 
 def _mock_tools(monkeypatch: pytest.MonkeyPatch, *, scan_status: int = 0) -> None:
@@ -134,6 +142,88 @@ def test_approval_rejects_package_changed_after_hash_review(tmp_path: Path) -> N
     package.write_bytes(b"new package")
     with pytest.raises(ValueError, match="changed"):
         approve_package(package, tmp_path / "state.sqlite", "operator", expected_hash="0" * 64)
+
+
+def test_email_draft_attaches_verified_package_and_waits_for_approval(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _mock_tools(monkeypatch)
+    source = tmp_path / "bom.csv"
+    source.write_text("Ref,Qty\nR1,1\n", encoding="utf-8")
+    package = rfq_package.build_package({"bom.csv": source}, tmp_path / "package.zip", "test-key")
+    draft = create_email_draft(
+        rfq_id="KP-board-20261029-1",
+        sender="buyer@example.test",
+        recipient="quotes@example.test",
+        subject="RFQ KP-board-20261029-1",
+        body="Please quote the attached package.",
+        package=package,
+        output=tmp_path / "email.eml",
+    )
+    message = BytesParser(policy=policy.default).parsebytes(draft.read_bytes())
+    attachments = list(message.iter_attachments())
+    assert message["X-KiProd-RFQ-ID"] == "KP-board-20261029-1"
+    assert len(attachments) == 1
+    assert attachments[0].get_filename() == "package.zip"
+    database = tmp_path / "state.sqlite"
+    status = register_email_draft(database, "KP-board-20261029-1", "quotes@example.test", draft)
+    assert status.state == "awaiting_approval"
+    assert get_rfq_status(database, status.rfq_id) == status
+    with pytest.raises(ValueError, match="approval"):
+        transition_rfq(database, status.rfq_id, "sent")
+
+
+def test_rfq_can_enter_sent_only_after_approval_of_saved_email(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _mock_tools(monkeypatch)
+    package_source = tmp_path / "bom.csv"
+    package_source.write_text("Ref,Qty\nR1,1\n", encoding="utf-8")
+    package = rfq_package.build_package(
+        {"bom.csv": package_source}, tmp_path / "package.zip", "test-key"
+    )
+    draft = create_email_draft(
+        rfq_id="KP-test-1",
+        sender="buyer@example.test",
+        recipient="quotes@example.test",
+        subject="RFQ KP-test-1",
+        body="Quote requested.",
+        package=package,
+        output=tmp_path / "rfq.eml",
+    )
+    database = tmp_path / "state.sqlite"
+    register_email_draft(database, "KP-test-1", "quotes@example.test", draft)
+    approve_package(draft, database, "operator")
+
+    assert transition_rfq(database, "KP-test-1", "sent").state == "sent"
+    draft.write_bytes(draft.read_bytes() + b"tampered")
+    with pytest.raises(ValueError, match="invalid RFQ state transition"):
+        transition_rfq(database, "KP-test-1", "sent")
+
+
+def test_changed_email_cannot_use_its_old_approval_to_enter_sent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _mock_tools(monkeypatch)
+    source = tmp_path / "bom.csv"
+    source.write_text("Ref,Qty\n", encoding="utf-8")
+    package = rfq_package.build_package({"bom.csv": source}, tmp_path / "pkg.zip", "test-key")
+    draft = create_email_draft(
+        rfq_id="KP-test-2",
+        sender="buyer@example.test",
+        recipient="quotes@example.test",
+        subject="RFQ KP-test-2",
+        body="Quote this.",
+        package=package,
+        output=tmp_path / "request.eml",
+    )
+    database = tmp_path / "state.sqlite"
+    register_email_draft(database, "KP-test-2", "quotes@example.test", draft)
+    approve_package(draft, database, "operator")
+    draft.write_bytes(draft.read_bytes() + b"changed")
+
+    with pytest.raises(ValueError, match="exact saved email"):
+        transition_rfq(database, "KP-test-2", "sent")
 
 
 @pytest.mark.parametrize("name", ["../secret.txt", "/etc/passwd", "folder\\file.txt"])
