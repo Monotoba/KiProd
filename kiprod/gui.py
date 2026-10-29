@@ -9,7 +9,14 @@ from tempfile import TemporaryDirectory
 from typing import Any, cast
 from uuid import uuid4
 
-from kiprod.ai.review import ReviewReport, review_bom
+from kiprod.ai.review import ReviewFinding, ReviewReport, review_bom
+from kiprod.ai.review_decisions import (
+    Disposition,
+    finding_key,
+    latest_dispositions,
+    load_decisions,
+    record_decision,
+)
 from kiprod.analysis.assembly import extract as extract_assembly
 from kiprod.analysis.comparison import Comparison, compare
 from kiprod.analysis.landed import LandedCost
@@ -345,12 +352,40 @@ def run_gui(project_path: Path | None = None) -> int:
             )
             self.bom_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
             self.bom_table.horizontalHeader().setStretchLastSection(True)
-            self.review_table = QTableWidget(0, 5)
+            self.review_table = QTableWidget(0, 6)
             self.review_table.setHorizontalHeaderLabels(
-                ["Severity", "Code", "References", "Finding", "Suggested action"]
+                ["Severity", "Code", "References", "Finding", "Suggested action", "Decision"]
             )
             self.review_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
             self.review_table.horizontalHeader().setStretchLastSection(True)
+            self.review_table.currentCellChanged.connect(self.show_finding_details)
+            review_page = QWidget()
+            review_layout = QVBoxLayout(review_page)
+            review_splitter = QSplitter(Qt.Orientation.Horizontal)
+            review_splitter.addWidget(self.review_table)
+            decision_panel = QWidget()
+            decision_layout = QVBoxLayout(decision_panel)
+            self.review_details = QPlainTextEdit()
+            self.review_details.setReadOnly(True)
+            self.review_comment = QLineEdit()
+            self.review_comment.setPlaceholderText("Review comment (required for dismiss/defer)")
+            decision_layout.addWidget(self.review_details, 1)
+            decision_layout.addWidget(self.review_comment)
+            decision_buttons = QHBoxLayout()
+            for label, disposition in (
+                ("Accept", "accept"),
+                ("Dismiss", "dismiss"),
+                ("Defer", "defer"),
+            ):
+                button = QPushButton(label)
+                button.clicked.connect(
+                    lambda _checked=False, choice=disposition: self.record_selected_review(choice)
+                )
+                decision_buttons.addWidget(button)
+            decision_layout.addLayout(decision_buttons)
+            review_splitter.addWidget(decision_panel)
+            review_splitter.setSizes([700, 480])
+            review_layout.addWidget(review_splitter)
             self.reports_list = QTableWidget(0, 2)
             self.reports_list.setHorizontalHeaderLabels(["Artifact", "Path"])
             self.reports_list.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -389,7 +424,7 @@ def run_gui(project_path: Path | None = None) -> int:
             settings_layout.addRow(self.save_settings_button)
             self.tabs.addTab(self.project_page, "Project")
             self.tabs.addTab(self.bom_table, "BOM & Specs")
-            self.tabs.addTab(self.review_table, "Review")
+            self.tabs.addTab(review_page, "Review")
             self.tabs.addTab(self.board_table, "Boards")
             self.tabs.addTab(self.assembly_table, "Assembly")
             supplier_splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -469,6 +504,10 @@ def run_gui(project_path: Path | None = None) -> int:
             self.current_project = project
             self.current_project_path = project.root
             self.current_json_path = json_path
+            self.current_findings = report.findings
+            self.review_decision_path = (
+                project.root / "docs" / "production" / "bom" / "review.decisions.json"
+            )
             self.refresh_settings(project)
             selected_variant = self.variant_combo.currentData()
             self.variant_combo.blockSignals(True)
@@ -507,15 +546,23 @@ def run_gui(project_path: Path | None = None) -> int:
                     self.bom_table.setItem(row, column, QTableWidgetItem(value))
             self.review_table.setRowCount(len(report.findings))
             for row, finding in enumerate(report.findings):
+                references = ", ".join(
+                    reference
+                    for line in bom.lines
+                    if line.line_id in finding.line_ids
+                    for reference in line.references
+                )
                 values = [
                     finding.severity,
                     finding.code,
-                    ", ".join(finding.line_ids),
+                    references,
                     finding.summary,
                     finding.suggested_action or "",
+                    "Open",
                 ]
                 for column, value in enumerate(values):
                     self.review_table.setItem(row, column, QTableWidgetItem(value))
+            self.refresh_review_decisions()
             self._fill_metrics(self.board_table, board_spec.model_dump() if board_spec else {})
             self._fill_metrics(
                 self.assembly_table,
@@ -541,6 +588,65 @@ def run_gui(project_path: Path | None = None) -> int:
             self.progress_bar.setValue(value)
             self.progress_bar.setFormat(message)
             self.statusBar().showMessage(message)
+
+        def refresh_review_decisions(self) -> None:
+            try:
+                dispositions = latest_dispositions(load_decisions(self.review_decision_path))
+            except (OSError, ValueError) as exc:
+                self.log.appendPlainText(f"WARNING: review decision file is invalid: {exc}")
+                dispositions = {}
+            for row, finding in enumerate(self.current_findings):
+                item = self.review_table.item(row, 5)
+                if item is not None:
+                    item.setText(dispositions.get(finding_key(finding), "Open"))
+
+        def show_finding_details(
+            self, row: int, column: int, previous_row: int, previous_column: int
+        ) -> None:
+            del column, previous_row, previous_column
+            findings = getattr(self, "current_findings", [])
+            if not 0 <= row < len(findings):
+                self.review_details.clear()
+                return
+            finding: ReviewFinding = findings[row]
+            evidence = [
+                f"{source.path}" + (f"#{source.reference}" if source.reference else "")
+                for source in finding.evidence
+            ]
+            self.review_details.setPlainText(
+                f"{finding.severity.upper()} — {finding.code}\n\n{finding.summary}\n\n"
+                f"Suggested action: {finding.suggested_action or '(none)'}\n"
+                f"BOM line IDs: {', '.join(finding.line_ids) or '(none)'}\n"
+                f"Source: {finding.source}; provider: {finding.provider or '(rule)'}; "
+                f"model: {finding.model or '(none)'}; "
+                f"prompt: {finding.prompt_version or '(none)'}\n\n"
+                "Evidence:\n" + ("\n".join(evidence) or "(no source evidence recorded)")
+            )
+
+        def record_selected_review(self, disposition: str) -> None:
+            row = self.review_table.currentRow()
+            findings = getattr(self, "current_findings", [])
+            if not 0 <= row < len(findings):
+                QMessageBox.information(self, "Select a finding", "Select a review finding first.")
+                return
+            try:
+                result = record_decision(
+                    self.review_decision_path,
+                    findings[row],
+                    cast(Disposition, disposition),
+                    self.review_comment.text(),
+                )
+            except (OSError, ValueError) as exc:
+                QMessageBox.warning(self, "Review decision was not saved", str(exc))
+                return
+            latest = latest_dispositions(result)
+            item = self.review_table.item(row, 5)
+            if item is not None:
+                item.setText(latest[finding_key(findings[row])])
+            self.review_comment.clear()
+            self.log.appendPlainText(
+                f"Recorded {disposition} for {findings[row].code} in {self.review_decision_path}"
+            )
 
         def refresh_settings(self, project: Project) -> None:
             try:

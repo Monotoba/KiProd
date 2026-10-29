@@ -104,8 +104,9 @@
 - [x] Add run progress, warning/error messages, and output-folder shortcuts.
 - [x] Add automated headless GUI workflow smoke coverage for generated artifacts and quote-data loading.
 - [x] Document GUI setup and launch.
+- [x] Persist append-only accept/dismiss/defer review decisions with comments in a separate project artifact.
 - [ ] Add editable BOM fields with source badges, filtering, and approval-gated KiCad write-back.
-- [ ] Add review evidence navigation and accept/dismiss/defer actions with comments.
+- [ ] Add direct source-file navigation from review evidence.
 - [ ] Build supplier settings forms from manifests and show credential status, capabilities, results, and docs.
 - [ ] Add board-house and assembler settings/results panes with capability checks.
 - [ ] Add in-GUI quote candidate confirmation, correction, rejection, and source highlighting.
