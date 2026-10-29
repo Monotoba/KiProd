@@ -11,6 +11,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from kiprod.net.http import HttpClient
 from kiprod.plugins.models import Manifest
 
 
@@ -23,6 +24,10 @@ class LoadedPlugin:
     path: Path
     manifest: Manifest
     adapter_class: type[object] | None
+
+    def http_client(self, **options: Any) -> HttpClient:
+        """Create the only supported HTTP client for this plugin's declared hosts."""
+        return HttpClient(set(self.manifest.permissions.network), **options)
 
     def call(self, method: str, *args: Any, timeout: float = 10.0, **kwargs: Any) -> Any:
         """Execute an adapter method in a fresh worker process."""
