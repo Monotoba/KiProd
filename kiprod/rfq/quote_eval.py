@@ -22,6 +22,7 @@ class FixtureEvaluation(BaseModel):
     precision: float
     recall: float
     review_items: int
+    review_policy_passed: bool = True
     skipped: bool = False
     error: str | None = None
 
@@ -34,6 +35,7 @@ class QuoteEvaluation(BaseModel):
     fixture_count: int
     evaluated_fixture_count: int
     skipped_fixture_count: int
+    review_policy_passed: bool
     cases: list[FixtureEvaluation] = Field(default_factory=list)
     passed: bool
 
@@ -79,6 +81,7 @@ def _evaluate_case(
     expected_rows: list[dict[str, object]],
     *,
     supplier_id: str,
+    expected_review: bool | None,
 ) -> FixtureEvaluation:
     try:
         result = parse_quote_attachment(fixture, supplier_id)
@@ -93,6 +96,7 @@ def _evaluate_case(
                 precision=0.0,
                 recall=0.0,
                 review_items=0,
+                review_policy_passed=True,
                 skipped=True,
                 error=str(exc),
             )
@@ -105,6 +109,7 @@ def _evaluate_case(
             precision=0.0,
             recall=0.0,
             review_items=0,
+            review_policy_passed=expected_review is None,
             error=str(exc),
         )
     actual_rows = _actual_rows(result)
@@ -131,6 +136,8 @@ def _evaluate_case(
         exact_rows / len(actual_rows) if actual_rows else (1.0 if not expected_rows else 0.0)
     )
     recall = exact_rows / len(expected_rows) if expected_rows else (1.0 if not actual_rows else 0.0)
+    actual_review = any(offer.requires_review for offer in result.offers)
+    review_policy_passed = expected_review is None or actual_review == expected_review
     return FixtureEvaluation(
         fixture=fixture.name,
         expected_rows=len(expected_rows),
@@ -140,6 +147,12 @@ def _evaluate_case(
         precision=precision,
         recall=recall,
         review_items=len(result.review_queue),
+        review_policy_passed=review_policy_passed,
+        error=(
+            "human-review policy did not match expected fixture policy"
+            if not review_policy_passed
+            else None
+        ),
     )
 
 
@@ -157,6 +170,9 @@ def evaluate_quote_fixtures(
     for case in spec.get("fixtures", []):
         fixture = fixture_dir / str(case["path"])
         rows = case.get("rows", [])
+        expected_review = case.get("review_required")
+        if expected_review is not None and not isinstance(expected_review, bool):
+            raise ValueError(f"review_required must be a boolean for fixture {fixture.name}")
         if not fixture.is_file():
             cases.append(
                 FixtureEvaluation(
@@ -168,11 +184,19 @@ def evaluate_quote_fixtures(
                     precision=0.0,
                     recall=0.0,
                     review_items=0,
+                    review_policy_passed=expected_review is None,
                     error=f"fixture not found: {fixture}",
                 )
             )
         else:
-            cases.append(_evaluate_case(fixture, rows, supplier_id=supplier_id))
+            cases.append(
+                _evaluate_case(
+                    fixture,
+                    rows,
+                    supplier_id=supplier_id,
+                    expected_review=expected_review,
+                )
+            )
     evaluated = [case for case in cases if not case.skipped]
     expected_rows = sum(case.expected_rows for case in evaluated)
     extracted_rows = sum(case.extracted_rows for case in evaluated)
@@ -185,6 +209,7 @@ def evaluate_quote_fixtures(
     precision = exact_rows / extracted_rows if extracted_rows else 0.0
     recall = exact_rows / expected_rows if expected_rows else 0.0
     errors = any(case.error is not None for case in evaluated)
+    review_policy_passed = all(case.review_policy_passed for case in evaluated)
     return QuoteEvaluation(
         minimum_accuracy=minimum_accuracy,
         field_accuracy=accuracy,
@@ -193,8 +218,9 @@ def evaluate_quote_fixtures(
         fixture_count=len(cases),
         evaluated_fixture_count=len(evaluated),
         skipped_fixture_count=sum(case.skipped for case in cases),
+        review_policy_passed=review_policy_passed,
         cases=cases,
-        passed=accuracy >= minimum_accuracy and not errors,
+        passed=accuracy >= minimum_accuracy and not errors and review_policy_passed,
     )
 
 

@@ -3,41 +3,101 @@
     {
       "path": "rfq_quote.csv",
       "rows": [
-        {"mpn": "MPN-CSV-1", "spn": "SKU-CSV-1", "quantity": 10, "unit_price": 0.5, "currency": "USD"},
-        {"mpn": "MPN-CSV-1", "spn": "SKU-CSV-1", "quantity": 100, "unit_price": 0.25, "currency": "USD"}
-      ]
+        {
+          "mpn": "MPN-CSV-1",
+          "spn": "SKU-CSV-1",
+          "quantity": 10,
+          "unit_price": 0.5,
+          "currency": "USD"
+        },
+        {
+          "mpn": "MPN-CSV-1",
+          "spn": "SKU-CSV-1",
+          "quantity": 100,
+          "unit_price": 0.25,
+          "currency": "USD"
+        }
+      ],
+      "review_required": false
     },
     {
       "path": "rfq_quote_supplier_b.csv",
       "rows": [
-        {"mpn": "IC-204", "spn": "VND-204", "quantity": 25, "unit_price": 1.125, "currency": "EUR"},
-        {"mpn": "IC-204", "spn": "VND-204", "quantity": 250, "unit_price": 0.875, "currency": "EUR"}
-      ]
+        {
+          "mpn": "IC-204",
+          "spn": "VND-204",
+          "quantity": 25,
+          "unit_price": 1.125,
+          "currency": "EUR"
+        },
+        {
+          "mpn": "IC-204",
+          "spn": "VND-204",
+          "quantity": 250,
+          "unit_price": 0.875,
+          "currency": "EUR"
+        }
+      ],
+      "review_required": false
     },
     {
       "path": "rfq_quote_supplier_c.csv",
       "rows": [
-        {"mpn": "OPAMP-2026", "spn": "ACME-OP-19", "quantity": 10, "unit_price": 2.15, "currency": "USD"},
-        {"mpn": "OPAMP-2026", "spn": "ACME-OP-19", "quantity": 100, "unit_price": 1.88, "currency": "USD"}
-      ]
+        {
+          "mpn": "OPAMP-2026",
+          "spn": "ACME-OP-19",
+          "quantity": 10,
+          "unit_price": 2.15,
+          "currency": "USD"
+        },
+        {
+          "mpn": "OPAMP-2026",
+          "spn": "ACME-OP-19",
+          "quantity": 100,
+          "unit_price": 1.88,
+          "currency": "USD"
+        }
+      ],
+      "review_required": false
     },
     {
       "path": "rfq_quote_labeled.pdf",
       "rows": [
-        {"mpn": "MPN-PDF-1", "spn": "SKU-PDF-1", "quantity": 10, "unit_price": 0.75, "currency": "USD"}
-      ]
+        {
+          "mpn": "MPN-PDF-1",
+          "spn": "SKU-PDF-1",
+          "quantity": 10,
+          "unit_price": 0.75,
+          "currency": "USD"
+        }
+      ],
+      "review_required": true
     },
     {
       "path": "rfq_quote.xlsx",
       "rows": [
-        {"mpn": "MPN-XLSX-1", "spn": "SKU-XLSX-1", "quantity": 5, "unit_price": 2.5, "currency": "USD"}
-      ]
+        {
+          "mpn": "MPN-XLSX-1",
+          "spn": "SKU-XLSX-1",
+          "quantity": 5,
+          "unit_price": 2.5,
+          "currency": "USD"
+        }
+      ],
+      "review_required": false
     },
     {
       "path": "rfq_quote_supplier_d.xlsx",
       "rows": [
-        {"mpn": "MPN-XLSX-1", "spn": "SKU-XLSX-1", "quantity": 5, "unit_price": 2.5, "currency": "USD"}
-      ]
+        {
+          "mpn": "MPN-XLSX-1",
+          "spn": "SKU-XLSX-1",
+          "quantity": 5,
+          "unit_price": 2.5,
+          "currency": "USD"
+        }
+      ],
+      "review_required": false
     }
   ]
 }

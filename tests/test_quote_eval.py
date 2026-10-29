@@ -77,3 +77,36 @@ def test_quote_fixture_accuracy_fails_when_expected_price_is_wrong(tmp_path: Pat
     assert not report.passed
     assert report.field_accuracy == 0.8
     assert report.precision == 0.0
+
+
+def test_quote_fixture_evaluation_fails_when_review_policy_changes(tmp_path: Path) -> None:
+    expected = tmp_path / "expected.json"
+    expected.write_text(
+        json.dumps(
+            {
+                "fixtures": [
+                    {
+                        "path": "rfq_quote.csv",
+                        "review_required": True,
+                        "rows": [
+                            {
+                                "mpn": "MPN-CSV-1",
+                                "spn": "SKU-CSV-1",
+                                "quantity": 10,
+                                "unit_price": 0.5,
+                                "currency": "USD",
+                            }
+                        ],
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    report = evaluate_quote_fixtures(FIXTURES, expected)
+
+    assert not report.passed
+    assert not report.review_policy_passed
+    assert not report.cases[0].review_policy_passed
+    assert "review policy" in (report.cases[0].error or "")
