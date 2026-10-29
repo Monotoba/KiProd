@@ -8,6 +8,7 @@ import subprocess
 from collections import defaultdict
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import cast
 
 from pydantic import BaseModel, Field
@@ -93,20 +94,56 @@ def _read_xlsx(path: Path) -> tuple[list[object], list[list[object]]]:
     return list(rows[0]), [list(row) for row in rows[1:]]
 
 
-def _read_pdf(path: Path) -> tuple[list[object], list[list[object]]]:
-    executable = shutil.which("pdftotext")
-    if executable is None:
-        raise ValueError("PDF quote import requires the local `pdftotext` executable")
+def _ocr_pdf(path: Path) -> tuple[str, bool]:
+    renderer = shutil.which("pdftoppm")
+    ocr = shutil.which("tesseract")
+    if renderer is None or ocr is None:
+        return "", False
     try:
-        result = subprocess.run(
-            [executable, "-layout", "-enc", "UTF-8", str(path), "-"],
-            capture_output=True,
-            check=True,
-            text=True,
-            timeout=30,
-        )
+        with TemporaryDirectory(prefix="kiprod-quote-ocr-") as temporary:
+            prefix = Path(temporary) / "page"
+            subprocess.run(
+                [renderer, "-f", "1", "-l", "10", "-png", "-r", "200", str(path), str(prefix)],
+                capture_output=True,
+                check=True,
+                timeout=60,
+            )
+            pages = sorted(Path(temporary).glob("page-*.png"))
+            texts: list[str] = []
+            for page in pages:
+                result = subprocess.run(
+                    [ocr, str(page), "stdout"],
+                    capture_output=True,
+                    check=True,
+                    text=True,
+                    timeout=60,
+                )
+                texts.append(result.stdout)
+            return "\n".join(texts), bool(pages)
     except (OSError, subprocess.SubprocessError) as exc:
-        raise ValueError(f"could not extract quote text from PDF {path}: {exc}") from exc
+        raise ValueError(f"could not OCR scanned quote PDF {path}: {exc}") from exc
+
+
+def _pdf_text(path: Path) -> tuple[str, bool]:
+    executable = shutil.which("pdftotext")
+    if executable is not None:
+        try:
+            result = subprocess.run(
+                [executable, "-layout", "-enc", "UTF-8", str(path), "-"],
+                capture_output=True,
+                check=True,
+                text=True,
+                timeout=30,
+            )
+            if result.stdout.strip():
+                return result.stdout, False
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return _ocr_pdf(path)
+
+
+def _read_pdf(path: Path) -> tuple[list[object], list[list[object]], bool]:
+    text, used_ocr = _pdf_text(path)
     reverse = {alias: key for key, aliases in _ALIASES.items() for alias in aliases}
     headers = [
         "MPN",
@@ -118,7 +155,7 @@ def _read_pdf(path: Path) -> tuple[list[object], list[list[object]]]:
         "Lead Time Days",
     ]
     header_keys = [reverse[_header_key(header)] for header in headers]
-    blocks = re.split(r"\n\s*\n|\f", result.stdout)
+    blocks = re.split(r"\n\s*\n|\f", text)
     rows: list[list[object]] = []
     for block in blocks:
         fields: dict[str, str] = {}
@@ -136,7 +173,8 @@ def _read_pdf(path: Path) -> tuple[list[object], list[list[object]]]:
                 fields[key] = cleaned
         if fields:
             rows.append([fields.get(key, "") for key in header_keys])
-    return cast(tuple[list[object], list[list[object]]], (headers, rows))
+    typed_headers, typed_rows = cast(tuple[list[object], list[list[object]]], (headers, rows))
+    return typed_headers, typed_rows, used_ocr
 
 
 def _cell(row: list[object], mapping: dict[str, int], name: str) -> str:
@@ -175,12 +213,13 @@ def parse_quote_attachment(
     """Parse CSV/XLSX tables or labeled PDF blocks into offers and review items."""
     suffix = path.suffix.casefold()
     source_kind = "row"
+    used_ocr = False
     if suffix == ".csv":
         headers, rows = _read_csv(path)
     elif suffix in {".xlsx", ".xlsm"}:
         headers, rows = _read_xlsx(path)
     elif suffix == ".pdf":
-        headers, rows = _read_pdf(path)
+        headers, rows, used_ocr = _read_pdf(path)
         source_kind = "block"
     else:
         raise ValueError(f"unsupported quote attachment format: {suffix or 'unknown'}")
@@ -290,7 +329,11 @@ def parse_quote_attachment(
             lead_time_days=next((item[3] for item in items if item[3] is not None), None),
             source_ref=SourceRef(path=source_path, reference=f"{source_kind}s:{rows_ref}"),
         )
-        confidence = 0.72 if suffix == ".pdf" else (0.97 if suffix == ".csv" else 0.95)
+        confidence = (
+            (0.45 if used_ocr else 0.72)
+            if suffix == ".pdf"
+            else (0.97 if suffix == ".csv" else 0.95)
+        )
         result.offers.append(
             ExtractedOffer(
                 offer=offer,
@@ -303,7 +346,11 @@ def parse_quote_attachment(
                 QuoteReviewItem(
                     source_ref=offer.source_ref,
                     confidence=confidence,
-                    issue="PDF-extracted quote requires human verification",
+                    issue=(
+                        "OCR-extracted quote requires careful human verification"
+                        if used_ocr
+                        else "PDF-extracted quote requires human verification"
+                    ),
                     candidate_mpn=mpn,
                 )
             )

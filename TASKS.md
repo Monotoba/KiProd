@@ -68,7 +68,8 @@
 - [x] Match locally captured `.eml` replies by RFQ ID in subject/header, preserve the original, save sanitized attachments, and acknowledge the RFQ.
 - [x] Parse CSV/XLSX quote tables into source-backed offer candidates with deterministic confidence and incomplete-row review queue.
 - [x] Parse labeled-field PDF quotes into low-confidence candidates that always require human review.
-- [ ] Add IMAP/Graph/Gmail polling, scanned-PDF OCR, and evaluate extraction accuracy against a representative fixture set.
+- [x] Add local OCR fallback for scanned quote PDFs, with low confidence and mandatory careful review.
+- [ ] Add IMAP/Graph/Gmail polling and evaluate extraction accuracy against a representative fixture set.
 
 ## Later milestones
 

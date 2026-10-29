@@ -166,3 +166,38 @@ def test_scanned_pdf_without_extracted_text_stays_in_review_queue(
     assert result.offers == []
     assert len(result.review_queue) == 1
     assert result.review_queue[0].confidence == 0.1
+
+
+def test_scanned_pdf_uses_local_ocr_and_marks_candidate_for_careful_review(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import subprocess
+
+    pdf = tmp_path / "scanned-quote.pdf"
+    pdf.write_bytes(b"scan")
+    extracted_text = (
+        "MPN: MPN-1\nSupplier Part Number: SKU-1\nQuantity: 10\nUnit Price: 0.50\nCurrency: USD\n"
+    )
+    monkeypatch.setattr(
+        quote_import.shutil,
+        "which",
+        lambda name: f"/usr/bin/{name}" if name in {"pdftotext", "pdftoppm", "tesseract"} else None,
+    )
+
+    def run(command: list[str], **kwargs: object) -> SimpleNamespace:
+        if command[0].endswith("pdftotext"):
+            return SimpleNamespace(stdout="")
+        if command[0].endswith("pdftoppm"):
+            Path(f"{command[-1]}-1.png").write_bytes(b"page")
+            return SimpleNamespace(stdout=b"")
+        if command[0].endswith("tesseract"):
+            return SimpleNamespace(stdout=extracted_text)
+        raise AssertionError(f"unexpected executable: {command[0]}")
+
+    monkeypatch.setattr(subprocess, "run", run)
+
+    result = parse_quote_attachment(pdf, "supplier-a")
+
+    assert result.offers[0].confidence == 0.45
+    assert result.offers[0].requires_review
+    assert "OCR-extracted" in result.review_queue[0].issue

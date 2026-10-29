@@ -61,8 +61,9 @@ Parse structured CSV/XLSX quote attachments with
 `kiprod rfq parse-quote quote.csv --supplier-id supplier-a --output offers.json`.
 The output keeps source row references, candidate confidence, and incomplete rows in a
 review queue; XLSX parsing uses the optional `reports` dependency. PDFs are parsed only
-when quote fields use explicit `Label: value` lines. PDF candidates always enter the
-human review queue; image-only PDFs remain unparsed pending OCR support.
+when quote fields use explicit `Label: value` lines. Scanned PDFs use local OCR when
+`pdftoppm` and `tesseract` are available. PDF and OCR candidates always enter the
+human review queue, with OCR candidates marked for careful review.
 
 Project and supplier plugins live under
 `docs/production/quotes/config/suppliers/`. Use `kiprod plugins list` to inspect
