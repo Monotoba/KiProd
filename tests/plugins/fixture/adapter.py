@@ -3,8 +3,9 @@ from pathlib import Path
 
 
 class FixtureAdapter:
-    def __init__(self):
+    def __init__(self, http=None):
         self.root = Path(__file__).parent
+        self.http = http
 
     def health_check(self):
         return {"ok": True}

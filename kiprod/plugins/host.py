@@ -9,7 +9,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from kiprod.net.http import HttpClient
+from kiprod.net.http import HttpClient, HttpError
 from kiprod.plugins.models import Manifest
 
 
@@ -26,7 +26,14 @@ class LoadedPlugin:
         """Create the only supported HTTP client for this plugin's declared hosts."""
         return HttpClient(set(self.manifest.permissions.network), **options)
 
-    def call(self, method: str, *args: Any, timeout: float = 10.0, **kwargs: Any) -> Any:
+    def call(
+        self,
+        method: str,
+        *args: Any,
+        timeout: float = 10.0,
+        http: HttpClient | None = None,
+        **kwargs: Any,
+    ) -> Any:
         """Execute an adapter method in a fresh worker process."""
         if self.manifest.adapter is None:
             raise PluginError(f"plugin {self.manifest.id} has no adapter")
@@ -39,25 +46,57 @@ class LoadedPlugin:
             "kwargs": kwargs,
         }
         try:
-            result = subprocess.run(
+            process = subprocess.Popen(
                 [sys.executable, "-m", "kiprod.plugins.worker"],
-                input=json.dumps(request),
-                capture_output=True,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                timeout=timeout,
-                check=False,
                 cwd=self.path,
                 env={"PATH": "", "PYTHONPATH": str(Path(__file__).resolve().parents[2])},
             )
-        except subprocess.TimeoutExpired as exc:
-            raise PluginError(f"plugin {self.manifest.id} timed out calling {method}") from exc
-        try:
-            payload = json.loads(result.stdout)
-        except json.JSONDecodeError as exc:
-            raise PluginError(f"plugin {self.manifest.id} returned invalid worker output") from exc
-        if result.returncode != 0 or not payload.get("ok"):
-            raise PluginError(payload.get("error", result.stderr.strip() or "plugin call failed"))
-        return payload.get("result")
+            assert process.stdin is not None and process.stdout is not None
+            process.stdin.write(json.dumps(request) + "\n")
+            process.stdin.flush()
+            while True:
+                line = process.stdout.readline()
+                if not line:
+                    stderr = process.stderr.read() if process.stderr else ""
+                    raise PluginError(stderr.strip() or "plugin worker exited without a result")
+                payload = json.loads(line)
+                if payload.get("type") == "http":
+                    broker = http or self.http_client()
+                    try:
+                        response = broker.request(
+                            payload["method"],
+                            payload["url"],
+                            headers=payload.get("headers"),
+                            body=payload["body"].encode("latin1") if payload.get("body") else None,
+                        )
+                        response_data = {
+                            "status": response.status,
+                            "headers": response.headers,
+                            "body": response.body.decode("latin1"),
+                        }
+                        reply = {"ok": True, "response": response_data}
+                    except (HttpError, KeyError, ValueError) as exc:
+                        reply = {"ok": False, "error": str(exc)}
+                    process.stdin.write(json.dumps(reply) + "\n")
+                    process.stdin.flush()
+                    continue
+                process.stdin.close()
+                try:
+                    process.wait(timeout=timeout)
+                except subprocess.TimeoutExpired as exc:
+                    process.kill()
+                    raise PluginError(
+                        f"plugin {self.manifest.id} timed out calling {method}"
+                    ) from exc
+                if process.returncode != 0 or not payload.get("ok"):
+                    raise PluginError(payload.get("error", "plugin call failed"))
+                return payload.get("result")
+        except OSError as exc:
+            raise PluginError(f"failed to start plugin worker: {exc}") from exc
 
 
 def load_manifest(plugin_dir: Path) -> Manifest:
