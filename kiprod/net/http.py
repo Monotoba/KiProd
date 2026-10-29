@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
 import time
 from dataclasses import dataclass
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
 class HttpError(RuntimeError):
@@ -25,6 +26,27 @@ class HttpResponse:
         return json.loads(self.body)
 
 
+class _SameOriginRedirectHandler(HTTPRedirectHandler):
+    """Prevent redirects from forwarding credentials or requests across origins."""
+
+    def redirect_request(
+        self,
+        request: Request,
+        fp: Any,
+        code: int,
+        message: str,
+        headers: Any,
+        new_url: str,
+    ) -> Request | None:
+        original = urlsplit(request.full_url)
+        target = urlsplit(new_url)
+        original_origin = (original.scheme, original.hostname, original.port)
+        target_origin = (target.scheme, target.hostname, target.port)
+        if target_origin != original_origin:
+            raise HTTPError(new_url, code, "cross-origin redirect is not permitted", headers, fp)
+        return super().redirect_request(request, fp, code, message, headers, new_url)
+
+
 class HttpClient:
     """Small allowlisted HTTP client with deterministic fixture replay and cache."""
 
@@ -36,12 +58,14 @@ class HttpClient:
         timeout: float = 10.0,
         retries: int = 2,
         rate_limit_seconds: float = 0.0,
+        allow_local_http: bool = False,
     ) -> None:
         self.allowed_hosts = {host.lower() for host in allowed_hosts}
         self.fixtures = fixtures or {}
         self.timeout = timeout
         self.retries = max(0, retries)
         self.rate_limit_seconds = max(0.0, rate_limit_seconds)
+        self.allow_local_http = allow_local_http
         self._cache: dict[str, HttpResponse] = {}
         self._last_request: dict[str, float] = {}
 
@@ -55,7 +79,13 @@ class HttpClient:
     ) -> HttpResponse:
         parsed = urlsplit(url)
         host = (parsed.hostname or "").lower()
-        if parsed.scheme != "https" or host not in self.allowed_hosts:
+        local_http = (
+            self.allow_local_http
+            and parsed.scheme == "http"
+            and host in self.allowed_hosts
+            and _is_loopback(host)
+        )
+        if host not in self.allowed_hosts or (parsed.scheme != "https" and not local_http):
             raise HttpError(f"URL is not permitted: {url}")
         verb = method.upper()
         if verb not in {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"}:
@@ -75,7 +105,8 @@ class HttpClient:
         for attempt in range(self.retries + 1):
             self._throttle(host)
             try:
-                with urlopen(request, timeout=self.timeout) as response:
+                opener = build_opener(_SameOriginRedirectHandler())
+                with opener.open(request, timeout=self.timeout) as response:
                     result = HttpResponse(
                         response.status,
                         dict(response.headers.items()),
@@ -107,3 +138,12 @@ class HttpClient:
             if delay > 0:
                 time.sleep(delay)
         self._last_request[host] = time.monotonic()
+
+
+def _is_loopback(host: str) -> bool:
+    if host == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False

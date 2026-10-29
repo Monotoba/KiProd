@@ -84,7 +84,8 @@
 - [x] Add deterministic BOM findings and a no-provider fallback.
 - [x] Validate AI review proposals against a strict schema, require known BOM line citations, and retain provider/model/prompt provenance.
 - [x] Minimize review payloads to BOM identity fields and require local providers for confidential projects.
-- [ ] Add provider adapters, role configuration, token/cost caps, content-hash caching, prompt overrides, and model evaluation.
+- [x] Add an OpenAI-compatible chat-completions adapter for HTTPS providers and explicitly allowed loopback model servers.
+- [ ] Add Anthropic/OpenAI-native adapters, role configuration, token/cost caps, content-hash caching, prompt overrides, and model evaluation.
 
 ## Later milestones
 

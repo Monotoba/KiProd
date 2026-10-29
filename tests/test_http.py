@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from urllib.error import HTTPError
+from urllib.request import Request
+
 import pytest
 
-from kiprod.net.http import HttpClient, HttpError, HttpResponse
+from kiprod.net.http import HttpClient, HttpError, HttpResponse, _SameOriginRedirectHandler
 from kiprod.plugins.host import load_plugin
 from kiprod.plugins.suppliers.recorded_catalog import RecordedCatalogAdapter
 
@@ -13,6 +16,35 @@ def test_http_client_enforces_https_host_allowlist() -> None:
         client.get("https://other.example.test/parts")
     with pytest.raises(HttpError, match="not permitted"):
         client.get("http://parts.example.test/parts")
+
+
+def test_http_client_can_allow_explicit_loopback_http_for_local_models() -> None:
+    local_url = "http://127.0.0.1:11434/v1/chat/completions"
+    response = HttpResponse(200, {}, b"{}")
+    client = HttpClient(
+        {"127.0.0.1"},
+        allow_local_http=True,
+        fixtures={("GET", local_url): response},
+    )
+
+    assert client.get(local_url).status == 200
+    with pytest.raises(HttpError, match="not permitted"):
+        client.get("http://192.0.2.1/v1/chat/completions")
+
+
+def test_http_client_rejects_cross_origin_redirects() -> None:
+    request = Request("https://parts.example.test/v1/search")
+    handler = _SameOriginRedirectHandler()
+
+    with pytest.raises(HTTPError, match="cross-origin redirect"):
+        handler.redirect_request(
+            request,
+            None,
+            302,
+            "Found",
+            {},
+            "https://other.example.test/v1/search",
+        )
 
 
 def test_http_client_replays_recorded_fixture_and_caches_get() -> None:
