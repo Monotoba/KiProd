@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -22,6 +23,7 @@ from kiprod.core.project import ProjectNotFoundError, discover
 from kiprod.kicad.cli_adapter import KiCadCliError, export_bom, version
 from kiprod.plugins.host import PluginError, discover_plugins
 from kiprod.reports.markdown import comparison_markdown
+from kiprod.reports.run_archive import archive_inputs, input_paths, load_manifest
 from kiprod.reports.xlsx import comparison_workbook
 
 app = typer.Typer(help="Build traceable KiCad production artifacts.", no_args_is_help=True)
@@ -271,6 +273,9 @@ def compare_quotes(
     bom: Path | None = typer.Option(
         None, exists=True, dir_okay=False, help="Normalized BOM JSON for coverage analysis."
     ),
+    run_dir: Path | None = typer.Option(
+        None, "--run-dir", help="Archive all inputs and generated reports."
+    ),
 ) -> None:
     """Compare saved landed-cost JSON records and write an auditable Markdown table."""
     costs: list[LandedCost] = []
@@ -303,3 +308,42 @@ def compare_quotes(
         except ImportError as exc:
             raise typer.BadParameter("XLSX export requires `pip install kiprod[reports]`") from exc
         typer.echo(f"Wrote {workbook_path}")
+    if run_dir is not None:
+        archive_inputs(inputs, bom, run_dir)
+        shutil.copyfile(output, run_dir / "comparison.md")
+        (run_dir / "comparison.json").write_text(
+            comparison.model_dump_json(indent=2) + "\n", encoding="utf-8"
+        )
+        if workbook is not None:
+            shutil.copyfile(workbook, run_dir / "comparison.xlsx")
+        typer.echo(f"Archived run {run_dir}")
+
+
+@app.command("report")
+def regenerate_report(
+    run_dir: Path = typer.Option(..., "--run", exists=True, file_okay=False),
+    workbook: bool = typer.Option(False, "--xlsx", help="Also regenerate the XLSX workbook."),
+) -> None:
+    """Regenerate comparison reports from hash-verified saved inputs."""
+    try:
+        manifest = load_manifest(run_dir)
+        inputs, bom_path = input_paths(run_dir, manifest)
+        costs = [
+            LandedCost.model_validate_json(path.read_text(encoding="utf-8")) for path in inputs
+        ]
+        required_mpns: set[str] = set()
+        if bom_path:
+            from kiprod.core.models import NormalizedBOM
+
+            loaded_bom = NormalizedBOM.model_validate_json(bom_path.read_text(encoding="utf-8"))
+            required_mpns = {line.mpn for line in loaded_bom.lines if line.mpn}
+        comparison = compare(costs, required_mpns)
+        (run_dir / "comparison.md").write_text(comparison_markdown(comparison), encoding="utf-8")
+        (run_dir / "comparison.json").write_text(
+            comparison.model_dump_json(indent=2) + "\n", encoding="utf-8"
+        )
+        if workbook:
+            comparison_workbook(comparison, costs, run_dir / "comparison.xlsx")
+    except (OSError, ValueError, KeyError) as exc:
+        raise typer.BadParameter(f"cannot regenerate report: {exc}") from exc
+    typer.echo(f"Regenerated reports in {run_dir}")
