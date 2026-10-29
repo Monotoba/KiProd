@@ -9,17 +9,40 @@
   "aliases": [
     "NEWARK"
   ],
-  "integration_status": "profile_only",
+  "integration_status": "adapter_configured",
+  "adapter": {
+    "module": "adapter",
+    "class": "NewarkAdapter",
+    "min_core": "0.1"
+  },
   "capabilities": {
     "components": {
-      "quote_channel": "manual_quote_import",
-      "catalog_api_status": "not_configured"
+      "quote_channel": "element14_product_search_api",
+      "catalog_api_status": "requires_partner_api_key"
     }
   },
   "permissions": {
-    "network": [],
+    "network": ["api.element14.com"],
     "email": false,
     "browser": false
   },
-  "fields": []
+  "credentials": [
+    {"key": "api_key", "label": "Newark / element14 API key", "secret": true}
+  ],
+  "fields": [
+    {
+      "key": "store_id",
+      "label": "Regional catalog",
+      "type": "enum",
+      "default": "www.newark.com",
+      "options": ["www.newark.com", "canada.newark.com", "mexico.newark.com"]
+    },
+    {
+      "key": "currency",
+      "label": "Catalog currency",
+      "type": "enum",
+      "default": "USD",
+      "options": ["USD", "CAD", "MXN"]
+    }
+  ]
 }

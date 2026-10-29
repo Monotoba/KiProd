@@ -1,0 +1,24 @@
+{
+  "keywordSearchReturn": {
+    "numberOfResults": 2,
+    "products": [
+      {
+        "sku": "58K5022",
+        "brandName": "YAGEO",
+        "translatedManufacturerPartNumber": "RC0603FR-074K7L",
+        "prices": [
+          {"from": 1, "to": 99, "cost": 0.012},
+          {"from": 100, "to": 999, "cost": 0.009}
+        ],
+        "inv": 12500
+      },
+      {
+        "sku": "58K5023",
+        "brandName": "YAGEO",
+        "translatedManufacturerPartNumber": "RC0603FR-0710KL",
+        "prices": [{"from": 1, "to": 999, "cost": 0.01}],
+        "inv": 8000
+      }
+    ]
+  }
+}

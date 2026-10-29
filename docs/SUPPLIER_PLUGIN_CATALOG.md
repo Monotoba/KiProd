@@ -45,6 +45,14 @@ and reports the selected supported currency. LCSC's [API program](https://www.lc
 requires application approval; the published [API docs](https://www.lcsc.com/docs/openapi/index.html)
 document the signed search endpoint. It does not access carts or ordering.
 
+The Newark profile includes a read-only element14 Product Search adapter. It
+uses the regional Newark catalog selected in supplier settings and returns
+generic prices and stock; contract pricing requires separately enabled account
+access and is not requested. Register for a key through the [element14 Partner
+Portal](https://partner.element14.com/) and review the official [Newark Search
+API information](https://www.newark.com/services/purchasing-procurement-support/search-api).
+The adapter does not place orders or create carts.
+
 The other component profiles use manual quote import. Unikeyic advertises API
 access by application on its official [company page](https://www.unikeyic.com/aboutus),
 but this does not configure or authorize an API connection in KiProd.
@@ -70,7 +78,7 @@ Imagineering, Inc.
 
 ## Integration boundary
 
-Mouser, DigiKey, and LCSC currently have supplier-specific live adapters. The generic
+Mouser, DigiKey, LCSC, and Newark currently have supplier-specific live adapters. The generic
 read-only JSON catalog protocol can support other suppliers that provide an
 approved API with a documented response mapping. Supplier-specific API
 integrations must confirm current API terms, endpoints, authentication, and

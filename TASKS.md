@@ -36,6 +36,7 @@
 - [x] Add a read-only Mouser Search API adapter with keyring credentials and recorded response-fixture coverage; requires the user to obtain a key and accept current terms before live use.
 - [x] Add a read-only DigiKey Product Information V4 adapter using OAuth client credentials and configurable site, language, and currency; fixture tests cover token and search calls.
 - [x] Add a read-only LCSC partner Keyword Search adapter using LCSC-approved signed API credentials, exact-MPN search, and fixture coverage.
+- [x] Add a read-only Newark Product Search API adapter using the element14 partner API key, regional store settings, exact-MPN search, and fixture coverage.
 - [x] Add discoverable profile plugins for all 28 named component distributors, PCB fabricators, and EMS/assembly suppliers, with aliases and official homepages.
 - [x] Keep the Mouser API key in the OS keyring, redact it from source references and blocked-URL errors, and pass offers through the isolated worker as structured data.
 - [ ] Implement supplier-specific live catalog and quote integrations for remaining profiles only where supplier API access, terms, endpoints, and credentials have been confirmed.

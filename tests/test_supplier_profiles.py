@@ -79,7 +79,11 @@ def test_all_requested_supplier_profiles_are_discoverable() -> None:
     by_slug = {plugin.manifest.id.rsplit(".", 1)[-1]: plugin.manifest for plugin in profiles}
     assert all(
         manifest.status_label
-        == ("Adapter available" if slug in {"mouser", "lcsc", "digikey"} else "Profile only")
+        == (
+            "Adapter available"
+            if slug in {"mouser", "lcsc", "digikey", "newark"}
+            else "Profile only"
+        )
         for slug, manifest in by_slug.items()
     )
     assert len(COMPONENT_SUPPLIERS) == 11

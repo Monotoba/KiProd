@@ -25,7 +25,7 @@ supplier_listing="$("${scratch_dir}/venv/bin/kiprod" plugins list \
   --project "${project_root}/tests/projects/basic")"
 profile_only_count="$(printf '%s\n' "${supplier_listing}" | grep -c 'Profile only$')"
 adapter_available_count="$(printf '%s\n' "${supplier_listing}" | grep -c 'Adapter available$')"
-test "${profile_only_count}" -eq 25
-test "${adapter_available_count}" -eq 3
+test "${profile_only_count}" -eq 24
+test "${adapter_available_count}" -eq 4
 
 echo "Built wheel and source archive; installed wheel, generated a BOM, and found all supplier entries."
