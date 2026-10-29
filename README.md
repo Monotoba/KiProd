@@ -88,3 +88,7 @@ and `kiprod quote MPN --plugin PLUGIN_ID` to query a catalog plugin.
 `TASKS.md` is the maintained implementation plan. The detailed product
 specification is retained in `docs/`. See `AGENTS.md` for non-negotiable
 architecture and safety constraints.
+
+Synthetic manual-test inputs for CSV, XLSX, PDF, and privacy preflight are in
+[`examples/testing_inputs/`](examples/testing_inputs/README.md). They contain
+fictional data and include commands for exercising the CLI.
