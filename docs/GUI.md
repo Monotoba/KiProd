@@ -20,8 +20,12 @@ values under `quotes/config/plugin-settings/`, preserving unknown keys. It displ
 credential labels but does not read or write credential values or call supplier
 adapters. Quotes Inbox lists captured
 `.eml` replies and locally saved quote-import JSON. Selecting an offer file shows
-its parsed candidates and review queue. Double-click opens the local file in the
-system viewer. These views do not poll mailboxes or send messages. Headless smoke
+its parsed candidates and review queue. A candidate can be confirmed, corrected
+from typed offer JSON, or rejected; corrections must preserve its original source
+reference, and correction/rejection requires a comment. Decisions are append-only
+in `quotes/review.decisions.json`. The cited source file can be opened when it is
+stored under the project production folder. These views do not poll mailboxes or
+send messages. Headless smoke
 tests cover the data-loading and artifact-writing workflow without requiring PySide6.
 
 The current GUI provides an editable MPN column with a source label and a filter for

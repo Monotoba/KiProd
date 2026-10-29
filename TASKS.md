@@ -112,7 +112,9 @@
 - [x] Generate and persist scalar supplier settings from manifests while preserving unknown plugin keys and excluding secrets.
 - [ ] Integrate keyring credential status and supplier-specific results/docs panes.
 - [ ] Add board-house and assembler settings/results panes with capability checks.
-- [ ] Add in-GUI quote candidate confirmation, correction, rejection, and source highlighting.
+- [x] Confirm, correct, or reject imported offer candidates in the GUI with append-only decisions and source references.
+- [x] Open the project-stored quote file cited by a selected candidate.
+- [ ] Highlight the cited row/cell or PDF span and review queued rows without extracted offers.
 - [ ] Add comparison weighting, best-mix analysis, gaps, lead-time/duty views, and charts.
 - [ ] Add editors for component, board, assembly, AI, email/signing, approval, and plugin settings.
 - [ ] Add run-all, quote-only, stop, run queue, and AI cost status controls.

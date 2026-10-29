@@ -30,7 +30,7 @@ from kiprod.core.bom_edits import (
     save_bom_overrides,
 )
 from kiprod.core.config import ConfigError, load, parse_quantities, save_project_quantities
-from kiprod.core.models import AssemblySpec, BoardSpec, NormalizedBOM, Project
+from kiprod.core.models import AssemblySpec, BoardSpec, NormalizedBOM, Offer, Project
 from kiprod.core.project import discover
 from kiprod.kicad.board import extract as extract_board
 from kiprod.kicad.cli_adapter import export_bom
@@ -39,6 +39,13 @@ from kiprod.plugins.models import Manifest
 from kiprod.plugins.settings import load_plugin_settings, save_plugin_settings
 from kiprod.reports.markdown import comparison_markdown
 from kiprod.reports.run_archive import archive_inputs, input_paths, load_manifest
+from kiprod.rfq.offer_review import (
+    OfferDisposition,
+    candidate_key,
+    latest_offer_decisions,
+    load_offer_decisions,
+    record_offer_decision,
+)
 from kiprod.rfq.quote_import import QuoteImportResult
 
 
@@ -119,6 +126,22 @@ def _evidence_path(project_root: Path, source_path: str) -> Path:
     if not candidate.is_relative_to(root):
         raise ValueError("review evidence path escapes the selected project")
     return candidate
+
+
+def _quote_source_path(project_root: Path, source_path: str) -> Path | None:
+    production_root = (project_root / "docs" / "production").resolve()
+    basename = Path(source_path).name
+    if not basename:
+        return None
+    for candidate in sorted(production_root.rglob(basename)):
+        resolved = candidate.resolve()
+        if (
+            resolved.is_relative_to(production_root)
+            and resolved.is_file()
+            and "config" not in candidate.relative_to(production_root).parts
+        ):
+            return resolved
+    return None
 
 
 def _qt() -> tuple[Any, ...]:
@@ -366,9 +389,44 @@ def run_gui(project_path: Path | None = None) -> int:
             self.offer_table.currentCellChanged.connect(self.show_offer_details)
             self.offer_details = QPlainTextEdit()
             self.offer_details.setReadOnly(True)
+            self.offer_correction = QPlainTextEdit()
+            self.offer_correction.setPlaceholderText(
+                "Edit the typed offer JSON, then save correction."
+            )
+            self.offer_candidate_combo = QComboBox()
+            self.offer_candidate_combo.currentIndexChanged.connect(self.show_selected_offer)
+            candidate_views = QTabWidget()
+            candidate_views.addTab(self.offer_details, "Original candidate")
+            candidate_views.addTab(self.offer_correction, "Correction")
+            self.offer_review_comment = QLineEdit()
+            self.offer_review_comment.setPlaceholderText(
+                "Comment (required for correction/rejection)"
+            )
+            self.offer_review_status = QLabel("Select an imported offer candidate.")
+            self.open_quote_source_button = QPushButton("Open cited quote file")
+            self.open_quote_source_button.clicked.connect(self.open_selected_quote_source)
+            offer_actions = QHBoxLayout()
+            for label, disposition in (
+                ("Confirm", "confirmed"),
+                ("Save correction", "corrected"),
+                ("Reject", "rejected"),
+            ):
+                button = QPushButton(label)
+                button.clicked.connect(
+                    lambda _checked=False, choice=disposition: self.decide_selected_offer(choice)
+                )
+                offer_actions.addWidget(button)
+            offer_panel = QWidget()
+            offer_panel_layout = QVBoxLayout(offer_panel)
+            offer_panel_layout.addWidget(self.offer_candidate_combo)
+            offer_panel_layout.addWidget(candidate_views, 1)
+            offer_panel_layout.addWidget(self.offer_review_comment)
+            offer_panel_layout.addWidget(self.offer_review_status)
+            offer_panel_layout.addWidget(self.open_quote_source_button)
+            offer_panel_layout.addLayout(offer_actions)
             offer_splitter = QSplitter(Qt.Orientation.Horizontal)
             offer_splitter.addWidget(self.offer_table)
-            offer_splitter.addWidget(self.offer_details)
+            offer_splitter.addWidget(offer_panel)
             offer_splitter.setSizes([500, 500])
             self.quotes_tabs.addTab(self.reply_table, "Captured replies")
             self.quotes_tabs.addTab(offer_splitter, "Imported offers")
@@ -1017,12 +1075,25 @@ def run_gui(project_path: Path | None = None) -> int:
                 self.reply_table.setItem(row, 1, QTableWidgetItem(str(path)))
 
             self.offer_results = offer_results
+            self.offer_decision_path = (
+                project.root / "docs" / "production" / "quotes" / "review.decisions.json"
+            )
+            try:
+                self.offer_decisions = latest_offer_decisions(
+                    load_offer_decisions(self.offer_decision_path)
+                )
+            except (OSError, ValueError) as exc:
+                self.offer_decisions = {}
+                self.log.appendPlainText(f"WARNING: quote decision log is invalid: {exc}")
             self.offer_table.setRowCount(len(offer_results))
             for row, (path, result) in enumerate(offer_results):
                 self.offer_table.setItem(row, 0, QTableWidgetItem(path.name))
                 self.offer_table.setItem(row, 1, QTableWidgetItem(result.supplier_id))
                 self.offer_table.setItem(row, 2, QTableWidgetItem(str(len(result.offers))))
-                self.offer_table.setItem(row, 3, QTableWidgetItem(str(len(result.review_queue))))
+                needs_review = len(result.review_queue) + sum(
+                    candidate.requires_review for candidate in result.offers
+                )
+                self.offer_table.setItem(row, 3, QTableWidgetItem(str(needs_review)))
 
         def open_reply(self, row: int, column: int) -> None:
             del column
@@ -1042,20 +1113,117 @@ def run_gui(project_path: Path | None = None) -> int:
             del column, previous_row, previous_column
             results = getattr(self, "offer_results", [])
             if not 0 <= row < len(results):
+                self.offer_candidate_combo.clear()
+                self.offer_details.clear()
                 return
             _path, result = results[row]
-            self.offer_details.setPlainText(
-                json.dumps(
-                    {
-                        "supplier_id": result.supplier_id,
-                        "source_file": result.source_file,
-                        "offers": [item.model_dump() for item in result.offers],
-                        "review_queue": [item.model_dump() for item in result.review_queue],
-                    },
-                    indent=2,
-                    ensure_ascii=False,
+            self.offer_candidate_combo.blockSignals(True)
+            self.offer_candidate_combo.clear()
+            for index, candidate in enumerate(result.offers):
+                offer = candidate.offer
+                label = f"{offer.manufacturer_part_number} / {offer.supplier_part_number}"
+                if candidate.requires_review:
+                    label += " — review required"
+                self.offer_candidate_combo.addItem(label, index)
+            self.offer_candidate_combo.blockSignals(False)
+            if result.offers:
+                self.offer_candidate_combo.setCurrentIndex(0)
+                self.show_selected_offer(0)
+            else:
+                self.offer_details.setPlainText(
+                    json.dumps(
+                        {
+                            "supplier_id": result.supplier_id,
+                            "source_file": result.source_file,
+                            "review_queue": [item.model_dump() for item in result.review_queue],
+                        },
+                        indent=2,
+                        ensure_ascii=False,
+                    )
                 )
+                self.offer_correction.clear()
+                self.offer_review_status.setText("No extracted offer candidate is available.")
+
+        def show_selected_offer(self, index: int) -> None:
+            row = self.offer_table.currentRow()
+            results = getattr(self, "offer_results", [])
+            if not 0 <= row < len(results) or index < 0:
+                return
+            source_path, result = results[row]
+            candidate = result.offers[index]
+            self.offer_details.setPlainText(
+                f"Supplier: {result.supplier_id}\n"
+                f"Imported from: {source_path}\n"
+                f"Source: {candidate.offer.source_ref.path}"
+                + (
+                    f"#{candidate.offer.source_ref.reference}"
+                    if candidate.offer.source_ref.reference
+                    else ""
+                )
+                + f"\nConfidence: {candidate.confidence:.2f}; "
+                f"requires review: {candidate.requires_review}\n\n"
+                + candidate.offer.model_dump_json(indent=2)
             )
+            self.offer_correction.setPlainText(candidate.offer.model_dump_json(indent=2))
+            key = candidate_key(result.supplier_id, result.source_file, index, candidate)
+            decision = getattr(self, "offer_decisions", {}).get(key)
+            self.offer_review_status.setText(
+                f"Latest decision: {decision.disposition} — {decision.comment}"
+                if decision
+                else "Latest decision: open"
+            )
+
+        def decide_selected_offer(self, disposition: str) -> None:
+            row = self.offer_table.currentRow()
+            index = self.offer_candidate_combo.currentData()
+            results = getattr(self, "offer_results", [])
+            if self.current_project_path is None or not 0 <= row < len(results) or index is None:
+                QMessageBox.information(
+                    self, "Select an offer", "Select an imported offer candidate first."
+                )
+                return
+            _path, result = results[row]
+            candidate = result.offers[int(index)]
+            corrected: Offer | None = None
+            try:
+                if disposition == "corrected":
+                    corrected = Offer.model_validate_json(self.offer_correction.toPlainText())
+                decisions = record_offer_decision(
+                    self.offer_decision_path,
+                    supplier_id=result.supplier_id,
+                    source_file=result.source_file,
+                    index=int(index),
+                    candidate=candidate,
+                    disposition=cast(OfferDisposition, disposition),
+                    comment=self.offer_review_comment.text(),
+                    corrected_offer=corrected,
+                )
+            except (OSError, ValueError) as exc:
+                QMessageBox.warning(self, "Quote review was not saved", str(exc))
+                return
+            self.offer_decisions = latest_offer_decisions(decisions)
+            self.show_selected_offer(int(index))
+            self.log.appendPlainText(
+                f"Recorded {disposition} quote candidate from {result.source_file}"
+            )
+
+        def open_selected_quote_source(self) -> None:
+            row = self.offer_table.currentRow()
+            index = self.offer_candidate_combo.currentData()
+            results = getattr(self, "offer_results", [])
+            if self.current_project_path is None or not 0 <= row < len(results) or index is None:
+                return
+            _path, result = results[row]
+            candidate = result.offers[int(index)]
+            source = _quote_source_path(self.current_project_path, candidate.offer.source_ref.path)
+            if source is None:
+                QMessageBox.information(
+                    self,
+                    "Quote source is not stored in the project",
+                    f"Source reference: {candidate.offer.source_ref.path}",
+                )
+                return
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(source)))
 
         def on_failed(self, message: str) -> None:
             self.log.appendPlainText("ERROR: " + message)
