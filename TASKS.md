@@ -152,10 +152,14 @@
 
 ## Recommended completion order
 
-1. Collect independently reviewed real-world supplier samples to close M6's remaining validation item.
-2. Finish M8's standalone GUI against stored data and perform interactive acceptance checks.
-3. Complete M9's KiCad launcher acceptance checks, then finish M10 release hardening.
+1. Run interactive M8 GUI acceptance on a supported desktop, including the HDPI layout and the stored-data workflows; fix any issues found.
+2. Complete the M9 IPC action checks in KiCad 9/10 and SWIG checks in KiCad 8/10.
+3. Complete M10 release hardening and exercise the tagged release workflow when a versioned release is approved.
+4. Add supplier-specific live integrations only when API access, terms, endpoints, and credentials are confirmed; add dedicated GUI settings editors after those settings have defined schemas.
 
-M3–M5 are complete, and M4 provides durable analysis outputs. M6's real-world
-validation needs representative sample files, so code-side work can continue while
-those samples are collected.
+M3–M5 are complete, and M4 provides durable analysis outputs. M6's reviewed
+real-world quote sample evaluation is complete. Remaining M3 supplier integrations
+depend on supplier API access and terms; the M8 editor work depends on defined
+settings schemas. M9 acceptance requires the supported KiCad versions and API
+server setup, and M10 release-workflow acceptance waits for an approved versioned
+release.
