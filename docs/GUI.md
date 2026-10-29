@@ -44,6 +44,16 @@ tab overflow behavior for that screenshot only; it does not record the display
 scaling percentage or verify project workflows, resize behavior, or other
 platforms.
 
+Additional user-provided screenshots show a Run All workflow on
+`tests/projects/basic` completing successfully. The GUI reported two BOM lines,
+one deterministic finding, and no PCB; the warning that board and assembly views
+are empty is expected because this fixture contains a schematic and project file
+but no board. The screenshots show the Project, BOM & Specs, Review, Components,
+Reports, and Settings views, including the local run log and saved BOM artifacts.
+This provides interactive evidence for the basic workflow and these views. It
+does not cover Quote-only, stop/queue behavior, resizing, or changing display
+scaling.
+
 1. Install the GUI extra with `./scripts/setup-gui.sh`, then launch with
    `./scripts/run.sh gui --mode open`. Confirm the window opens and can be moved,
    resized, minimized, restored, and closed normally.
