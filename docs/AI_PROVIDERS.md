@@ -47,12 +47,54 @@ hosts, which lets `review_bom(..., confidential=True)` reject remote providers.
 When a JSON schema is supplied, the adapter requests JSON object mode and KiProd
 validates the response against its strict Pydantic model. This adapter does not
 claim server-side JSON Schema enforcement, tool calling, caching, vision, or native
-provider-specific features. Native OpenAI Responses and Anthropic adapters remain
-future work.
+provider-specific features.
 
 The request and local Ollama compatibility behavior follow the [OpenAI chat API
 reference](https://developers.openai.com/api/reference/resources/chat) and [Ollama's
 OpenAI compatibility documentation](https://docs.ollama.com/api/openai-compatibility).
+
+## Native provider adapters
+
+For OpenAI's Responses API, the adapter sends `store: false` and supports strict
+JSON Schema output:
+
+```python
+import os
+
+from kiprod.ai.openai_responses import OpenAIResponsesProvider
+from kiprod.net.http import HttpClient
+
+provider = OpenAIResponsesProvider(
+    api_key=os.environ["OPENAI_API_KEY"],
+    model="configured-model-name",
+    http=HttpClient({"api.openai.com"}),
+)
+```
+
+For Anthropic's Messages API, the adapter sends the required API version and API
+key headers. Its version defaults to `2023-06-01` and can be configured when
+constructing the provider.
+
+```python
+import os
+
+from kiprod.ai.anthropic import AnthropicProvider
+from kiprod.net.http import HttpClient
+
+provider = AnthropicProvider(
+    api_key=os.environ["ANTHROPIC_API_KEY"],
+    model="configured-model-name",
+    http=HttpClient({"api.anthropic.com"}),
+)
+```
+
+Both native adapters support JSON Schema requests and return reported token usage.
+Responses still pass through KiProd's Pydantic validation before the review layer
+accepts them. The Anthropic adapter currently leaves sampling temperature at the
+provider default for compatibility with newer model families. Fixture tests never
+make live provider calls.
+
+The native request shapes follow the [OpenAI Responses API reference](https://developers.openai.com/api/reference/resources/responses/methods/create), [Anthropic Messages API authentication requirements](https://platform.claude.com/docs/en/manage-claude/authentication), and [Anthropic structured output format](https://platform.claude.com/docs/en/build-with-claude/structured-outputs).
 
 ## Roles, budgets, and cache
 
