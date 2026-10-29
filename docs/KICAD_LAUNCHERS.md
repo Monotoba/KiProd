@@ -57,6 +57,14 @@ failure instead of exporting a partial BOM when the normal KiProd run cannot
 complete. The netlist is used to find the project directory; the pipeline reads
 saved schematic and project files, so unsaved editor changes are not included.
 
+## Acceptance record
+
+The installer and BOM Generator hook were exercised with KiCad CLI 10.0.7 using
+the `tests/projects/basic` fixture. KiCad generated the XML netlist, the hook
+completed the KiProd run, and its CSV output matched the normal CLI-generated BOM
+byte-for-byte. The PCB Editor IPC menu actions and legacy SWIG menu action still
+need interactive verification in their supported KiCad versions.
+
 ## Limits
 
 - KiCad 9 and 10 IPC plugins require the PCB Editor and an open, saved board.
