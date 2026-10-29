@@ -30,6 +30,18 @@ class BoardSpec(BaseModel):
     height_mm: float | None = None
     min_track_mm: float | None = None
     min_drill_mm: float | None = None
+    copper_finish: str | None = None
+    stackup: list[dict[str, str | float]] = Field(default_factory=list)
+
+
+class Placement(BaseModel):
+    reference: str
+    value: str = ""
+    footprint: str = ""
+    x_mm: float
+    y_mm: float
+    side: str
+    rotation: float
 
 
 class Part(BaseModel):

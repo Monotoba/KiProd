@@ -46,8 +46,9 @@
 
 - [x] Extract copper layers, board thickness, outline bounds, minimum track, and drill metrics from PCB S-expressions.
 - [x] Compare extracted fabrication metrics against declared supplier limits.
-- [ ] Extract stack-up, finish, board count, and placement/assembly parameters.
-- [ ] Generate and map pick-and-place data to assembler formats.
+- [x] Extract stack-up layer types, material, thickness, and copper finish.
+- [x] Export KiCad position CSV and map placement rows to common assembler column names.
+- [ ] Extract board count and remaining placement/assembly parameters.
 
 ## Later milestones
 

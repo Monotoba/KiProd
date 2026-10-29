@@ -68,6 +68,31 @@ def extract(path: Path) -> BoardSpec:
         (point[1] for point in points), default=0
     )
     setup = children(board, "setup")
+    stackup: list[dict[str, str | float]] = []
+    if setup:
+        stackup_nodes = children(setup[0], "stackup")
+        if stackup_nodes:
+            for layer in children(stackup_nodes[0], "layer"):
+                name = atom(layer, 1)
+                item: dict[str, str | float] = {}
+                if name:
+                    item["name"] = name
+                for field_name in ("type", "material", "color"):
+                    nodes_for_field = children(layer, field_name)
+                    field_value = atom(nodes_for_field[0], 1) if nodes_for_field else None
+                    if field_value:
+                        item[field_name] = field_value
+                layer_thickness = _number(layer, "thickness")
+                if layer_thickness is not None:
+                    item["thickness_mm"] = layer_thickness
+                if item:
+                    stackup.append(item)
+            finish_nodes = children(stackup_nodes[0], "copper_finish")
+        else:
+            finish_nodes = children(setup[0], "copper_finish")
+        finish = atom(finish_nodes[0], 1) if finish_nodes else None
+    else:
+        finish = None
     return BoardSpec(
         source=path.name,
         layers=copper_layers,
@@ -76,4 +101,6 @@ def extract(path: Path) -> BoardSpec:
         height_mm=height if points else None,
         min_track_mm=_number(setup[0], "min_track_width") if setup else None,
         min_drill_mm=_number(setup[0], "min_via_drill") if setup else None,
+        copper_finish=finish,
+        stackup=stackup,
     )

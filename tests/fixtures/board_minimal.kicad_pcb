@@ -8,7 +8,12 @@
     (25 "Edge.Cuts" user))
   (setup
     (min_track_width 0.075)
-    (min_via_drill 0.2))
+    (min_via_drill 0.2)
+    (stackup
+      (layer "F.Cu" (type "copper") (thickness 0.035))
+      (layer "dielectric 1" (type "core") (thickness 1.51) (material "FR4"))
+      (layer "B.Cu" (type "copper") (thickness 0.035))
+      (copper_finish "ENIG")))
   (gr_line (start 10 20) (end 50 20) (layer "Edge.Cuts"))
   (gr_line (start 50 20) (end 50 30) (layer "Edge.Cuts"))
   (gr_line (start 50 30) (end 10 30) (layer "Edge.Cuts"))

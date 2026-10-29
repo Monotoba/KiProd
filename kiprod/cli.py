@@ -24,7 +24,7 @@ from kiprod.core.config import (
 from kiprod.core.constraints import apply, write
 from kiprod.core.project import ProjectNotFoundError, discover
 from kiprod.kicad.board import extract as extract_board
-from kiprod.kicad.cli_adapter import KiCadCliError, export_bom, version
+from kiprod.kicad.cli_adapter import KiCadCliError, export_bom, export_placements, version
 from kiprod.plugins.host import PluginError, discover_plugins
 from kiprod.reports.markdown import comparison_markdown
 from kiprod.reports.run_archive import archive_inputs, input_paths, load_manifest
@@ -181,6 +181,20 @@ def export_kicad_bom(
     """Use kicad-cli to produce an ungrouped BOM CSV for inspection or import."""
     try:
         path = export_bom(schematic, output, variant)
+    except KiCadCliError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    typer.echo(f"Wrote {path}")
+
+
+@app.command("export-cpl")
+def export_cpl(
+    board: Path = typer.Argument(..., exists=True, dir_okay=False),
+    output: Path = typer.Option(..., "--output", "-o"),
+    variant: str | None = typer.Option(None),
+) -> None:
+    """Export a KiCad position/centroid CSV in millimeters."""
+    try:
+        path = export_placements(board, output, variant)
     except KiCadCliError as exc:
         raise typer.BadParameter(str(exc)) from exc
     typer.echo(f"Wrote {path}")

@@ -43,11 +43,42 @@ def export_bom(schematic: Path, output: Path, variant: str | None = None) -> Pat
         str(schematic),
     ]
     if variant:
-        args[6:6] = ["--variant", variant]
+        args[4:4] = ["--variant", variant]
     result = subprocess.run(args, capture_output=True, text=True, check=False)
     if result.returncode != 0:
         detail = result.stderr.strip() or result.stdout.strip()
         raise KiCadCliError(f"kicad-cli BOM export failed: {detail}")
+    if not output.is_file():
+        raise KiCadCliError(f"kicad-cli reported success but did not create {output}")
+    return output
+
+
+def export_placements(board: Path, output: Path, variant: str | None = None) -> Path:
+    """Export KiCad's position CSV in millimeters, excluding DNP footprints."""
+    command = executable()
+    if command is None:
+        raise KiCadCliError("kicad-cli is not installed or is not on PATH")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    args = [
+        command,
+        "pcb",
+        "export",
+        "pos",
+        "--output",
+        str(output),
+        "--format",
+        "csv",
+        "--units",
+        "mm",
+        "--exclude-dnp",
+        str(board),
+    ]
+    if variant:
+        args[4:4] = ["--variant", variant]
+    result = subprocess.run(args, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip()
+        raise KiCadCliError(f"kicad-cli position export failed: {detail}")
     if not output.is_file():
         raise KiCadCliError(f"kicad-cli reported success but did not create {output}")
     return output
