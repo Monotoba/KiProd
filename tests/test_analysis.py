@@ -39,9 +39,23 @@ def test_landed_cost_selects_price_break_and_rounds_moq_and_multiple() -> None:
 
 
 def test_comparison_ranks_per_board_and_finds_coverage_gaps() -> None:
-    expensive = calculate([_offer("z-expensive", 0.2)], {"MPN-A": 10}, 10)
+    expensive = calculate(
+        [_offer("z-expensive", 0.2)],
+        {"MPN-A": 10},
+        10,
+        shipping=Decimal("1.25"),
+        nre=Decimal("2"),
+        duty=Decimal("0.75"),
+        fees=Decimal("0.50"),
+    )
     cheaper = calculate([_offer("a-cheaper", 0.1)], {"MPN-A": 10}, 10)
     comparison = compare([expensive, cheaper], {"MPN-A", "MPN-B"})
     assert [row.supplier_id for row in comparison.rows] == ["a-cheaper", "z-expensive"]
     assert [row.rank for row in comparison.rows] == [1, 2]
     assert comparison.coverage_gaps == ["MPN-B"]
+    expensive_row = next(row for row in comparison.rows if row.supplier_id == "z-expensive")
+    assert expensive_row.parts_total == "2.0"
+    assert expensive_row.shipping == "1.25"
+    assert expensive_row.nre == "2"
+    assert expensive_row.duty == "0.75"
+    assert expensive_row.fees == "0.50"

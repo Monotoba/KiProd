@@ -11,6 +11,11 @@ class ComparisonRow(BaseModel):
     currency: str
     total: str
     per_board: str
+    parts_total: str = "0"
+    shipping: str = "0"
+    nre: str = "0"
+    duty: str = "0"
+    fees: str = "0"
     quoted_lines: int
     source_refs: list[str] = Field(default_factory=list)
     rank: int
@@ -37,6 +42,11 @@ def compare(costs: list[LandedCost], required_mpns: set[str] | None = None) -> C
                     currency=cost.currency,
                     total=str(cost.total),
                     per_board=str(cost.per_board),
+                    parts_total=str(cost.parts_total),
+                    shipping=str(cost.shipping),
+                    nre=str(cost.nre),
+                    duty=str(cost.duty),
+                    fees=str(cost.fees),
                     quoted_lines=len(cost.lines),
                     source_refs=sorted(
                         {

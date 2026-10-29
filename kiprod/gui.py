@@ -567,9 +567,22 @@ def run_gui(project_path: Path | None = None) -> int:
             compare_actions.addWidget(self.compare_button)
             compare_actions.addStretch(1)
             compare_layout.addLayout(compare_actions)
-            self.comparison_table = QTableWidget(0, 7)
+            self.comparison_table = QTableWidget(0, 12)
             self.comparison_table.setHorizontalHeaderLabels(
-                ["Rank", "Supplier", "Boards", "Currency", "Total", "Per board", "Lines"]
+                [
+                    "Rank",
+                    "Supplier",
+                    "Boards",
+                    "Currency",
+                    "Total",
+                    "Per board",
+                    "Parts",
+                    "Shipping",
+                    "NRE",
+                    "Duty",
+                    "Fees",
+                    "Lines",
+                ]
             )
             self.comparison_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
             compare_layout.addWidget(self.comparison_table, 1)
@@ -1588,6 +1601,11 @@ def run_gui(project_path: Path | None = None) -> int:
                     item.currency,
                     item.total,
                     item.per_board,
+                    item.parts_total,
+                    item.shipping,
+                    item.nre,
+                    item.duty,
+                    item.fees,
                     str(item.quoted_lines),
                 ]
                 for column, value in enumerate(values):

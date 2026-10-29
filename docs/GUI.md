@@ -37,6 +37,10 @@ stored under the project production folder. These views do not poll mailboxes or
 send messages. Headless smoke
 tests cover the data-loading and artifact-writing workflow without requiring PySide6.
 
+The comparison table and saved Markdown report include parts, shipping, NRE, duty,
+and fees beside the landed total and per-board amount. Ranking remains based on
+landed cost per board within each quantity and currency group.
+
 The current GUI provides an editable MPN column with a source label and a filter for
 lines missing MPNs or footprints. MPN overrides are saved in
 `bom.user-overrides.json` and applied again when the GUI opens the project. It also

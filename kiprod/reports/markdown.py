@@ -10,12 +10,14 @@ def comparison_markdown(comparison: Comparison) -> str:
         "",
         "Ranked by landed cost per board within each quantity and currency.",
         "",
-        "| Rank | Supplier | Boards | Currency | Landed total | Per board | Lines |",
-        "|---:|---|---:|:---:|---:|---:|---:|",
+        "| Rank | Supplier | Boards | Currency | Parts | Shipping | NRE | Duty | Fees | Total "
+        "| Per board | Lines |",
+        "|---:|---|---:|:---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in comparison.rows:
         lines.append(
             f"| {row.rank} | {row.supplier_id} | {row.board_quantity} | {row.currency} "
+            f"| {row.parts_total} | {row.shipping} | {row.nre} | {row.duty} | {row.fees} "
             f"| {row.total} | {row.per_board} | {row.quoted_lines} |"
         )
     lines.extend(["", "## Evidence", ""])
