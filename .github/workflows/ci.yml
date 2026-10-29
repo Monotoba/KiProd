@@ -11,6 +11,21 @@ permissions:
   contents: read
 
 jobs:
+  package:
+    name: Build and smoke-test distributions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Build, install, and smoke-test wheel
+        run: bash scripts/check-package.sh
+
   checks:
     name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest

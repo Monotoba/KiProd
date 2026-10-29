@@ -138,6 +138,8 @@
 - [ ] M9 acceptance: verify IPC actions from the PCB Editor in KiCad 9/10 with the API server enabled.
 - [ ] M9 acceptance: verify the SWIG action from the PCB Editor in KiCad 8/10.
 - [ ] M10: hardening and release checks.
+- [x] M10 implementation: build distributions, install the wheel in an isolated environment, and verify CLI BOM output outside the checkout in CI and before releases.
+- [ ] M10 acceptance: confirm CI and tagged release workflows pass on GitHub.
 
 ## Recommended completion order
 

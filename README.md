@@ -113,7 +113,9 @@ architecture and safety constraints.
 
 GitHub Actions runs the test, lint, and type checks on pushes and pull requests
 targeting `main`, using Python 3.11–3.13. Pushing a version tag such as `v0.1.1`
-builds wheel and source distributions and attaches them to a GitHub release.
+builds and validates wheel and source distributions, smoke-tests the installed
+wheel, and attaches the distributions to a GitHub release. The same packaging
+smoke check runs in CI. Run it locally with `./scripts/check-package.sh`.
 
 Synthetic manual-test inputs for CSV, XLSX, PDF, and privacy preflight are in
 [`examples/testing_inputs/`](examples/testing_inputs/README.md). They contain
