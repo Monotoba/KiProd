@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-import importlib.util
 import json
 import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from types import ModuleType
 from typing import Any
 
 from pydantic import ValidationError
@@ -23,7 +21,6 @@ class PluginError(ValueError):
 class LoadedPlugin:
     path: Path
     manifest: Manifest
-    adapter_class: type[object] | None
 
     def http_client(self, **options: Any) -> HttpClient:
         """Create the only supported HTTP client for this plugin's declared hosts."""
@@ -74,7 +71,7 @@ def load_manifest(plugin_dir: Path) -> Manifest:
         raise PluginError(f"invalid plugin manifest {manifest_path}: {exc}") from exc
 
 
-def _load_module(plugin_dir: Path, module_name: str) -> ModuleType:
+def _adapter_file(plugin_dir: Path, module_name: str) -> Path:
     relative = Path(*module_name.split("."))
     module_path = (plugin_dir / relative).with_suffix(".py").resolve()
     root = plugin_dir.resolve()
@@ -82,27 +79,16 @@ def _load_module(plugin_dir: Path, module_name: str) -> ModuleType:
         raise PluginError("adapter module path escapes the plugin directory")
     if not module_path.is_file():
         raise PluginError(f"adapter module not found: {module_path}")
-    spec = importlib.util.spec_from_file_location(f"kiprod_plugin_{plugin_dir.name}", module_path)
-    if spec is None or spec.loader is None:
-        raise PluginError(f"cannot load adapter module: {module_path}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return module_path
 
 
 def load_plugin(plugin_dir: Path) -> LoadedPlugin:
     manifest = load_manifest(plugin_dir)
-    adapter_class: type[object] | None = None
     if manifest.adapter is not None:
-        module = _load_module(plugin_dir, manifest.adapter.module)
-        candidate = getattr(module, manifest.adapter.class_name, None)
-        if not isinstance(candidate, type):
-            raise PluginError(
-                f"adapter class {manifest.adapter.class_name!r} not found in "
-                f"{manifest.adapter.module}"
-            )
-        adapter_class = candidate
-    return LoadedPlugin(path=plugin_dir.resolve(), manifest=manifest, adapter_class=adapter_class)
+        _adapter_file(plugin_dir, manifest.adapter.module)
+    # Adapter code is deliberately not imported during discovery. It runs only
+    # inside the worker when an explicit method call is made.
+    return LoadedPlugin(path=plugin_dir.resolve(), manifest=manifest)
 
 
 def discover_plugins(search_paths: list[Path]) -> list[LoadedPlugin]:

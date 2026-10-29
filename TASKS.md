@@ -27,6 +27,7 @@
 - [x] Add the manifest JSON Schema and validate custom field declarations.
 - [x] Add a recorded supplier-search fixture.
 - [x] Execute adapter methods in a timed subprocess with a restricted environment.
+- [x] Keep adapter modules unloaded in the main process during plugin discovery.
 - [x] Exercise adapter calls against recorded supplier fixtures.
 - [x] Enforce network permissions through an HTTPS-only allowlisted HTTP client with fixture replay, caching, retries, and throttling.
 - [x] Add a recorded catalog adapter example with validated offers and required source references.

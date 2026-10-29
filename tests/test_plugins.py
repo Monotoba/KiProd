@@ -16,8 +16,6 @@ def test_loads_manifest_and_adapter() -> None:
     plugin = load_plugin(FIXTURE)
     assert plugin.manifest.id == "com.example.fixture"
     assert plugin.manifest.resource_types == ["components"]
-    assert plugin.adapter_class is not None
-    assert plugin.adapter_class().health_check() == {"ok": True}
     assert plugin.call("health_check") == {"ok": True}
 
 
