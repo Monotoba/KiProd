@@ -3,13 +3,13 @@
 KiProd creates a traceable production package from a KiCad project: a normalized
 BOM, production review findings, supplier quotes, and comparison reports.
 
-Milestones **M1–M5** are complete; **M6** remains in progress.
+Milestones **M1–M5** are complete; **M6** and **M7** are in progress.
 The CLI supports offline BOM/configuration work, board and assembly analysis, local
 RFQ packaging, approval-gated SMTP delivery, and Graph/Gmail inbox polling. The
-generic catalog protocol, typed AI review contracts, and an OpenAI-compatible model
-adapter are available; supplier-specific live adapters, native provider adapters, and
-the GUI have not shipped. Live email and mailbox operations require user-provided
-credentials and configuration.
+generic catalog protocol, typed AI review contracts, an OpenAI-compatible model
+adapter, and role-based request budgets are available; supplier-specific live adapters,
+native provider adapters, and the GUI have not shipped. Live email and mailbox
+operations require user-provided credentials and configuration.
 
 ## Quick start
 

@@ -53,3 +53,31 @@ future work.
 The request and local Ollama compatibility behavior follow the [OpenAI chat API
 reference](https://developers.openai.com/api/reference/resources/chat) and [Ollama's
 OpenAI compatibility documentation](https://docs.ollama.com/api/openai-compatibility).
+
+## Roles, budgets, and cache
+
+`AIRequestManager` binds providers to `reasoning`, `extraction`, `writer`, and
+`local_only` roles. Each role sets its provider, model identity, and output-token
+limit. The manager can also set run-wide token and cost limits:
+
+```python
+from kiprod.ai.provider import Message
+from kiprod.ai.runtime import AIRequestManager, RolePolicy
+
+manager = AIRequestManager(
+    {"local_only": RolePolicy(provider, "local-model-name", max_output_tokens=1000,
+                               local_only=True)},
+    max_run_tokens=12000,
+)
+messages = [Message(role="user", content="Review the normalized BOM.")]
+plan = manager.plan("local_only", messages, max_tokens=500)
+if plan.allowed:
+    result = manager.complete("local_only", messages, max_tokens=500)
+```
+
+Budget planning uses UTF-8 byte length plus message framing as a conservative upper
+bound for prompt tokens and reserves the requested maximum output. If a cost limit is configured,
+the provider must have explicit token rates; unknown pricing fails closed. Repeated
+identical requests reuse a SHA-256 keyed result in memory for the lifetime of the
+manager. The key includes role, provider, model, messages, schema, token limit, and
+temperature. No result cache is written to disk.
