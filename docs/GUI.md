@@ -22,14 +22,17 @@ its parsed candidates and review queue. Double-click opens the local file in the
 system viewer. These views do not poll mailboxes or send messages. Headless smoke
 tests cover the data-loading and artifact-writing workflow without requiring PySide6.
 
-The current GUI provides read-only BOM/board/assembly/supplier/quote views and a
-review view with append-only accept/dismiss/defer decisions and comments. It also
-supports saved landed-cost comparison and report regeneration, plus an editor for
-project board quantities. Report regeneration checks saved input hashes first.
-Project settings files are updated without replacing unrelated TOML keys. Review
-decisions are stored separately from generated findings in `review.decisions.json`.
+The current GUI provides an editable MPN column with a source label and a filter for
+lines missing MPNs or footprints. MPN overrides are saved in
+`bom.user-overrides.json` and applied again when the GUI opens the project. It also
+provides read-only board/assembly/supplier/quote views and a review view with
+append-only accept/dismiss/defer decisions and comments. Saved landed-cost
+comparison and report regeneration are available; regeneration checks saved input
+hashes first. The project settings editor changes board quantities while preserving
+unrelated TOML keys. Review decisions are stored separately in
+`review.decisions.json`.
 
-M8 still includes editable BOM provenance and approved schematic write-back, direct
+M8 still includes provenance badges for all BOM fields and approved schematic write-back, direct
 review source navigation, editable manifest-generated supplier settings, in-GUI quote
 confirmation, richer weighted comparison, broader settings editors, run controls,
 and interactive desktop acceptance checks. These require PySide6 and a desktop

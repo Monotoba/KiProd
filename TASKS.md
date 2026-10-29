@@ -105,7 +105,9 @@
 - [x] Add automated headless GUI workflow smoke coverage for generated artifacts and quote-data loading.
 - [x] Document GUI setup and launch.
 - [x] Persist append-only accept/dismiss/defer review decisions with comments in a separate project artifact.
-- [ ] Add editable BOM fields with source badges, filtering, and approval-gated KiCad write-back.
+- [x] Edit and persist MPN overrides in the normalized BOM with a visible user source and under-constrained filter.
+- [ ] Show provenance badges for every editable BOM field.
+- [ ] Add approval-gated MPN and supplier part-number write-back to KiCad schematics.
 - [ ] Add direct source-file navigation from review evidence.
 - [ ] Build supplier settings forms from manifests and show credential status, capabilities, results, and docs.
 - [ ] Add board-house and assembler settings/results panes with capability checks.

@@ -11,8 +11,8 @@ adapter, native OpenAI and Anthropic adapters, and role-based request budgets ar
 available; versioned project prompt overrides are supported. The first desktop GUI
 slice covers project discovery, BOM generation, deterministic review, board and
 assembly metrics, supplier manifest discovery, and local quote review.
-It also compares saved landed-cost records, regenerates hash-verified saved reports,
-and edits project board quantities.
+It also edits saved MPN overrides, compares landed-cost records, regenerates
+hash-verified reports, and edits project board quantities.
 Supplier-specific live adapters and KiCad launchers have not shipped. Live email,
 mailbox, and model operations require user-provided credentials and configuration.
 

@@ -23,6 +23,12 @@ from kiprod.analysis.landed import LandedCost
 from kiprod.analysis.panelization import discover_fabrication_notes, extract_boards_per_panel
 from kiprod.core.artifacts import write_bom
 from kiprod.core.bom import build
+from kiprod.core.bom_edits import (
+    BOMOverrides,
+    apply_bom_overrides,
+    load_bom_overrides,
+    save_bom_overrides,
+)
 from kiprod.core.config import ConfigError, load, parse_quantities, save_project_quantities
 from kiprod.core.models import AssemblySpec, BoardSpec, NormalizedBOM, Project
 from kiprod.core.project import discover
@@ -112,6 +118,7 @@ def _qt() -> tuple[Any, ...]:
         from PySide6.QtGui import QDesktopServices  # type: ignore[import-not-found]
         from PySide6.QtWidgets import (  # type: ignore[import-not-found]
             QApplication,
+            QCheckBox,
             QComboBox,
             QFileDialog,
             QFormLayout,
@@ -143,6 +150,7 @@ def _qt() -> tuple[Any, ...]:
         QDesktopServices,
         QUrl,
         QComboBox,
+        QCheckBox,
         QFileDialog,
         QFormLayout,
         QHBoxLayout,
@@ -189,6 +197,8 @@ def _load_project(
     if progress:
         progress(35, "Normalized BOM built")
     output_dir = project.root / "docs" / "production" / "bom"
+    override_path = output_dir / "bom.user-overrides.json"
+    bom = apply_bom_overrides(bom, load_bom_overrides(override_path))
     json_path, csv_path = write_bom(bom, output_dir)
     report = review_bom(bom)
     review_path = output_dir / "review.deterministic.json"
@@ -236,6 +246,7 @@ def run_gui(project_path: Path | None = None) -> int:
         QDesktopServices,
         QUrl,
         QComboBox,
+        QCheckBox,
         QFileDialog,
         QFormLayout,
         QHBoxLayout,
@@ -346,12 +357,26 @@ def run_gui(project_path: Path | None = None) -> int:
             self.assembly_table = QTableWidget(0, 2)
             self.assembly_table.setHorizontalHeaderLabels(["Assembly metric", "Value"])
             self.assembly_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-            self.bom_table = QTableWidget(0, 5)
+            self.bom_table = QTableWidget(0, 6)
             self.bom_table.setHorizontalHeaderLabels(
-                ["References", "Qty", "Value", "Footprint", "MPN"]
+                ["References", "Qty", "Value", "Footprint", "MPN", "MPN source"]
             )
-            self.bom_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+            self.bom_table.setEditTriggers(
+                QTableWidget.EditTrigger.DoubleClicked | QTableWidget.EditTrigger.EditKeyPressed
+            )
             self.bom_table.horizontalHeader().setStretchLastSection(True)
+            bom_page = QWidget()
+            bom_layout = QVBoxLayout(bom_page)
+            bom_actions = QHBoxLayout()
+            self.bom_filter = QCheckBox("Only show lines needing MPN or footprint review")
+            self.bom_filter.toggled.connect(self.filter_bom_lines)
+            self.save_bom_button = QPushButton("Save MPN changes")
+            self.save_bom_button.clicked.connect(self.save_bom_edits)
+            bom_actions.addWidget(self.bom_filter)
+            bom_actions.addStretch(1)
+            bom_actions.addWidget(self.save_bom_button)
+            bom_layout.addLayout(bom_actions)
+            bom_layout.addWidget(self.bom_table, 1)
             self.review_table = QTableWidget(0, 6)
             self.review_table.setHorizontalHeaderLabels(
                 ["Severity", "Code", "References", "Finding", "Suggested action", "Decision"]
@@ -423,7 +448,7 @@ def run_gui(project_path: Path | None = None) -> int:
             settings_layout.addRow("Effective paths", self.settings_paths)
             settings_layout.addRow(self.save_settings_button)
             self.tabs.addTab(self.project_page, "Project")
-            self.tabs.addTab(self.bom_table, "BOM & Specs")
+            self.tabs.addTab(bom_page, "BOM & Specs")
             self.tabs.addTab(review_page, "Review")
             self.tabs.addTab(self.board_table, "Boards")
             self.tabs.addTab(self.assembly_table, "Assembly")
@@ -504,6 +529,10 @@ def run_gui(project_path: Path | None = None) -> int:
             self.current_project = project
             self.current_project_path = project.root
             self.current_json_path = json_path
+            self.current_bom = bom
+            self.bom_override_path = (
+                project.root / "docs" / "production" / "bom" / "bom.user-overrides.json"
+            )
             self.current_findings = report.findings
             self.review_decision_path = (
                 project.root / "docs" / "production" / "bom" / "review.decisions.json"
@@ -535,33 +564,30 @@ def run_gui(project_path: Path | None = None) -> int:
             )
             self.bom_table.setRowCount(len(bom.lines))
             for row, line in enumerate(bom.lines):
+                mpn_source = line.resolved_fields.get("mpn")
+                source_label = (
+                    mpn_source.source
+                    if mpn_source
+                    else "imported BOM"
+                    if bom.imported_bom
+                    else "schematic"
+                    if line.mpn
+                    else "missing"
+                )
                 values = [
                     ", ".join(line.references),
                     str(line.quantity),
                     line.value,
                     line.footprint,
                     line.mpn or "",
+                    source_label,
                 ]
                 for column, value in enumerate(values):
-                    self.bom_table.setItem(row, column, QTableWidgetItem(value))
-            self.review_table.setRowCount(len(report.findings))
-            for row, finding in enumerate(report.findings):
-                references = ", ".join(
-                    reference
-                    for line in bom.lines
-                    if line.line_id in finding.line_ids
-                    for reference in line.references
-                )
-                values = [
-                    finding.severity,
-                    finding.code,
-                    references,
-                    finding.summary,
-                    finding.suggested_action or "",
-                    "Open",
-                ]
-                for column, value in enumerate(values):
-                    self.review_table.setItem(row, column, QTableWidgetItem(value))
+                    item = QTableWidgetItem(value)
+                    if column != 4:
+                        item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                    self.bom_table.setItem(row, column, item)
+            self.refresh_review_view(bom, report)
             self.refresh_review_decisions()
             self._fill_metrics(self.board_table, board_spec.model_dump() if board_spec else {})
             self._fill_metrics(
@@ -584,10 +610,105 @@ def run_gui(project_path: Path | None = None) -> int:
                     "WARNING: No PCB found; board and assembly views are empty."
                 )
 
+        def refresh_review_view(self, bom: NormalizedBOM, report: ReviewReport) -> None:
+            self.review_table.setRowCount(len(report.findings))
+            for row, finding in enumerate(report.findings):
+                references = ", ".join(
+                    reference
+                    for line in bom.lines
+                    if line.line_id in finding.line_ids
+                    for reference in line.references
+                )
+                values = [
+                    finding.severity,
+                    finding.code,
+                    references,
+                    finding.summary,
+                    finding.suggested_action or "",
+                    "Open",
+                ]
+                for column, value in enumerate(values):
+                    self.review_table.setItem(row, column, QTableWidgetItem(value))
+
         def on_progress(self, value: int, message: str) -> None:
             self.progress_bar.setValue(value)
             self.progress_bar.setFormat(message)
             self.statusBar().showMessage(message)
+
+        def filter_bom_lines(self, enabled: bool) -> None:
+            bom = getattr(self, "current_bom", None)
+            if bom is None:
+                return
+            for row, line in enumerate(bom.lines):
+                self.bom_table.setRowHidden(
+                    row, enabled and bool(line.mpn) and bool(line.footprint)
+                )
+
+        def save_bom_edits(self) -> None:
+            bom = getattr(self, "current_bom", None)
+            if bom is None or self.current_project_path is None:
+                return
+            try:
+                existing = load_bom_overrides(self.bom_override_path)
+                overrides = dict(existing.mpn)
+                for row, line in enumerate(bom.lines):
+                    item = self.bom_table.item(row, 4)
+                    value = item.text().strip() if item is not None else ""
+                    normalized = value or None
+                    prior = line.resolved_fields.get("mpn")
+                    if normalized != line.mpn or (prior is not None and prior.source == "user"):
+                        overrides[line.line_id] = normalized
+                    else:
+                        overrides.pop(line.line_id, None)
+                saved = BOMOverrides(mpn=overrides)
+                save_bom_overrides(self.bom_override_path, saved)
+                updated = apply_bom_overrides(bom, saved)
+                output_dir = self.current_project_path / "docs" / "production" / "bom"
+                json_path, _csv_path = write_bom(updated, output_dir)
+                report = review_bom(updated)
+                (output_dir / "review.deterministic.json").write_text(
+                    report.model_dump_json(indent=2) + "\n", encoding="utf-8"
+                )
+            except (OSError, ValueError) as exc:
+                QMessageBox.critical(self, "BOM changes were not saved", str(exc))
+                return
+            self.current_bom = updated
+            self.current_json_path = json_path
+            self.current_findings = report.findings
+            self.refresh_bom_view(updated)
+            self.refresh_review_view(updated, report)
+            self.refresh_review_decisions()
+            self.refresh_reports()
+            self.log.appendPlainText(f"Saved user MPN overrides: {self.bom_override_path}")
+            self.statusBar().showMessage("BOM MPN changes saved")
+
+        def refresh_bom_view(self, bom: NormalizedBOM) -> None:
+            self.bom_table.setRowCount(len(bom.lines))
+            for row, line in enumerate(bom.lines):
+                resolved = line.resolved_fields.get("mpn")
+                source = (
+                    resolved.source
+                    if resolved
+                    else "imported BOM"
+                    if bom.imported_bom
+                    else "schematic"
+                    if line.mpn
+                    else "missing"
+                )
+                values = [
+                    ", ".join(line.references),
+                    str(line.quantity),
+                    line.value,
+                    line.footprint,
+                    line.mpn or "",
+                    source,
+                ]
+                for column, value in enumerate(values):
+                    item = QTableWidgetItem(value)
+                    if column != 4:
+                        item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                    self.bom_table.setItem(row, column, item)
+            self.filter_bom_lines(self.bom_filter.isChecked())
 
         def refresh_review_decisions(self) -> None:
             try:
