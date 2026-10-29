@@ -4,7 +4,9 @@ import json
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
 
+from kiprod.cli import app
 from kiprod.plugins.host import PluginError, check_network_permission, load_plugin
 
 FIXTURE = Path(__file__).parent / "plugins" / "fixture"
@@ -65,3 +67,30 @@ def test_adapter_worker_rejects_unknown_method() -> None:
     plugin = load_plugin(FIXTURE)
     with pytest.raises(PluginError, match="AttributeError"):
         plugin.call("delete_everything")
+
+
+def test_plugin_cli_lists_project_plugins(tmp_path: Path) -> None:
+    (tmp_path / "demo.kicad_pro").write_text("{}")
+    supplier_dir = tmp_path / "docs/production/quotes/config/suppliers/fixture"
+    supplier_dir.parent.mkdir(parents=True)
+    import shutil
+
+    shutil.copytree(FIXTURE, supplier_dir)
+    result = CliRunner().invoke(app, ["plugins", "list", "--project", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert "com.example.fixture" in result.output
+
+
+def test_plugin_cli_runs_health_check(tmp_path: Path) -> None:
+    (tmp_path / "demo.kicad_pro").write_text("{}")
+    supplier_dir = tmp_path / "docs/production/quotes/config/suppliers/fixture"
+    supplier_dir.parent.mkdir(parents=True)
+    import shutil
+
+    shutil.copytree(FIXTURE, supplier_dir)
+    result = CliRunner().invoke(
+        app,
+        ["plugins", "test", "com.example.fixture", "--project", str(tmp_path)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "com.example.fixture" in result.output

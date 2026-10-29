@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -17,10 +18,13 @@ from kiprod.core.config import (
 from kiprod.core.constraints import apply, write
 from kiprod.core.project import ProjectNotFoundError, discover
 from kiprod.kicad.cli_adapter import KiCadCliError, export_bom, version
+from kiprod.plugins.host import PluginError, discover_plugins
 
 app = typer.Typer(help="Build traceable KiCad production artifacts.", no_args_is_help=True)
 config_app = typer.Typer(help="Manage layered project configuration.", no_args_is_help=True)
 app.add_typer(config_app, name="config")
+plugins_app = typer.Typer(help="Discover and validate supplier plugins.", no_args_is_help=True)
+app.add_typer(plugins_app, name="plugins")
 
 
 def _build_bom(
@@ -189,3 +193,66 @@ def config_validate(
         typer.echo(f"Invalid configuration: {exc}", err=True)
         raise typer.Exit(code=5) from exc
     typer.echo("Configuration is valid.")
+
+
+def _plugin_paths(project: Path) -> list[Path]:
+    root = _project_root(project)
+    user_root = Path.home() / ".config" / "kiprod" / "suppliers"
+    project_root = root / "docs" / "production" / "quotes" / "config" / "suppliers"
+    bundled_root = Path(__file__).resolve().parent / "plugins" / "suppliers"
+    return [project_root, user_root, bundled_root]
+
+
+@plugins_app.command("list")
+def plugins_list(
+    project: Path = typer.Option(Path.cwd(), exists=True, file_okay=True, dir_okay=True),
+) -> None:
+    """List valid plugins using project, user, then bundled precedence."""
+    try:
+        plugins = discover_plugins(_plugin_paths(project))
+    except PluginError as exc:
+        typer.echo(f"Plugin error: {exc}", err=True)
+        raise typer.Exit(code=5) from exc
+    if not plugins:
+        typer.echo("No plugins found.")
+        return
+    for plugin in plugins:
+        resources = ", ".join(plugin.manifest.resource_types) or "unspecified"
+        typer.echo(f"{plugin.manifest.id}\t{plugin.manifest.name}\t{resources}")
+
+
+@plugins_app.command("test")
+def plugins_test(
+    plugin_id: str = typer.Argument(...),
+    project: Path = typer.Option(Path.cwd(), exists=True, file_okay=True, dir_okay=True),
+) -> None:
+    """Run a plugin health check in its isolated worker process."""
+    try:
+        plugins = discover_plugins(_plugin_paths(project))
+        plugin = next((item for item in plugins if item.manifest.id == plugin_id), None)
+        if plugin is None:
+            raise PluginError(f"plugin not found: {plugin_id}")
+        result = plugin.call("health_check")
+    except PluginError as exc:
+        typer.echo(f"Plugin test failed: {exc}", err=True)
+        raise typer.Exit(code=4) from exc
+    typer.echo(f"{plugin_id}: {result}")
+
+
+@app.command("quote")
+def quote_lookup(
+    mpn: str = typer.Argument(..., help="Manufacturer part number to search."),
+    plugin_id: str = typer.Option(..., "--plugin", help="Plugin manifest ID to query."),
+    project: Path = typer.Option(Path.cwd(), exists=True, file_okay=True, dir_okay=True),
+) -> None:
+    """Search one enabled catalog plugin and print its source-backed offers."""
+    try:
+        plugins = discover_plugins(_plugin_paths(project))
+        plugin = next((item for item in plugins if item.manifest.id == plugin_id), None)
+        if plugin is None:
+            raise PluginError(f"plugin not found: {plugin_id}")
+        offers = plugin.call("search", mpn)
+    except PluginError as exc:
+        typer.echo(f"Quote lookup failed: {exc}", err=True)
+        raise typer.Exit(code=4) from exc
+    typer.echo(json.dumps(offers, indent=2, sort_keys=True))

@@ -30,7 +30,8 @@
 - [x] Exercise adapter calls against recorded supplier fixtures.
 - [x] Enforce network permissions through an HTTPS-only allowlisted HTTP client with fixture replay, caching, retries, and throttling.
 - [x] Add a recorded catalog adapter example with validated offers and required source references.
-- [ ] Add a production supplier protocol adapter fixture before making live supplier calls.
+- [x] Add CLI plugin discovery, health checks, and source-backed catalog search.
+- [ ] Add a production supplier protocol adapter before making live supplier calls.
 
 ## Later milestones (blocked on prior acceptance)
 
