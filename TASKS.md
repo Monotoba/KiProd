@@ -71,7 +71,8 @@
 - [x] Add local OCR fallback for scanned quote PDFs, with low confidence and mandatory careful review.
 - [x] Poll Microsoft Graph/Gmail REST with bearer tokens through the HTTPS allowlist and import matched replies read-only.
 - [x] Persist Graph/Gmail page cursors and advance only after the page is processed; reset after the final page.
-- [ ] Evaluate extraction accuracy against a representative fixture set.
+- [x] Add a reproducible field-accuracy/precision/recall evaluation for quote fixtures with a 95% threshold and explicit optional-format skips.
+- [ ] Expand fixtures with varied supplier templates and independently reviewed real-world samples.
 
 ## Later milestones
 
