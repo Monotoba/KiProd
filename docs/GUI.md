@@ -17,9 +17,10 @@ warnings.
 
 The Components view discovers project, user, and bundled plugin manifests in that
 precedence order. It builds basic settings forms from manifest fields and saves
-values under `quotes/config/plugin-settings/`, preserving unknown keys. It displays
-credential labels but does not read or write credential values or call supplier
-adapters. Quotes Inbox lists captured
+values under `quotes/config/plugin-settings/`, preserving unknown keys. Secret
+fields are entered into the system keyring and only their configured/missing status
+is shown. Credential values are never written to project files or logs. The GUI
+does not call supplier adapters. Quotes Inbox lists captured
 `.eml` replies and locally saved quote-import JSON. Selecting an offer file shows
 its parsed candidates and review queue. A candidate can be confirmed, corrected
 from typed offer JSON, or rejected; corrections must preserve its original source

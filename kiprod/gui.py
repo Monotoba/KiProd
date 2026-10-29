@@ -35,6 +35,11 @@ from kiprod.core.models import AssemblySpec, BoardSpec, NormalizedBOM, Offer, Pr
 from kiprod.core.project import discover
 from kiprod.kicad.board import extract as extract_board
 from kiprod.kicad.cli_adapter import export_bom
+from kiprod.plugins.credentials import (
+    CredentialStoreUnavailable,
+    has_credential,
+    save_credential,
+)
 from kiprod.plugins.host import PluginError, discover_plugins
 from kiprod.plugins.models import Manifest
 from kiprod.plugins.settings import load_plugin_settings, save_plugin_settings
@@ -369,11 +374,16 @@ def run_gui(project_path: Path | None = None) -> int:
             self.plugin_settings_status = QLabel("Select a supplier to view its manifest settings.")
             self.save_plugin_settings_button = QPushButton("Save supplier settings")
             self.save_plugin_settings_button.clicked.connect(self.save_selected_plugin_settings)
+            self.save_plugin_credentials_button = QPushButton("Save entered credentials to keyring")
+            self.save_plugin_credentials_button.clicked.connect(
+                self.save_selected_plugin_credentials
+            )
             supplier_details_layout = QVBoxLayout()
             supplier_details_layout.addWidget(self.plugin_details, 1)
             supplier_details_layout.addWidget(self.plugin_settings_widget)
             supplier_details_layout.addWidget(self.plugin_settings_status)
             supplier_details_layout.addWidget(self.save_plugin_settings_button)
+            supplier_details_layout.addWidget(self.save_plugin_credentials_button)
             supplier_details = QWidget()
             supplier_details.setLayout(supplier_details_layout)
             self.quotes_tabs = QTabWidget()
@@ -934,6 +944,7 @@ def run_gui(project_path: Path | None = None) -> int:
             self.plugin_details.clear()
             self.plugins = []
             self.save_plugin_settings_button.setEnabled(False)
+            self.save_plugin_credentials_button.setEnabled(False)
             self.plugin_settings_status.setText("No supplier selected.")
             try:
                 plugins = discover_plugins(_plugin_paths(project))
@@ -1027,7 +1038,7 @@ def run_gui(project_path: Path | None = None) -> int:
                 for field in manifest.fields
             ]
             credential_labels = [
-                f"{credential.label}: not configured in the GUI"
+                f"{credential.label} ({credential.key}): keyring-backed"
                 for credential in manifest.credentials
             ]
             capabilities = json.dumps(manifest.capabilities, indent=2, sort_keys=True)
@@ -1050,6 +1061,8 @@ def run_gui(project_path: Path | None = None) -> int:
                 if widget is not None:
                     widget.deleteLater()
             self.plugin_setting_widgets: dict[str, tuple[dict[str, object], Any]] = {}
+            self.plugin_credential_widgets: dict[str, Any] = {}
+            credential_labels: dict[str, str] = {}
             if self.current_project_path is None:
                 self.save_plugin_settings_button.setEnabled(False)
                 return
@@ -1063,6 +1076,7 @@ def run_gui(project_path: Path | None = None) -> int:
                 key = str(descriptor["key"])
                 kind = descriptor.get("type", "string")
                 if kind == "secret":
+                    credential_labels[key] = str(descriptor.get("label", key))
                     continue
                 value = saved.get(key, descriptor.get("default"))
                 if kind == "bool":
@@ -1103,10 +1117,34 @@ def run_gui(project_path: Path | None = None) -> int:
                 self.plugin_settings_layout.addRow(label, widget)
                 if kind not in {"table", "group"}:
                     self.plugin_setting_widgets[key] = (descriptor, widget)
+            keyring_ready = True
+            for credential in manifest.credentials:
+                credential_labels[credential.key] = credential.label
+            for credential_key, credential_label in credential_labels.items():
+                editor = QLineEdit()
+                editor.setEchoMode(QLineEdit.EchoMode.Password)
+                editor.setPlaceholderText("Enter new value; saved value is never displayed")
+                status = QLabel()
+                try:
+                    configured = has_credential(manifest.id, credential_key)
+                    status.setText("Stored in OS keyring" if configured else "Not configured")
+                except CredentialStoreUnavailable as exc:
+                    keyring_ready = False
+                    status.setText(str(exc))
+                row_widget = QWidget()
+                row_layout = QHBoxLayout(row_widget)
+                row_layout.setContentsMargins(0, 0, 0, 0)
+                row_layout.addWidget(editor, 1)
+                row_layout.addWidget(status)
+                self.plugin_settings_layout.addRow(credential_label, row_widget)
+                self.plugin_credential_widgets[credential_key] = editor
             self.plugin_settings_status.setText(
-                "Credential values are never stored in this settings file."
+                "Credential values are kept out of project files and application logs."
             )
             self.save_plugin_settings_button.setEnabled(True)
+            self.save_plugin_credentials_button.setEnabled(
+                bool(manifest.credentials) and keyring_ready
+            )
 
         def save_selected_plugin_settings(self) -> None:
             plugins = getattr(self, "plugins", [])
@@ -1140,6 +1178,33 @@ def run_gui(project_path: Path | None = None) -> int:
                 return
             self.plugin_settings_status.setText(f"Saved locally: {path}")
             self.log.appendPlainText(f"Saved supplier settings for {manifest.id}: {path}")
+
+        def save_selected_plugin_credentials(self) -> None:
+            plugins = getattr(self, "plugins", [])
+            row = getattr(self, "selected_plugin_row", -1)
+            if not 0 <= row < len(plugins):
+                return
+            manifest: Manifest = plugins[row].manifest
+            entered = {
+                key: widget.text()
+                for key, widget in self.plugin_credential_widgets.items()
+                if widget.text()
+            }
+            if not entered:
+                QMessageBox.information(
+                    self, "No credentials entered", "Enter a credential value first."
+                )
+                return
+            try:
+                for key, value in entered.items():
+                    save_credential(manifest.id, key, value)
+            except (CredentialStoreUnavailable, OSError, ValueError) as exc:
+                QMessageBox.critical(self, "Credential was not saved", str(exc))
+                return
+            for widget in self.plugin_credential_widgets.values():
+                widget.clear()
+            self.log.appendPlainText(f"Saved credential(s) to OS keyring for {manifest.id}")
+            self._build_plugin_settings_form(manifest)
 
         def refresh_quote_files(self, project: Project) -> None:
             reply_paths, offer_results = _quote_results(project)

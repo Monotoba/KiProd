@@ -110,7 +110,8 @@
 - [ ] Add approval-gated MPN and supplier part-number write-back to KiCad schematics.
 - [x] Open cited review evidence files while confining paths to the selected project.
 - [x] Generate and persist scalar supplier settings from manifests while preserving unknown plugin keys and excluding secrets.
-- [ ] Integrate keyring credential status and supplier-specific results/docs panes.
+- [x] Show keyring credential status and save secret fields directly to the OS keyring.
+- [ ] Add supplier-specific result and plugin documentation panes.
 - [x] Show board-house and assembler declared limits against extracted board and assembly metrics.
 - [ ] Add supplier-specific board/assembly settings and offer-result panes.
 - [x] Confirm, correct, or reject imported offer candidates in the GUI with append-only decisions and source references.
