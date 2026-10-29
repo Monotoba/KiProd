@@ -39,7 +39,8 @@
 - [x] Calculate source-backed component landed costs with MOQ, order multiple, price breaks, attrition, and ancillary costs.
 - [x] Rank landed costs by quantity and currency; emit Markdown comparison and landed-cost reports with evidence refs.
 - [x] Add XLSX comparison workbook and normalized-BOM coverage-gap analysis.
-- [ ] Add saved-run report regeneration and cross-quantity matrix output.
+- [x] Add cross-quantity supplier matrix and JSON comparison output for reproducible report regeneration.
+- [ ] Add full saved-run manifest and report regeneration command.
 
 ## Later milestones
 

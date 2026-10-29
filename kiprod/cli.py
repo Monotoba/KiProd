@@ -267,6 +267,7 @@ def compare_quotes(
     inputs: list[Path] = typer.Argument(..., exists=True, dir_okay=False),
     output: Path = typer.Option(Path("comparison.md"), "--output", "-o"),
     workbook: Path | None = typer.Option(None, "--xlsx", help="Optional XLSX workbook path."),
+    json_output: Path | None = typer.Option(None, "--json", help="Optional comparison JSON path."),
     bom: Path | None = typer.Option(
         None, exists=True, dir_okay=False, help="Normalized BOM JSON for coverage analysis."
     ),
@@ -292,6 +293,10 @@ def compare_quotes(
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(report, encoding="utf-8")
     typer.echo(f"Wrote {output}")
+    if json_output is not None:
+        json_output.parent.mkdir(parents=True, exist_ok=True)
+        json_output.write_text(comparison.model_dump_json(indent=2) + "\n", encoding="utf-8")
+        typer.echo(f"Wrote {json_output}")
     if workbook is not None:
         try:
             workbook_path = comparison_workbook(comparison, costs, workbook)

@@ -30,6 +30,31 @@ def comparison_workbook(comparison: Comparison, costs: list[LandedCost], output:
                 row.quoted_lines,
             ]
         )
+    matrix = workbook.create_sheet("Matrix")
+    quantities = sorted({row.board_quantity for row in comparison.rows})
+    currencies = sorted({row.currency for row in comparison.rows})
+    matrix.append(
+        [
+            "Supplier",
+            *[f"{qty} boards ({currency})" for currency in currencies for qty in quantities],
+        ]
+    )
+    for cell in matrix[1]:
+        cell.font = Font(bold=True)
+    suppliers = sorted({row.supplier_id for row in comparison.rows})
+    lookup = {
+        (row.supplier_id, row.board_quantity, row.currency): float(row.total)
+        for row in comparison.rows
+    }
+    for supplier in suppliers:
+        matrix.append(
+            [supplier]
+            + [
+                lookup.get((supplier, qty, currency))
+                for currency in currencies
+                for qty in quantities
+            ]
+        )
     details = workbook.create_sheet("Lines")
     details.append(
         [
