@@ -25,7 +25,9 @@ and Settings tabs. Results lists matching offers already imported from local quo
 files; Docs renders the plugin-local `README.md` when present. Neither pane invokes
 the plugin or makes network requests. Quotes Inbox lists captured
 `.eml` replies and locally saved quote-import JSON. Selecting an offer file shows
-its parsed candidates and review queue. A candidate can be confirmed, corrected
+its parsed candidates and a separate review queue for source rows that were not
+extracted. Double-clicking a queued row opens its source file when it is stored
+inside the project. A candidate can be confirmed, corrected
 from typed offer JSON, or rejected; corrections must preserve its original source
 reference, and correction/rejection requires a comment. Decisions are append-only
 in `quotes/review.decisions.json`. The cited source file can be opened when it is

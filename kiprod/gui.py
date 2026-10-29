@@ -425,6 +425,13 @@ def run_gui(project_path: Path | None = None) -> int:
             candidate_views = QTabWidget()
             candidate_views.addTab(self.offer_details, "Original candidate")
             candidate_views.addTab(self.offer_correction, "Correction")
+            self.offer_review_queue_table = QTableWidget(0, 4)
+            self.offer_review_queue_table.setHorizontalHeaderLabels(
+                ["Source reference", "Confidence", "Issue", "Candidate MPN"]
+            )
+            self.offer_review_queue_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+            self.offer_review_queue_table.cellDoubleClicked.connect(self.open_review_queue_source)
+            candidate_views.addTab(self.offer_review_queue_table, "Review queue")
             self.offer_review_comment = QLineEdit()
             self.offer_review_comment.setPlaceholderText(
                 "Comment (required for correction/rejection)"
@@ -1317,6 +1324,18 @@ def run_gui(project_path: Path | None = None) -> int:
                 self.offer_details.clear()
                 return
             _path, result = results[row]
+            self.offer_review_queue_table.setRowCount(len(result.review_queue))
+            for queue_row, item in enumerate(result.review_queue):
+                values = [
+                    f"{item.source_ref.path}#{item.source_ref.reference or ''}",
+                    f"{item.confidence:.2f}",
+                    item.issue,
+                    item.candidate_mpn or "",
+                ]
+                for queue_column, value in enumerate(values):
+                    table_item = QTableWidgetItem(value)
+                    table_item.setData(Qt.ItemDataRole.UserRole, queue_row)
+                    self.offer_review_queue_table.setItem(queue_row, queue_column, table_item)
             self.offer_candidate_combo.blockSignals(True)
             self.offer_candidate_combo.clear()
             for index, candidate in enumerate(result.offers):
@@ -1343,6 +1362,26 @@ def run_gui(project_path: Path | None = None) -> int:
                 )
                 self.offer_correction.clear()
                 self.offer_review_status.setText("No extracted offer candidate is available.")
+
+        def open_review_queue_source(self, row: int, column: int) -> None:
+            del column
+            offer_row = self.offer_table.currentRow()
+            results = getattr(self, "offer_results", [])
+            if not 0 <= offer_row < len(results):
+                return
+            _path, result = results[offer_row]
+            if not 0 <= row < len(result.review_queue) or self.current_project_path is None:
+                return
+            source_ref = result.review_queue[row].source_ref
+            source = _quote_source_path(self.current_project_path, source_ref.path)
+            if source is None:
+                QMessageBox.information(
+                    self,
+                    "Quote source is not stored in the project",
+                    f"Source reference: {source_ref.path}#{source_ref.reference or ''}",
+                )
+                return
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(source)))
 
         def show_selected_offer(self, index: int) -> None:
             row = self.offer_table.currentRow()
