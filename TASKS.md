@@ -26,7 +26,9 @@
 - [x] Discover plugins in precedence order and enforce declared network host access.
 - [x] Add the manifest JSON Schema and validate custom field declarations.
 - [x] Add a recorded supplier-search fixture.
-- [ ] Add subprocess isolation and execute adapter methods against recorded fixtures.
+- [x] Execute adapter methods in a timed subprocess with a restricted environment.
+- [x] Exercise adapter calls against recorded supplier fixtures.
+- [ ] Enforce network permissions in a restricted HTTP client before real suppliers are added.
 
 ## Later milestones (blocked on prior acceptance)
 

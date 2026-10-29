@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -20,6 +23,39 @@ class LoadedPlugin:
     path: Path
     manifest: Manifest
     adapter_class: type[object] | None
+
+    def call(self, method: str, *args: Any, timeout: float = 10.0, **kwargs: Any) -> Any:
+        """Execute an adapter method in a fresh worker process."""
+        if self.manifest.adapter is None:
+            raise PluginError(f"plugin {self.manifest.id} has no adapter")
+        request = {
+            "plugin_dir": str(self.path),
+            "module": self.manifest.adapter.module,
+            "class": self.manifest.adapter.class_name,
+            "method": method,
+            "args": args,
+            "kwargs": kwargs,
+        }
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "kiprod.plugins.worker"],
+                input=json.dumps(request),
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
+                cwd=self.path,
+                env={"PATH": "", "PYTHONPATH": str(Path(__file__).resolve().parents[2])},
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise PluginError(f"plugin {self.manifest.id} timed out calling {method}") from exc
+        try:
+            payload = json.loads(result.stdout)
+        except json.JSONDecodeError as exc:
+            raise PluginError(f"plugin {self.manifest.id} returned invalid worker output") from exc
+        if result.returncode != 0 or not payload.get("ok"):
+            raise PluginError(payload.get("error", result.stderr.strip() or "plugin call failed"))
+        return payload.get("result")
 
 
 def load_manifest(plugin_dir: Path) -> Manifest:

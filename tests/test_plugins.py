@@ -16,6 +16,7 @@ def test_loads_manifest_and_adapter() -> None:
     assert plugin.manifest.resource_types == ["components"]
     assert plugin.adapter_class is not None
     assert plugin.adapter_class().health_check() == {"ok": True}
+    assert plugin.call("health_check") == {"ok": True}
 
 
 def test_enforces_declared_network_allowlist() -> None:
@@ -51,3 +52,16 @@ def test_recorded_fixture_is_present_and_traceable() -> None:
     offer = fixture["offers"][0]
     assert fixture["query"] == offer["manufacturer_part_number"]
     assert offer["supplier_part_number"] == "C14663"
+
+
+def test_adapter_search_runs_in_worker_from_recorded_fixture() -> None:
+    plugin = load_plugin(FIXTURE)
+    offers = plugin.call("search", "RC0603FR-074K7L")
+    assert offers[0]["manufacturer_part_number"] == "RC0603FR-074K7L"
+    assert plugin.call("search", "UNKNOWN") == []
+
+
+def test_adapter_worker_rejects_unknown_method() -> None:
+    plugin = load_plugin(FIXTURE)
+    with pytest.raises(PluginError, match="AttributeError"):
+        plugin.call("delete_everything")
