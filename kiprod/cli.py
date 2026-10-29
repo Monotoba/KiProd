@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import shutil
+import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -114,10 +116,13 @@ def run(
 
 @app.command()
 def doctor() -> None:
-    """Report M1 runtime capabilities without requiring KiCad."""
+    """Report installed KiProd runtime capabilities."""
     cli_version = version()
-    state = cli_version or "not found"
-    typer.echo(f"KiProd M1: Python core available; kicad-cli: {state}")
+    typer.echo(f"KiProd {__import__('kiprod').__version__}")
+    typer.echo(f"Python core: available ({sys.version.split()[0]})")
+    typer.echo(f"kicad-cli: {cli_version or 'not found'}")
+    xlsx_status = "available" if importlib.util.find_spec("openpyxl") else "install kiprod[reports]"
+    typer.echo(f"XLSX reports: {xlsx_status}")
 
 
 @app.command()
