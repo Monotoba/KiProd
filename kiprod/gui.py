@@ -36,6 +36,11 @@ from kiprod.core.models import AssemblySpec, BoardSpec, NormalizedBOM, Offer, Pr
 from kiprod.core.project import discover
 from kiprod.kicad.board import extract as extract_board
 from kiprod.kicad.cli_adapter import export_bom
+from kiprod.kicad.writeback import (
+    SchematicFieldUpdate,
+    apply_writeback,
+    prepare_writeback,
+)
 from kiprod.plugins.credentials import (
     CredentialStoreUnavailable,
     has_credential,
@@ -667,6 +672,10 @@ def run_gui(project_path: Path | None = None) -> int:
             self.best_mix_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
             self.comparison_chart = QTextBrowser()
             self.comparison_chart.setOpenExternalLinks(False)
+            self.writeback_button = QPushButton("Review and write best-mix fields to schematic…")
+            self.writeback_button.setEnabled(False)
+            self.writeback_button.clicked.connect(self.approve_best_mix_writeback)
+            compare_layout.addWidget(self.writeback_button)
             self.comparison_views = QTabWidget()
             self.comparison_views.addTab(self.comparison_table, "Supplier ranking")
             self.comparison_views.addTab(self.best_mix_table, "Best mix")
@@ -1685,6 +1694,8 @@ def run_gui(project_path: Path | None = None) -> int:
             self.comparison_views.setCurrentWidget(self.comparison_table)
 
         def show_comparison(self, comparison: Comparison) -> None:
+            self.current_comparison = comparison
+            self.writeback_button.setEnabled(any(mix.lines for mix in comparison.best_mix))
             self.comparison_chart.setHtml(_comparison_chart_html(comparison))
             self.comparison_table.setRowCount(len(comparison.rows))
             for row, item in enumerate(comparison.rows):
@@ -1733,6 +1744,79 @@ def run_gui(project_path: Path | None = None) -> int:
                 self.best_mix_table.setItem(
                     0, 0, QTableWidgetItem("No matching BOM requirements for a best-mix view.")
                 )
+
+        def approve_best_mix_writeback(self) -> None:
+            if self.current_project_path is None or not hasattr(self, "current_bom"):
+                QMessageBox.information(self, "Project required", "Build a project BOM first.")
+                return
+            updates: dict[tuple[Path, str, str], SchematicFieldUpdate] = {}
+            bom_lines = {line.mpn.casefold(): line for line in self.current_bom.lines if line.mpn}
+            for mix in getattr(self, "current_comparison", Comparison(rows=[])).best_mix:
+                for offer_line in mix.lines:
+                    bom_line = bom_lines.get(offer_line.manufacturer_part_number.casefold())
+                    if bom_line is None:
+                        continue
+                    for source in bom_line.sources:
+                        try:
+                            source_path = _evidence_path(self.current_project_path, source.path)
+                        except ValueError:
+                            continue
+                        if source_path.suffix.casefold() != ".kicad_sch" or not source.reference:
+                            continue
+                        for field, value in (
+                            ("MPN", offer_line.manufacturer_part_number),
+                            ("Supplier Part Number", offer_line.supplier_part_number),
+                        ):
+                            key = (source_path, source.reference, field)
+                            updates[key] = SchematicFieldUpdate(
+                                path=source_path,
+                                reference=source.reference,
+                                field=field,
+                                value=value,
+                            )
+            if not updates:
+                QMessageBox.information(
+                    self,
+                    "No schematic targets",
+                    "The selected best mix has no matching BOM components sourced from "
+                    "project schematics.",
+                )
+                return
+            try:
+                plan = prepare_writeback(self.current_project_path, list(updates.values()))
+            except (OSError, ValueError) as exc:
+                QMessageBox.warning(self, "Write-back preview failed", str(exc))
+                return
+            if not plan.changes:
+                QMessageBox.information(self, "No changes", "Schematic fields already match.")
+                return
+            preview_lines = [
+                f"{change.path.relative_to(self.current_project_path)} · {change.reference} · "
+                f"{change.field}: {change.before or '(empty)'} → {change.after}"
+                for change in plan.changes[:25]
+            ]
+            if len(plan.changes) > 25:
+                preview_lines.append(f"… and {len(plan.changes) - 25} more change(s)")
+            approval = QMessageBox.question(
+                self,
+                "Approve schematic write-back",
+                "Apply these best-mix values to the project schematics? Original files will be "
+                "backed up before writing.\n\n" + "\n".join(preview_lines),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if approval != QMessageBox.StandardButton.Yes:
+                return
+            try:
+                backups = apply_writeback(self.current_project_path, plan)
+            except (OSError, ValueError) as exc:
+                QMessageBox.critical(self, "Schematic write-back failed", str(exc))
+                return
+            self.log.appendPlainText(
+                f"Approved {len(plan.changes)} schematic field change(s); backups: "
+                + ", ".join(str(path) for path in backups)
+            )
+            self.start_run()
 
         def regenerate_selected_report(self) -> None:
             if self.current_project_path is None:

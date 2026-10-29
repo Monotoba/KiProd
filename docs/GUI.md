@@ -49,6 +49,10 @@ shipping, NRE, duty, and fees once per selected supplier. Each line retains its
 quote source reference, and uncovered MPNs remain visible as gaps.
 The Charts tab shows landed cost per board and weighted score bars, grouped by
 quantity and currency so incomparable groups are not plotted together.
+After generating a best mix, the Compare view can preview MPN and Supplier Part
+Number changes for matching schematic components. Applying changes requires an
+explicit confirmation, keeps a unique `.kiprod.bak` copy of each modified schematic,
+and aborts if a source schematic changed after the preview.
 
 The current GUI provides an editable MPN column with a source label and a filter for
 lines missing MPNs or footprints. MPN overrides are saved in
