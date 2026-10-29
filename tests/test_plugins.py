@@ -7,6 +7,7 @@ import pytest
 from typer.testing import CliRunner
 
 from kiprod.cli import app
+from kiprod.net.http import HttpClient, HttpResponse
 from kiprod.plugins.host import PluginError, check_network_permission, load_plugin
 
 FIXTURE = Path(__file__).parent / "plugins" / "fixture"
@@ -56,9 +57,25 @@ def test_recorded_fixture_is_present_and_traceable() -> None:
 
 def test_adapter_search_runs_in_worker_from_recorded_fixture() -> None:
     plugin = load_plugin(FIXTURE)
-    offers = plugin.call("search", "RC0603FR-074K7L")
+    url = "https://parts.example.test/v1/search?mpn=RC0603FR-074K7L"
+    fixture = HttpResponse(
+        200,
+        {"content-type": "application/json"},
+        (FIXTURE / "fixtures" / "search.json").read_bytes(),
+    )
+    http = HttpClient({"parts.example.test"}, fixtures={("GET", url): fixture})
+    offers = plugin.call("search", "RC0603FR-074K7L", http=http)
     assert offers[0]["manufacturer_part_number"] == "RC0603FR-074K7L"
-    assert plugin.call("search", "UNKNOWN") == []
+    unknown_url = "https://parts.example.test/v1/search?mpn=UNKNOWN"
+    unknown_fixture = HttpResponse(
+        200,
+        {"content-type": "application/json"},
+        b'{"query":"UNKNOWN","offers":[]}',
+    )
+    unknown_http = HttpClient(
+        {"parts.example.test"}, fixtures={("GET", unknown_url): unknown_fixture}
+    )
+    assert plugin.call("search", "UNKNOWN", http=unknown_http) == []
 
 
 def test_adapter_worker_rejects_unknown_method() -> None:

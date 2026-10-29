@@ -1,15 +1,14 @@
-import json
-from pathlib import Path
-
-
 class FixtureAdapter:
     def __init__(self, http=None):
-        self.root = Path(__file__).parent
         self.http = http
 
     def health_check(self):
         return {"ok": True}
 
     def search(self, query):
-        fixture = json.loads((self.root / "fixtures" / "search.json").read_text())
-        return fixture["offers"] if fixture["query"] == query else []
+        response = self.http.get(
+            f"https://parts.example.test/v1/search?mpn={query}",
+            headers={"accept": "application/json"},
+        )
+        payload = response.json()
+        return payload["offers"] if payload["query"] == query else []
