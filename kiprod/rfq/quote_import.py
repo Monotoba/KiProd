@@ -16,10 +16,31 @@ from pydantic import BaseModel, Field
 from kiprod.core.models import Offer, PriceBreak, SourceRef
 
 _ALIASES: dict[str, set[str]] = {
-    "mpn": {"mpn", "manufacturerpartnumber", "manufacturerpn"},
-    "spn": {"supplierpartnumber", "supplierpn", "suppliernumber", "sku", "partnumber"},
-    "quantity": {"quantity", "qty", "quantitybreak", "qtybreak"},
-    "unit_price": {"unitprice", "priceeach", "priceperunit", "unitcost"},
+    "mpn": {
+        "mpn",
+        "manufacturerpartnumber",
+        "manufacturerpn",
+        "mfrpartno",
+        "mfrpn",
+    },
+    "spn": {
+        "supplierpartnumber",
+        "supplierpn",
+        "suppliernumber",
+        "suppliersku",
+        "vendorpartno",
+        "sku",
+        "partnumber",
+    },
+    "quantity": {
+        "quantity",
+        "qty",
+        "quantitybreak",
+        "qtybreak",
+        "pricebreakqty",
+        "orderqty",
+    },
+    "unit_price": {"unitprice", "priceeach", "priceperunit", "unitcost", "unitpriceusd"},
     "currency": {"currency", "ccy"},
     "stock": {"stock", "stockquantity", "availablequantity"},
     "lead_time_days": {"leadtimedays", "leaddays", "leadtime"},

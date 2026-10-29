@@ -32,15 +32,15 @@
 - [x] Enforce network permissions through an HTTPS-only allowlisted HTTP client with fixture replay, caching, retries, and throttling.
 - [x] Add a recorded catalog adapter example with validated offers and required source references.
 - [x] Add CLI plugin discovery, health checks, and source-backed catalog search.
-- [ ] Add a production supplier protocol adapter before making live supplier calls.
+- [x] Add a production read-only JSON catalog protocol adapter with typed offer validation and recorded-fixture coverage; supplier-specific live connectors still require API terms, endpoint, and credential configuration.
 
-## M4 — Analysis and reports (in progress)
+## M4 — Analysis and reports (complete)
 
 - [x] Calculate source-backed component landed costs with MOQ, order multiple, price breaks, attrition, and ancillary costs.
 - [x] Rank landed costs by quantity and currency; emit Markdown comparison and landed-cost reports with evidence refs.
 - [x] Add XLSX comparison workbook and normalized-BOM coverage-gap analysis.
 - [x] Add cross-quantity supplier matrix and JSON comparison output for reproducible report regeneration.
-- [ ] Add full saved-run manifest and report regeneration command.
+- [x] Add full saved-run manifest and report regeneration command; archives preserve version/runtime provenance, reject replacement, and verify all saved input hashes before regeneration.
 
 ## M5 — Board and assembly (complete)
 
@@ -74,9 +74,20 @@
 - [x] Poll Microsoft Graph/Gmail REST with bearer tokens through the HTTPS allowlist and import matched replies read-only.
 - [x] Persist Graph/Gmail page cursors and advance only after the page is processed; reset after the final page.
 - [x] Add a reproducible field-accuracy/precision/recall evaluation for quote fixtures with a 95% threshold and explicit optional-format skips.
-- [ ] Expand fixtures with varied supplier templates and independently reviewed real-world samples.
+- [x] Expand quote fixtures with a second supplier-style header layout and independently labeled expected fields.
+- [ ] Validate quote extraction on independently reviewed real-world supplier samples.
 
 ## Later milestones
 
 - [ ] M7: typed AI/review layer.
 - [ ] M8–M10: GUI, KiCad launchers, and hardening.
+
+## Recommended completion order
+
+1. Finish M6's privacy and quote-parser validation using independently reviewed CAD exports and supplier quote samples; keep format-specific confidence/review rules in place.
+2. Build M7 on the stable BOM, offer, and review-queue schemas, with all extracted commercial values remaining source-backed.
+3. Build the M8 GUI, then M9 KiCad launchers, then M10 hardening and release checks.
+
+M3–M5 are complete, and M4 provides durable analysis outputs. M6's real-world
+validation needs representative sample files, so code-side work can continue while
+those samples are collected.

@@ -29,11 +29,31 @@ def test_run_archive_validates_hashes_and_paths(tmp_path: Path) -> None:
     run_dir = tmp_path / "run"
     archive_inputs([source], None, run_dir)
     manifest = load_manifest(run_dir)
+    assert manifest["kiprod_version"]
+    assert manifest["python_version"]
     paths, bom_path = input_paths(run_dir, manifest)
     assert len(paths) == 1 and bom_path is None
     paths[0].write_text("tampered")
     with pytest.raises(ValueError, match="hash mismatch"):
         load_manifest(run_dir)
+
+
+def test_run_archive_refuses_to_replace_existing_snapshot(tmp_path: Path) -> None:
+    source = tmp_path / "landed.json"
+    source.write_text(_landed().model_dump_json())
+    run_dir = tmp_path / "run"
+    archive_inputs([source], None, run_dir)
+    original = (run_dir / "run.json").read_bytes()
+
+    with pytest.raises(FileExistsError, match="already exists"):
+        archive_inputs([source], None, run_dir)
+
+    assert (run_dir / "run.json").read_bytes() == original
+
+
+def test_run_archive_requires_landed_cost_inputs(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="at least one"):
+        archive_inputs([], None, tmp_path / "run")
 
 
 def test_report_command_regenerates_archived_markdown_and_json(tmp_path: Path) -> None:

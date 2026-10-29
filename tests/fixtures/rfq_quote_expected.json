@@ -8,6 +8,13 @@
       ]
     },
     {
+      "path": "rfq_quote_supplier_b.csv",
+      "rows": [
+        {"mpn": "IC-204", "spn": "VND-204", "quantity": 25, "unit_price": 1.125, "currency": "EUR"},
+        {"mpn": "IC-204", "spn": "VND-204", "quantity": 250, "unit_price": 0.875, "currency": "EUR"}
+      ]
+    },
+    {
       "path": "rfq_quote_labeled.pdf",
       "rows": [
         {"mpn": "MPN-PDF-1", "spn": "SKU-PDF-1", "quantity": 10, "unit_price": 0.75, "currency": "USD"}

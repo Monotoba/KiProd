@@ -3,9 +3,12 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+from kiprod import __version__
 
 
 def _sha256(path: Path) -> str:
@@ -13,7 +16,12 @@ def _sha256(path: Path) -> str:
 
 
 def archive_inputs(inputs: list[Path], bom: Path | None, run_dir: Path) -> dict[str, Any]:
-    """Copy calculation inputs into an immutable run folder and write its manifest."""
+    """Copy calculation inputs into a new immutable run folder and write its manifest."""
+    manifest_path = run_dir / "run.json"
+    if manifest_path.exists():
+        raise FileExistsError(f"run archive already exists: {run_dir}")
+    if not inputs:
+        raise ValueError("at least one landed-cost input is required")
     run_dir.mkdir(parents=True, exist_ok=True)
     input_dir = run_dir / "inputs"
     input_dir.mkdir(exist_ok=True)
@@ -35,6 +43,8 @@ def archive_inputs(inputs: list[Path], bom: Path | None, run_dir: Path) -> dict[
     manifest: dict[str, Any] = {
         "schema_version": 1,
         "created_at": datetime.now(UTC).isoformat(),
+        "kiprod_version": __version__,
+        "python_version": ".".join(str(part) for part in sys.version_info[:3]),
         "landed_cost_inputs": archived,
         "bom": archived_bom,
     }
@@ -45,16 +55,27 @@ def archive_inputs(inputs: list[Path], bom: Path | None, run_dir: Path) -> dict[
 def load_manifest(run_dir: Path) -> dict[str, Any]:
     manifest_path = run_dir / "run.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if manifest.get("schema_version") != 1:
+    if not isinstance(manifest, dict) or manifest.get("schema_version") != 1:
         raise ValueError("unsupported report run manifest version")
-    for entry in [
-        *manifest.get("landed_cost_inputs", []),
-        *([manifest["bom"]] if manifest.get("bom") else []),
-    ]:
+    landed = manifest.get("landed_cost_inputs")
+    bom = manifest.get("bom")
+    if not isinstance(landed, list) or not landed:
+        raise ValueError("run manifest must contain landed-cost inputs")
+    entries = [*landed, *([bom] if bom is not None else [])]
+    for entry in entries:
+        if (
+            not isinstance(entry, dict)
+            or not isinstance(entry.get("path"), str)
+            or not isinstance(entry.get("sha256"), str)
+        ):
+            raise ValueError("invalid archived input entry")
         path = (run_dir / entry["path"]).resolve()
         if not path.is_relative_to(run_dir.resolve()) or not path.is_file():
             raise ValueError(f"invalid archived input path: {entry['path']}")
-        if _sha256(path) != entry["sha256"]:
+        digest = entry["sha256"]
+        if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
+            raise ValueError(f"invalid archived input hash: {entry['path']}")
+        if _sha256(path) != digest:
             raise ValueError(f"archived input hash mismatch: {entry['path']}")
     result: dict[str, Any] = manifest
     return result

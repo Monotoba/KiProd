@@ -3,7 +3,7 @@
 KiProd creates a traceable production package from a KiCad project: a normalized
 BOM, production review findings, supplier quotes, and comparison reports.
 
-Milestones **M1, M2, and M5** are complete; **M3, M4, and M6** remain in progress.
+Milestones **M1–M5** are complete; **M6** remains in progress.
 The CLI supports offline BOM/configuration work, board and assembly analysis, local
 RFQ packaging, approval-gated SMTP delivery, and Graph/Gmail inbox polling. No
 production catalog adapter, AI layer, or GUI has shipped yet; live email and mailbox
