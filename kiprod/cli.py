@@ -39,6 +39,7 @@ from kiprod.rfq.approval import approve_package, has_current_approval, package_s
 from kiprod.rfq.delivery import send_approved_rfq
 from kiprod.rfq.email import create_email_draft
 from kiprod.rfq.inbox import import_reply
+from kiprod.rfq.mailbox import poll_mailbox
 from kiprod.rfq.package import build_package, verify_package
 from kiprod.rfq.quote_import import parse_quote_attachment
 from kiprod.rfq.workflow import get_rfq_status, register_email_draft
@@ -184,6 +185,43 @@ def rfq_import_reply(
     typer.echo(f"Matched {imported.rfq_id}; state is {imported.state}")
     typer.echo(f"Stored email: {imported.stored_message}")
     typer.echo("Attachments: " + (", ".join(imported.attachments) or "none"))
+
+
+@rfq_app.command("poll-mailbox")
+def rfq_poll_mailbox(
+    provider: str = typer.Argument(..., help="Mailbox API: graph or gmail."),
+    token_env: str = typer.Option("KIPROD_MAILBOX_TOKEN", "--token-env"),
+    limit: int = typer.Option(50, min=1, max=100),
+    output_root: Path = typer.Option(
+        Path("docs/production/.kiprod/replies"),
+        "--output-root",
+        help="Local directory for captured messages and attachments.",
+    ),
+    database: Path = typer.Option(
+        Path("docs/production/.kiprod/state.sqlite"),
+        "--database",
+        help="Local RFQ audit database.",
+    ),
+) -> None:
+    """Read messages through Microsoft Graph or Gmail APIs and import matching RFQs."""
+    token = os.environ.get(token_env)
+    if not token:
+        raise typer.BadParameter(f"mailbox access token environment variable is empty: {token_env}")
+    try:
+        result = poll_mailbox(
+            provider,
+            token,
+            database,
+            output_root,
+            limit=limit,
+        )
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    typer.echo(
+        f"Checked {result.checked} message(s); imported {len(result.imported)} RFQ reply(s)."
+    )
+    for item in result.skipped + result.errors:
+        typer.echo(item, err=True)
 
 
 @rfq_app.command("parse-quote")

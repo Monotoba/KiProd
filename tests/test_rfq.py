@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import json
 import smtplib
 import sqlite3
 import subprocess
@@ -13,9 +15,11 @@ import pytest
 
 import kiprod.rfq.delivery as rfq_delivery
 import kiprod.rfq.package as rfq_package
+from kiprod.net.http import HttpClient, HttpResponse
 from kiprod.rfq.approval import approve_package, has_current_approval, package_sha256
 from kiprod.rfq.email import create_email_draft
 from kiprod.rfq.inbox import import_reply
+from kiprod.rfq.mailbox import _gmail_url, _graph_url, poll_mailbox
 from kiprod.rfq.privacy import scan_privacy
 from kiprod.rfq.workflow import (
     get_rfq_status,
@@ -435,3 +439,86 @@ def test_package_rejects_unsafe_archive_paths(name: str, tmp_path: Path) -> None
     source.write_text("data", encoding="utf-8")
     with pytest.raises(ValueError, match="unsafe"):
         rfq_package.build_package({name: source}, tmp_path / "package.zip", "test-key")
+
+
+def _sent_rfq_for_mailbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, rfq_id: str) -> Path:
+    database, _, _ = _approved_draft(tmp_path, monkeypatch, rfq_id)
+    transition_rfq(database, rfq_id, "sent")
+    return database
+
+
+def _reply_bytes(rfq_id: str) -> bytes:
+    reply = EmailMessage()
+    reply["From"] = "quotes@example.test"
+    reply["To"] = "buyer@example.test"
+    reply["Subject"] = f"Re: RFQ {rfq_id}"
+    reply.set_content("We received your RFQ.")
+    return reply.as_bytes()
+
+
+def test_graph_mailbox_poll_imports_matching_messages_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    rfq_id = "KP-graph-1"
+    database = _sent_rfq_for_mailbox(tmp_path, monkeypatch, rfq_id)
+    raw = _reply_bytes(rfq_id)
+    listing_url = _graph_url(10)
+    raw_url = "https://graph.microsoft.com/v1.0/me/messages/message%2F1/$value"
+    http = HttpClient(
+        {"graph.microsoft.com"},
+        fixtures={
+            ("GET", listing_url): HttpResponse(
+                200,
+                {},
+                json.dumps(
+                    {
+                        "value": [
+                            {
+                                "id": "message/1",
+                                "subject": f"Re: {rfq_id}",
+                                "internetMessageHeaders": [],
+                            },
+                            {"id": "unrelated", "subject": "Hello"},
+                        ]
+                    }
+                ).encode(),
+            ),
+            ("GET", raw_url): HttpResponse(200, {"Content-Type": "message/rfc822"}, raw),
+        },
+    )
+
+    result = poll_mailbox("graph", "token", database, tmp_path / "replies", limit=10, client=http)
+
+    assert result.checked == 1
+    assert len(result.imported) == 1
+    assert result.imported[0].rfq_id == rfq_id
+    assert result.imported[0].state == "acknowledged"
+
+
+def test_gmail_mailbox_poll_decodes_raw_message_and_imports_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    rfq_id = "KP-gmail-1"
+    database = _sent_rfq_for_mailbox(tmp_path, monkeypatch, rfq_id)
+    raw = _reply_bytes(rfq_id)
+    listing_url = _gmail_url(10)
+    raw_url = "https://gmail.googleapis.com/gmail/v1/users/me/messages/msg-1?format=raw"
+    http = HttpClient(
+        {"gmail.googleapis.com"},
+        fixtures={
+            ("GET", listing_url): HttpResponse(
+                200, {}, json.dumps({"messages": [{"id": "msg-1"}]}).encode()
+            ),
+            ("GET", raw_url): HttpResponse(
+                200,
+                {},
+                json.dumps({"raw": base64.urlsafe_b64encode(raw).decode().rstrip("=")}).encode(),
+            ),
+        },
+    )
+
+    result = poll_mailbox("gmail", "token", database, tmp_path / "replies", limit=10, client=http)
+
+    assert result.checked == 1
+    assert result.imported[0].rfq_id == rfq_id
+    assert result.imported[0].state == "acknowledged"

@@ -29,7 +29,7 @@ class InboxImport(BaseModel):
     imported_at: str
 
 
-def _known_rfq_ids(database: Path) -> list[str]:
+def known_rfq_ids(database: Path) -> list[str]:
     if not database.is_file():
         return []
     with sqlite3.connect(database, timeout=10) as connection:
@@ -49,7 +49,7 @@ def _contains_id(text: str, rfq_id: str) -> bool:
 
 
 def _match_rfq(database: Path, message: EmailMessage) -> str:
-    known = _known_rfq_ids(database)
+    known = known_rfq_ids(database)
     header = str(message.get("X-KiProd-RFQ-ID", "")).strip()
     if header and header not in known:
         raise ValueError(f"inbound email references unknown RFQ ID in header: {header}")
@@ -87,7 +87,13 @@ def _attachments(message: EmailMessage) -> list[tuple[str, bytes]]:
     return items
 
 
-def import_reply(message_file: Path, database: Path, output_root: Path) -> InboxImport:
+def import_reply(
+    message_file: Path,
+    database: Path,
+    output_root: Path,
+    *,
+    source_label: str | None = None,
+) -> InboxImport:
     """Match and safely capture one local .eml reply and its attachments."""
     if not message_file.is_file():
         raise ValueError(f"inbound email file does not exist: {message_file}")
@@ -147,7 +153,7 @@ def import_reply(message_file: Path, database: Path, output_root: Path) -> Inbox
                 (
                     digest,
                     rfq_id,
-                    str(message_file.resolve()),
+                    source_label or str(message_file.resolve()),
                     str(final_message),
                     json.dumps(attachment_names),
                     imported_at,

@@ -69,7 +69,8 @@
 - [x] Parse CSV/XLSX quote tables into source-backed offer candidates with deterministic confidence and incomplete-row review queue.
 - [x] Parse labeled-field PDF quotes into low-confidence candidates that always require human review.
 - [x] Add local OCR fallback for scanned quote PDFs, with low confidence and mandatory careful review.
-- [ ] Add IMAP/Graph/Gmail polling and evaluate extraction accuracy against a representative fixture set.
+- [x] Poll Microsoft Graph/Gmail REST with bearer tokens through the HTTPS allowlist and import matched replies read-only.
+- [ ] Add pagination/cursors and evaluate extraction accuracy against a representative fixture set.
 
 ## Later milestones
 

@@ -57,6 +57,9 @@ To capture an exported supplier reply without connecting to a mailbox, run
 `kiprod rfq import-reply reply.eml`. KiProd matches the RFQ ID from the subject or
 `X-KiProd-RFQ-ID` header, stores the original message and sanitized attachments under
 `.kiprod/replies/`, and moves a sent RFQ to `acknowledged`.
+Poll Microsoft Graph or Gmail REST with a bearer token already obtained by the user:
+`kiprod rfq poll-mailbox graph` or `kiprod rfq poll-mailbox gmail`. The token is read
+from `KIPROD_MAILBOX_TOKEN`; polling is read-only and uses the allowlisted HTTPS client.
 Parse structured CSV/XLSX quote attachments with
 `kiprod rfq parse-quote quote.csv --supplier-id supplier-a --output offers.json`.
 The output keeps source row references, candidate confidence, and incomplete rows in a
