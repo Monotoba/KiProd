@@ -3,9 +3,11 @@
 KiProd creates a traceable production package from a KiCad project: a normalized
 BOM, production review findings, supplier quotes, and comparison reports.
 
-This repository currently implements milestone **M1**: offline project discovery
-and normalized BOM generation. It deliberately has no network, supplier, LLM, or
-KiCad embedded-Python dependency.
+Milestones **M1, M2, and M5** are complete; **M3, M4, and M6** remain in progress.
+The CLI supports offline BOM/configuration work, board and assembly analysis, local
+RFQ packaging, approval-gated SMTP delivery, and Graph/Gmail inbox polling. No
+production catalog adapter, AI layer, or GUI has shipped yet; live email and mailbox
+operations require user-provided credentials and configuration.
 
 ## Quick start
 

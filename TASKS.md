@@ -14,7 +14,7 @@
 - [x] Add a golden normalized-BOM fixture for regression checks.
 - [x] Add a golden fixture from a full real KiCad 10 project.
 
-## M2 — Configuration and defaults policy
+## M2 — Configuration and defaults policy (complete)
 
 - [x] Layer built-in, user, and project TOML settings; expose config init/show/validate CLI commands.
 - [x] Implement default / flag / error / guess / inherit / ignore policy resolution and non-interactive exit 3 handling.
@@ -42,7 +42,7 @@
 - [x] Add cross-quantity supplier matrix and JSON comparison output for reproducible report regeneration.
 - [ ] Add full saved-run manifest and report regeneration command.
 
-## M5 — Board and assembly (in progress)
+## M5 — Board and assembly (complete)
 
 - [x] Extract copper layers, board thickness, outline bounds, minimum track, and drill metrics from PCB S-expressions.
 - [x] Compare extracted fabrication metrics against declared supplier limits.
