@@ -37,7 +37,8 @@ note, the value remains unknown.
 Create a local signed RFQ archive from explicitly selected files with
 `kiprod rfq package bom.csv cpl.csv --output package.zip --signing-key KEY_ID`,
 then verify it with `kiprod rfq verify package.zip`. This requires local `clamscan`
-and `gpg` executables and never sends the package.
+and `gpg` executables and never sends the package. Including PDFs also requires
+`pdfinfo` so document metadata can be checked.
 Package staging also blocks text files containing the current user's home path or
 username and files with explicit hidden-layer markers.
 Create a local message draft with `kiprod rfq draft KP-board-20261029-1 package.zip

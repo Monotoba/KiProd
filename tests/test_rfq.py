@@ -15,6 +15,7 @@ import pytest
 
 import kiprod.rfq.delivery as rfq_delivery
 import kiprod.rfq.package as rfq_package
+import kiprod.rfq.privacy as rfq_privacy
 from kiprod.net.http import HttpClient, HttpResponse
 from kiprod.rfq.approval import approve_package, has_current_approval, package_sha256
 from kiprod.rfq.email import create_email_draft
@@ -69,14 +70,14 @@ def test_tampered_package_file_fails_manifest_verification(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _mock_tools(monkeypatch)
-    source = tmp_path / "drawing.pdf"
+    source = tmp_path / "drawing.bin"
     source.write_bytes(b"original")
     output = tmp_path / "package.zip"
-    rfq_package.build_package({"drawing.pdf": source}, output, "test-key")
+    rfq_package.build_package({"drawing.bin": source}, output, "test-key")
     tampered = tmp_path / "tampered.zip"
     with zipfile.ZipFile(output) as original, zipfile.ZipFile(tampered, "w") as changed:
         for name in original.namelist():
-            payload = b"changed" if name == "drawing.pdf" else original.read(name)
+            payload = b"changed" if name == "drawing.bin" else original.read(name)
             changed.writestr(name, payload)
 
     with pytest.raises(ValueError, match="size mismatch|hash mismatch"):
@@ -112,6 +113,73 @@ def test_privacy_scan_detects_local_paths_usernames_and_hidden_layers(tmp_path: 
         "board.kicad_pcb: embedded local filesystem path",
         "board.kicad_pcb: embedded local username",
         "board.kicad_pcb: hidden layer declaration",
+    ]
+
+
+def test_privacy_scan_reads_office_metadata_and_hidden_sheets(tmp_path: Path) -> None:
+    office = tmp_path / "supplier-quote.xlsx"
+    with zipfile.ZipFile(office, "w") as archive:
+        archive.writestr(
+            "docProps/core.xml",
+            "<core><creator>alice</creator><description>/home/alice/quote.xlsx</description></core>",
+        )
+        archive.writestr(
+            "xl/workbook.xml",
+            '<workbook><sheet name="Hidden Data" state="veryHidden"/></workbook>',
+        )
+
+    findings = scan_privacy(
+        tmp_path,
+        sensitive_roots=[Path("/home/alice")],
+        usernames=["alice"],
+    )
+
+    assert findings == [
+        "supplier-quote.xlsx: embedded local filesystem path",
+        "supplier-quote.xlsx: embedded local username",
+        "supplier-quote.xlsx: hidden Office document content",
+    ]
+
+
+def test_privacy_scan_reads_pdf_metadata_and_optional_content_layers(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pdf = tmp_path / "drawing.pdf"
+    pdf.write_bytes(b"%PDF-1.4 /OCProperties << /OFF [5 0 R] >>")
+    monkeypatch.setattr(rfq_privacy.shutil, "which", lambda _: "/usr/bin/pdfinfo")
+    monkeypatch.setattr(
+        rfq_privacy.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(args, 0, "Author: alice\n", ""),
+    )
+
+    findings = scan_privacy(tmp_path, usernames=["alice"])
+
+    assert findings == [
+        "drawing.pdf: embedded local username",
+        "drawing.pdf: hidden PDF optional-content layer",
+    ]
+
+
+def test_privacy_scan_blocks_pdfs_when_metadata_tool_is_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "quote.pdf").write_bytes(b"%PDF-1.4")
+    monkeypatch.setattr(rfq_privacy.shutil, "which", lambda _: None)
+
+    assert scan_privacy(tmp_path, usernames=[]) == [
+        "quote.pdf: PDF metadata inspection requires local pdfinfo"
+    ]
+
+
+def test_privacy_scan_detects_kicad_hidden_layer_visibility(tmp_path: Path) -> None:
+    preferences = tmp_path / "board.kicad_prl"
+    preferences.write_text(
+        '{"board":{"visible_layers":"ffffffff_fffffffe_ffffffff_ffffffff"}}',
+        encoding="utf-8",
+    )
+    assert scan_privacy(tmp_path, usernames=[]) == [
+        "board.kicad_prl: hidden KiCad layer visibility state"
     ]
 
 
