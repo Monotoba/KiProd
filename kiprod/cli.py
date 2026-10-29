@@ -40,6 +40,7 @@ from kiprod.rfq.delivery import send_approved_rfq
 from kiprod.rfq.email import create_email_draft
 from kiprod.rfq.inbox import import_reply
 from kiprod.rfq.package import build_package, verify_package
+from kiprod.rfq.quote_import import parse_quote_attachment
 from kiprod.rfq.workflow import get_rfq_status, register_email_draft
 
 app = typer.Typer(help="Build traceable KiCad production artifacts.", no_args_is_help=True)
@@ -183,6 +184,28 @@ def rfq_import_reply(
     typer.echo(f"Matched {imported.rfq_id}; state is {imported.state}")
     typer.echo(f"Stored email: {imported.stored_message}")
     typer.echo("Attachments: " + (", ".join(imported.attachments) or "none"))
+
+
+@rfq_app.command("parse-quote")
+def rfq_parse_quote(
+    attachment: Path = typer.Argument(..., exists=True, dir_okay=False),
+    supplier_id: str = typer.Option(..., "--supplier-id"),
+    output: Path = typer.Option(..., "--output", "-o"),
+    currency: str | None = typer.Option(
+        None, "--currency", help="Use only if the file omits currency."
+    ),
+) -> None:
+    """Parse a CSV/XLSX quote into source-backed candidates and a review queue."""
+    try:
+        result = parse_quote_attachment(attachment, supplier_id, currency=currency)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8")
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    typer.echo(
+        f"Wrote {len(result.offers)} offer candidate(s) and "
+        f"{len(result.review_queue)} review item(s) to {output}"
+    )
 
 
 @rfq_app.command("approve")

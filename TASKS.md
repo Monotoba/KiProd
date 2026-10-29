@@ -66,8 +66,8 @@
 - [x] Require approval of the exact saved email payload before the workflow can transition to `sent`.
 - [x] Add SMTP/STARTTLS delivery of the exact approved email bytes; log failures and leave those RFQs retryable.
 - [x] Match locally captured `.eml` replies by RFQ ID in subject/header, preserve the original, save sanitized attachments, and acknowledge the RFQ.
-- [ ] Add IMAP/Graph/Gmail polling and parse PDF/XLSX/CSV quote attachments into structured offers.
-- [ ] Add fixture-based PDF/XLSX/CSV response extraction and confidence review queue.
+- [x] Parse CSV/XLSX quote tables into source-backed offer candidates with deterministic confidence and incomplete-row review queue.
+- [ ] Add IMAP/Graph/Gmail polling and PDF quote extraction with fixture-based accuracy evaluation.
 
 ## Later milestones
 
