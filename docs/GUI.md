@@ -54,6 +54,13 @@ This provides interactive evidence for the basic workflow and these views. It
 does not cover Quote-only, stop/queue behavior, resizing, or changing display
 scaling.
 
+To prepare a disposable project with a synthetic local quote for the Run All and
+Quote-only GUI checks, run `./scripts/prepare-gui-acceptance.sh`. It copies the
+basic schematic fixture and imports `tests/fixtures/rfq_quote.csv` into a unique
+temporary directory. It makes no network calls and leaves the tracked fixture
+files untouched. The script prints the project path, launch commands, and cleanup
+command.
+
 1. Install the GUI extra with `./scripts/setup-gui.sh`, then launch with
    `./scripts/run.sh gui --mode open`. Confirm the window opens and can be moved,
    resized, minimized, restored, and closed normally.
