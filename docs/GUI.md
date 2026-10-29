@@ -27,6 +27,35 @@ writing outputs. Queued jobs run sequentially and show queued/running/completed/
 or failed status. The usage indicator reports $0.00 because these GUI run modes do
 not make AI requests.
 
+## Interactive desktop acceptance
+
+Run these checks on each supported desktop platform before closing M8. Record the
+OS, desktop environment, KiCad version (if installed), display resolution, and
+display scaling with the results.
+
+1. Install the GUI extra with `./scripts/setup-gui.sh`, then launch with
+   `./scripts/run.sh gui --mode open`. Confirm the window opens and can be moved,
+   resized, minimized, restored, and closed normally.
+2. At 100% scaling, confirm the run bar, all workspace tabs, AI usage label, and
+   progress/output drawer are visible and usable. Resize the window narrower and
+   shorter; confirm tables and panes reflow or scroll without controls becoming
+   inaccessible.
+3. Repeat at 150% and 200% display scaling (or the nearest available settings).
+   Confirm text remains readable, controls do not overlap, and the initial window
+   fits within the available desktop area.
+4. Open a disposable KiCad project, run the normal offline workflow, then inspect
+   BOM/review output and the progress, warning, and output-folder controls.
+5. If local quote data is available, use Quote-only and inspect the inbox and
+   candidate/source evidence views. Confirm the GUI performs no supplier or email
+   network action during these local workflows.
+6. Check stop and queued-run behavior with disposable projects, including a stop
+   request before output writes. Confirm each job reaches an accurate terminal
+   status and the application remains responsive.
+
+Record each check as pass/fail, with screenshots for layout failures and the
+relevant application log for workflow failures. Do not use production project
+data for tests that write artifacts or modify schematic fields.
+
 The Components view discovers project, user, and bundled plugin manifests in that
 precedence order. It builds basic settings forms from manifest fields and saves
 values under `quotes/config/plugin-settings/`, preserving unknown keys. Secret
