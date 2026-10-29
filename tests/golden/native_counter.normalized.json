@@ -24,6 +24,7 @@
         "Sim.Device": "V",
         "Sim.Params": "y1=0 y2=5 td=1u tr=1u tf=1u tw=10u per=24u"
       },
+      "resolved_fields": {},
       "sources": [
         {"path": "native_counter.kicad_sch", "reference": "Vclk1"},
         {"path": "native_counter.kicad_sch", "reference": "Vupd1"}
@@ -47,6 +48,7 @@
         "Sim.Device": "SUBCKT",
         "Sim.Pins": "1=clock 2=updown 3=out_b0 4=out_b1 5=out_b2"
       },
+      "resolved_fields": {},
       "sources": [{"path": "native_counter.kicad_sch", "reference": "U1"}]
     }
   ],

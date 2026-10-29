@@ -39,6 +39,7 @@ class BOMLine(BaseModel):
     footprint: str
     mpn: str | None = None
     fields: dict[str, str] = Field(default_factory=dict)
+    resolved_fields: dict[str, ResolvedField] = Field(default_factory=dict)
     sources: list[SourceRef]
 
 
@@ -48,3 +49,8 @@ class NormalizedBOM(BaseModel):
     input_hashes: dict[str, str]
     lines: list[BOMLine]
     imported_bom: str | None = None
+
+
+class ResolvedField(BaseModel):
+    value: str
+    source: str

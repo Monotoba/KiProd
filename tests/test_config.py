@@ -59,3 +59,25 @@ def test_run_accepts_quantity_replacement_and_changes(tmp_path: Path) -> None:
     )
     assert result.exit_code == 0, result.output
     assert "Board quantities: 1, 10, 30, 50" in result.output
+
+
+def test_run_records_default_field_provenance(tmp_path: Path) -> None:
+    (tmp_path / "demo.kicad_pro").write_text("{}")
+    (tmp_path / "demo.kicad_sch").write_text(
+        '(kicad_sch (symbol (lib_id "R") (in_bom yes) '
+        '(property "Reference" "R1") (property "Value" "1k")))'
+    )
+    config = tmp_path / "docs/production/quotes/config"
+    config.mkdir(parents=True)
+    (config / "kiprod.toml").write_text(
+        '[components.resistor.power_w]\npolicy = "default"\nvalue = 0.1\n'
+    )
+    result = CliRunner().invoke(app, ["run", "--project", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    import json
+
+    payload = json.loads((tmp_path / "docs/production/bom/bom.normalized.json").read_text())
+    assert payload["lines"][0]["resolved_fields"]["power_w"] == {
+        "value": "0.1",
+        "source": "default",
+    }

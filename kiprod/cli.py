@@ -14,7 +14,7 @@ from kiprod.core.config import (
     project_config_path,
     update_quantities,
 )
-from kiprod.core.constraints import check, write
+from kiprod.core.constraints import apply, write
 from kiprod.core.project import ProjectNotFoundError, discover
 from kiprod.kicad.cli_adapter import KiCadCliError, export_bom, version
 
@@ -90,9 +90,8 @@ def run(
         discovered = discover(project)
     except ProjectNotFoundError as exc:
         raise typer.BadParameter(str(exc), param_hint="--project") from exc
-    bom = build(discovered)
+    bom, findings = apply(build(discovered), settings.components, interactive=not non_interactive)
     json_path, _ = write_bom(bom, discovered.root / "docs" / "production" / "bom")
-    findings = check(bom, settings.components, interactive=not non_interactive)
     if findings:
         under_constrained = write(
             findings, discovered.root / "docs" / "production" / "bom" / "under_constrained.csv"

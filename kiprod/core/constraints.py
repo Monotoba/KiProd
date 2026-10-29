@@ -8,7 +8,7 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from kiprod.core.defaults import Rule, resolve
-from kiprod.core.models import NormalizedBOM
+from kiprod.core.models import BOMLine, NormalizedBOM, ResolvedField
 
 
 class UnderConstrained(BaseModel):
@@ -19,17 +19,30 @@ class UnderConstrained(BaseModel):
 
 
 def _category(references: list[str]) -> str:
-    return "ic" if any(reference.upper().startswith("U") for reference in references) else "other"
+    prefix = references[0].upper() if references else ""
+    if prefix.startswith("U"):
+        return "ic"
+    if prefix.startswith("R"):
+        return "resistor"
+    if prefix.startswith("C"):
+        return "capacitor"
+    return "other"
 
 
-def check(
+def _current(line: BOMLine, attribute: str) -> str | None:
+    return line.mpn if attribute == "mpn" else line.fields.get(attribute)
+
+
+def apply(
     bom: NormalizedBOM, rules: dict[str, dict[str, Rule]], interactive: bool
-) -> list[UnderConstrained]:
+) -> tuple[NormalizedBOM, list[UnderConstrained]]:
     findings: list[UnderConstrained] = []
+    resolved_lines: list[BOMLine] = []
     for line in bom.lines:
         category = _category(line.references)
+        resolved = dict(line.resolved_fields)
         for attribute, rule in rules.get(category, {}).items():
-            current = getattr(line, attribute, None)
+            current = _current(line, attribute)
             resolution = resolve(rule, current, interactive=interactive)
             if resolution.error:
                 findings.append(
@@ -40,6 +53,19 @@ def check(
                         detail=resolution.error,
                     )
                 )
+            elif resolution.source != "schematic" and resolution.value is not None:
+                resolved[attribute] = ResolvedField(
+                    value=str(resolution.value), source=resolution.source
+                )
+        resolved_lines.append(line.model_copy(update={"resolved_fields": resolved}))
+    return bom.model_copy(update={"lines": resolved_lines}), findings
+
+
+def check(
+    bom: NormalizedBOM, rules: dict[str, dict[str, Rule]], interactive: bool
+) -> list[UnderConstrained]:
+    """Compatibility wrapper for callers that only need violations."""
+    _, findings = apply(bom, rules, interactive)
     return findings
 
 

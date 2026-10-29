@@ -18,6 +18,7 @@
         "Value": "100n",
         "Footprint": "Capacitor_SMD:C_0603_1608Metric"
       },
+      "resolved_fields": {},
       "sources": [{"path": "basic.kicad_sch", "reference": "C1"}]
     },
     {
@@ -33,6 +34,7 @@
         "Footprint": "Resistor_SMD:R_0603_1608Metric",
         "MPN": "RC0603FR-074K7L"
       },
+      "resolved_fields": {},
       "sources": [
         {"path": "basic.kicad_sch", "reference": "R1"},
         {"path": "basic.kicad_sch", "reference": "R2"}
