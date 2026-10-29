@@ -3,9 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from kiprod.analysis.assembly import extract as extract_assembly
-from kiprod.analysis.capabilities import check_board
+from kiprod.analysis.capabilities import check_assembly, check_board
 from kiprod.analysis.placements import write_placements
-from kiprod.core.models import BoardSpec, Placement
+from kiprod.core.models import AssemblySpec, BoardSpec, Placement
 from kiprod.kicad.board import extract
 from kiprod.plugins.models import Manifest
 
@@ -70,9 +70,49 @@ def test_maps_placement_rows_to_assembler_column_names(tmp_path: Path) -> None:
 
 def test_assembly_extracts_placements_and_packaging_from_board() -> None:
     assembly = extract_assembly(FIXTURE)
-    assert assembly.placement_top == 1
+    assert assembly.placement_top == 2
     assert assembly.placement_bottom == 1
-    assert assembly.unique_parts == 2
-    assert assembly.smd_count == 1
+    assert assembly.unique_parts == 3
+    assert assembly.smd_count == 2
     assert assembly.through_hole_count == 1
     assert assembly.smallest_package_mm == 1.6
+    assert assembly.bga_count == 1
+    assert assembly.finest_pitch_mm == 0.5
+
+
+def test_assembly_capability_check_flags_pitch_and_unsupported_packages() -> None:
+    assembly = AssemblySpec(
+        placement_top=12,
+        placement_bottom=3,
+        unique_parts=8,
+        smd_count=15,
+        through_hole_count=0,
+        bga_count=1,
+        qfn_count=2,
+        finest_pitch_mm=0.4,
+    )
+    manifest = Manifest.model_validate(
+        {
+            "id": "example.assembly",
+            "name": "Example assembly",
+            "version": "1",
+            "capabilities": {
+                "pcb_assembly": {
+                    "limits": {
+                        "placements_per_side": 10,
+                        "unique_parts": 10,
+                        "min_pitch_mm": 0.5,
+                        "supports_bga": False,
+                        "supports_qfn": False,
+                    }
+                }
+            },
+        }
+    )
+    findings = check_assembly(assembly, manifest)
+    assert {finding.field for finding in findings} == {
+        "placements_per_side",
+        "min_pitch_mm",
+        "supports_bga",
+        "supports_qfn",
+    }

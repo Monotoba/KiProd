@@ -84,4 +84,38 @@ def check_assembly(assembly: AssemblySpec, manifest: Manifest) -> list[Capabilit
                     message=f"{label} {required} exceeds supplier limit {maximum}",
                 )
             )
+    min_pitch = limits.get("min_pitch_mm")
+    if (
+        assembly.finest_pitch_mm is not None
+        and isinstance(min_pitch, (int, float))
+        and assembly.finest_pitch_mm < min_pitch
+    ):
+        findings.append(
+            CapabilityFinding(
+                field="min_pitch_mm",
+                required=assembly.finest_pitch_mm,
+                limit=float(min_pitch),
+                message=(
+                    f"finest pitch {assembly.finest_pitch_mm:g} mm is below supplier "
+                    f"minimum {min_pitch:g} mm"
+                ),
+            )
+        )
+    for package, count in (
+        ("bga", assembly.bga_count),
+        ("qfn", assembly.qfn_count),
+        ("lga", assembly.lga_count),
+    ):
+        supported = limits.get(f"supports_{package}")
+        if count and supported is False:
+            findings.append(
+                CapabilityFinding(
+                    field=f"supports_{package}",
+                    required=float(count),
+                    limit=0.0,
+                    message=(
+                        f"board has {count} {package.upper()} package(s), unsupported by supplier"
+                    ),
+                )
+            )
     return findings

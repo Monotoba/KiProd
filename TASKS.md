@@ -50,7 +50,8 @@
 - [x] Export KiCad position CSV and map placement rows to common assembler column names.
 - [x] Extract top/bottom placements, unique footprint count, SMD/THT counts, and smallest recognized package.
 - [x] Compare placement count and unique parts to declared assembly supplier limits.
-- [ ] Extract board count and remaining assembly requirements (BGA, pitch, programming).
+- [x] Extract BGA/QFN/LGA counts and finest observed pad pitch; compare them with declared assembly supplier limits.
+- [ ] Extract board count and programming requirements for assembly planning.
 
 ## Later milestones
 

@@ -51,6 +51,10 @@ class AssemblySpec(BaseModel):
     smd_count: int
     through_hole_count: int
     smallest_package_mm: float | None = None
+    bga_count: int = 0
+    qfn_count: int = 0
+    lga_count: int = 0
+    finest_pitch_mm: float | None = None
 
 
 class Part(BaseModel):
