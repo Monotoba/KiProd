@@ -18,9 +18,10 @@ class ComparisonRow(BaseModel):
 
 class Comparison(BaseModel):
     rows: list[ComparisonRow]
+    coverage_gaps: list[str] = Field(default_factory=list)
 
 
-def compare(costs: list[LandedCost]) -> Comparison:
+def compare(costs: list[LandedCost], required_mpns: set[str] | None = None) -> Comparison:
     """Rank comparable supplier totals by per-board cost, retaining evidence refs."""
     groups: dict[tuple[int, str], list[LandedCost]] = {}
     for cost in costs:
@@ -46,4 +47,9 @@ def compare(costs: list[LandedCost]) -> Comparison:
                     rank=rank,
                 )
             )
-    return Comparison(rows=rows)
+    offered = {line.manufacturer_part_number.casefold() for cost in costs for line in cost.lines}
+    gaps = sorted(
+        (mpn for mpn in (required_mpns or set()) if mpn.casefold() not in offered),
+        key=str.casefold,
+    )
+    return Comparison(rows=rows, coverage_gaps=gaps)

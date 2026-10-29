@@ -22,6 +22,7 @@ from kiprod.core.project import ProjectNotFoundError, discover
 from kiprod.kicad.cli_adapter import KiCadCliError, export_bom, version
 from kiprod.plugins.host import PluginError, discover_plugins
 from kiprod.reports.markdown import comparison_markdown
+from kiprod.reports.xlsx import comparison_workbook
 
 app = typer.Typer(help="Build traceable KiCad production artifacts.", no_args_is_help=True)
 config_app = typer.Typer(help="Manage layered project configuration.", no_args_is_help=True)
@@ -265,6 +266,10 @@ def quote_lookup(
 def compare_quotes(
     inputs: list[Path] = typer.Argument(..., exists=True, dir_okay=False),
     output: Path = typer.Option(Path("comparison.md"), "--output", "-o"),
+    workbook: Path | None = typer.Option(None, "--xlsx", help="Optional XLSX workbook path."),
+    bom: Path | None = typer.Option(
+        None, exists=True, dir_okay=False, help="Normalized BOM JSON for coverage analysis."
+    ),
 ) -> None:
     """Compare saved landed-cost JSON records and write an auditable Markdown table."""
     costs: list[LandedCost] = []
@@ -273,7 +278,23 @@ def compare_quotes(
             costs.append(LandedCost.model_validate_json(path.read_text(encoding="utf-8")))
     except (OSError, ValueError) as exc:
         raise typer.BadParameter(f"invalid landed-cost input: {exc}") from exc
-    report = comparison_markdown(compare(costs))
+    required_mpns: set[str] = set()
+    if bom is not None:
+        try:
+            from kiprod.core.models import NormalizedBOM
+
+            normalized_bom = NormalizedBOM.model_validate_json(bom.read_text(encoding="utf-8"))
+            required_mpns = {line.mpn for line in normalized_bom.lines if line.mpn}
+        except (OSError, ValueError) as exc:
+            raise typer.BadParameter(f"invalid normalized BOM: {exc}") from exc
+    comparison = compare(costs, required_mpns)
+    report = comparison_markdown(comparison)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(report, encoding="utf-8")
     typer.echo(f"Wrote {output}")
+    if workbook is not None:
+        try:
+            workbook_path = comparison_workbook(comparison, costs, workbook)
+        except ImportError as exc:
+            raise typer.BadParameter("XLSX export requires `pip install kiprod[reports]`") from exc
+        typer.echo(f"Wrote {workbook_path}")

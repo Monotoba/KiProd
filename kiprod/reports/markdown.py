@@ -22,6 +22,8 @@ def comparison_markdown(comparison: Comparison) -> str:
     for row in comparison.rows:
         lines.append(f"### {row.supplier_id} · quantity {row.board_quantity} {row.currency}")
         lines.extend([""] + [f"- `{source}`" for source in row.source_refs] + [""])
+    lines.extend(["## Coverage gaps", ""])
+    lines.extend([f"- {mpn}" for mpn in comparison.coverage_gaps] or ["None identified."])
     return "\n".join(lines).rstrip() + "\n"
 
 
