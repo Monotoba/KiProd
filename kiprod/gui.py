@@ -36,6 +36,7 @@ from kiprod.kicad.board import extract as extract_board
 from kiprod.kicad.cli_adapter import export_bom
 from kiprod.plugins.host import PluginError, discover_plugins
 from kiprod.plugins.models import Manifest
+from kiprod.plugins.settings import load_plugin_settings, save_plugin_settings
 from kiprod.reports.markdown import comparison_markdown
 from kiprod.reports.run_archive import archive_inputs, input_paths, load_manifest
 from kiprod.rfq.quote_import import QuoteImportResult
@@ -331,6 +332,18 @@ def run_gui(project_path: Path | None = None) -> int:
             self.plugins_table.currentCellChanged.connect(self.show_plugin_details)
             self.plugin_details = QPlainTextEdit()
             self.plugin_details.setReadOnly(True)
+            self.plugin_settings_widget = QWidget()
+            self.plugin_settings_layout = QFormLayout(self.plugin_settings_widget)
+            self.plugin_settings_status = QLabel("Select a supplier to view its manifest settings.")
+            self.save_plugin_settings_button = QPushButton("Save supplier settings")
+            self.save_plugin_settings_button.clicked.connect(self.save_selected_plugin_settings)
+            supplier_details_layout = QVBoxLayout()
+            supplier_details_layout.addWidget(self.plugin_details, 1)
+            supplier_details_layout.addWidget(self.plugin_settings_widget)
+            supplier_details_layout.addWidget(self.plugin_settings_status)
+            supplier_details_layout.addWidget(self.save_plugin_settings_button)
+            supplier_details = QWidget()
+            supplier_details.setLayout(supplier_details_layout)
             self.quotes_tabs = QTabWidget()
             self.reply_table = QTableWidget(0, 2)
             self.reply_table.setHorizontalHeaderLabels(["Captured reply", "Path"])
@@ -454,7 +467,7 @@ def run_gui(project_path: Path | None = None) -> int:
             self.tabs.addTab(self.assembly_table, "Assembly")
             supplier_splitter = QSplitter(Qt.Orientation.Horizontal)
             supplier_splitter.addWidget(self.plugins_table)
-            supplier_splitter.addWidget(self.plugin_details)
+            supplier_splitter.addWidget(supplier_details)
             self.tabs.addTab(supplier_splitter, "Components")
             self.tabs.addTab(self.quotes_tabs, "Quotes Inbox")
             self.tabs.addTab(compare_page, "Compare")
@@ -811,6 +824,9 @@ def run_gui(project_path: Path | None = None) -> int:
         def refresh_plugins(self, project: Project) -> None:
             self.plugins_table.setRowCount(0)
             self.plugin_details.clear()
+            self.plugins = []
+            self.save_plugin_settings_button.setEnabled(False)
+            self.plugin_settings_status.setText("No supplier selected.")
             try:
                 plugins = discover_plugins(_plugin_paths(project))
             except PluginError as exc:
@@ -840,12 +856,16 @@ def run_gui(project_path: Path | None = None) -> int:
             if row < 0 or row >= len(plugins):
                 return
             manifest: Manifest = plugins[row].manifest
+            self.selected_plugin_row = row
             settings = [
                 f"{field.get('label', field.get('key', 'Field'))} "
                 f"({field.get('key', '')}; {field.get('type', 'string')})"
                 for field in manifest.fields
             ]
-            credential_labels = [credential.label for credential in manifest.credentials]
+            credential_labels = [
+                f"{credential.label}: not configured in the GUI"
+                for credential in manifest.credentials
+            ]
             capabilities = json.dumps(manifest.capabilities, indent=2, sort_keys=True)
             self.plugin_details.setPlainText(
                 f"{manifest.name} ({manifest.id})\nVersion: {manifest.version}\n"
@@ -857,6 +877,105 @@ def run_gui(project_path: Path | None = None) -> int:
                 + "\n\nCapabilities:\n"
                 + capabilities
             )
+            self._build_plugin_settings_form(manifest)
+
+        def _build_plugin_settings_form(self, manifest: Manifest) -> None:
+            while self.plugin_settings_layout.count():
+                item = self.plugin_settings_layout.takeAt(0)
+                widget = item.widget()
+                if widget is not None:
+                    widget.deleteLater()
+            self.plugin_setting_widgets: dict[str, tuple[dict[str, object], Any]] = {}
+            if self.current_project_path is None:
+                self.save_plugin_settings_button.setEnabled(False)
+                return
+            try:
+                saved = load_plugin_settings(self.current_project_path, manifest.id)
+            except (OSError, ValueError) as exc:
+                self.plugin_settings_status.setText(f"Could not load settings: {exc}")
+                self.save_plugin_settings_button.setEnabled(False)
+                return
+            for descriptor in manifest.fields:
+                key = str(descriptor["key"])
+                kind = descriptor.get("type", "string")
+                if kind == "secret":
+                    continue
+                value = saved.get(key, descriptor.get("default"))
+                if kind == "bool":
+                    widget = QCheckBox()
+                    widget.setChecked(value if isinstance(value, bool) else False)
+                elif kind == "enum":
+                    widget = QComboBox()
+                    options = descriptor.get("options", [])
+                    if isinstance(options, list):
+                        for option in options:
+                            if isinstance(option, dict):
+                                option_value = str(option.get("value", option.get("label", "")))
+                                option_label = str(option.get("label", option_value))
+                            else:
+                                option_value = str(option)
+                                option_label = option_value
+                            widget.addItem(option_label, option_value)
+                    if value is not None:
+                        index = widget.findData(str(value))
+                        if index >= 0:
+                            widget.setCurrentIndex(index)
+                elif kind in {"table", "group"}:
+                    widget = QLabel("Complex field; configure through the plugin documentation.")
+                else:
+                    widget = QLineEdit(
+                        ", ".join(map(str, value))
+                        if isinstance(value, list)
+                        else ""
+                        if value is None
+                        else str(value)
+                    )
+                help_text = descriptor.get("help")
+                if isinstance(help_text, str):
+                    widget.setToolTip(help_text)
+                label = str(descriptor.get("label", key))
+                if descriptor.get("required", False):
+                    label += " *"
+                self.plugin_settings_layout.addRow(label, widget)
+                if kind not in {"table", "group"}:
+                    self.plugin_setting_widgets[key] = (descriptor, widget)
+            self.plugin_settings_status.setText(
+                "Credential values are never stored in this settings file."
+            )
+            self.save_plugin_settings_button.setEnabled(True)
+
+        def save_selected_plugin_settings(self) -> None:
+            plugins = getattr(self, "plugins", [])
+            row = getattr(self, "selected_plugin_row", -1)
+            if self.current_project_path is None or not 0 <= row < len(plugins):
+                return
+            manifest: Manifest = plugins[row].manifest
+            values: dict[str, object] = {}
+            try:
+                for key, (descriptor, widget) in self.plugin_setting_widgets.items():
+                    kind = descriptor.get("type", "string")
+                    if kind == "bool":
+                        values[key] = widget.isChecked()
+                    elif kind == "enum":
+                        values[key] = widget.currentData()
+                    else:
+                        text = widget.text().strip()
+                        if not text:
+                            values[key] = None
+                        elif kind == "int":
+                            values[key] = int(text)
+                        elif kind == "float":
+                            values[key] = float(text)
+                        elif kind == "multi_enum":
+                            values[key] = [part.strip() for part in text.split(",") if part.strip()]
+                        else:
+                            values[key] = text
+                path = save_plugin_settings(self.current_project_path, manifest, values)
+            except (OSError, ValueError) as exc:
+                QMessageBox.warning(self, "Supplier settings were not saved", str(exc))
+                return
+            self.plugin_settings_status.setText(f"Saved locally: {path}")
+            self.log.appendPlainText(f"Saved supplier settings for {manifest.id}: {path}")
 
         def refresh_quote_files(self, project: Project) -> None:
             reply_paths, offer_results = _quote_results(project)

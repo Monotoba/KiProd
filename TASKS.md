@@ -109,7 +109,8 @@
 - [ ] Show provenance badges for every editable BOM field.
 - [ ] Add approval-gated MPN and supplier part-number write-back to KiCad schematics.
 - [ ] Add direct source-file navigation from review evidence.
-- [ ] Build supplier settings forms from manifests and show credential status, capabilities, results, and docs.
+- [x] Generate and persist scalar supplier settings from manifests while preserving unknown plugin keys and excluding secrets.
+- [ ] Integrate keyring credential status and supplier-specific results/docs panes.
 - [ ] Add board-house and assembler settings/results panes with capability checks.
 - [ ] Add in-GUI quote candidate confirmation, correction, rejection, and source highlighting.
 - [ ] Add comparison weighting, best-mix analysis, gaps, lead-time/duty views, and charts.

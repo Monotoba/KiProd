@@ -15,8 +15,10 @@ thread; the run bar shows progress and the lower drawer records output paths and
 warnings.
 
 The Components view discovers project, user, and bundled plugin manifests in that
-precedence order. It displays manifest settings and credential labels; it never
-displays credential values or calls supplier adapters. Quotes Inbox lists captured
+precedence order. It builds basic settings forms from manifest fields and saves
+values under `quotes/config/plugin-settings/`, preserving unknown keys. It displays
+credential labels but does not read or write credential values or call supplier
+adapters. Quotes Inbox lists captured
 `.eml` replies and locally saved quote-import JSON. Selecting an offer file shows
 its parsed candidates and review queue. Double-click opens the local file in the
 system viewer. These views do not poll mailboxes or send messages. Headless smoke
