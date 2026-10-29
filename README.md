@@ -1,5 +1,8 @@
 # KiProd
 
+[![CI](https://github.com/Monotoba/KiProd/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Monotoba/KiProd/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/Monotoba/KiProd?display_name=tag)](https://github.com/Monotoba/KiProd/releases)
+
 KiProd creates a traceable production package from a KiCad project: a normalized
 BOM, production review findings, supplier quotes, and comparison reports.
 
@@ -95,6 +98,10 @@ and `kiprod quote MPN --plugin PLUGIN_ID` to query a catalog plugin.
 `TASKS.md` is the maintained implementation plan. The detailed product
 specification is retained in `docs/`. See `AGENTS.md` for non-negotiable
 architecture and safety constraints.
+
+GitHub Actions runs the test, lint, and type checks on pushes and pull requests
+targeting `main`, using Python 3.11–3.13. Pushing a version tag such as `v0.1.1`
+builds wheel and source distributions and attaches them to a GitHub release.
 
 Synthetic manual-test inputs for CSV, XLSX, PDF, and privacy preflight are in
 [`examples/testing_inputs/`](examples/testing_inputs/README.md). They contain
