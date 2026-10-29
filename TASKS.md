@@ -113,7 +113,7 @@
 - [x] Show keyring credential status and save secret fields directly to the OS keyring.
 - [x] Add supplier-specific result and plugin documentation panes.
 - [x] Show board-house and assembler declared limits against extracted board and assembly metrics.
-- [ ] Add supplier-specific board/assembly settings and offer-result panes.
+- [x] Add supplier-specific board/assembly capability and offer-result panes.
 - [x] Confirm, correct, or reject imported offer candidates in the GUI with append-only decisions and source references.
 - [x] Open the project-stored quote file cited by a selected candidate.
 - [ ] Highlight the cited row/cell or PDF span and review queued rows without extracted offers.

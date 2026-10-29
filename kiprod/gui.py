@@ -392,6 +392,12 @@ def run_gui(project_path: Path | None = None) -> int:
             self.plugin_docs = QTextBrowser()
             self.plugin_docs.setOpenExternalLinks(False)
             self.supplier_detail_tabs.addTab(self.plugin_docs, "Docs")
+            self.plugin_board_details = QPlainTextEdit()
+            self.plugin_board_details.setReadOnly(True)
+            self.supplier_detail_tabs.addTab(self.plugin_board_details, "Board Fab")
+            self.plugin_assembly_details = QPlainTextEdit()
+            self.plugin_assembly_details.setReadOnly(True)
+            self.supplier_detail_tabs.addTab(self.plugin_assembly_details, "Assembly")
             supplier_settings_page = QWidget()
             supplier_details_layout = QVBoxLayout(supplier_settings_page)
             supplier_details_layout.addWidget(self.plugin_settings_widget)
@@ -662,6 +668,8 @@ def run_gui(project_path: Path | None = None) -> int:
             self.current_project_path = project.root
             self.current_json_path = json_path
             self.current_bom = bom
+            self.current_board_spec = board_spec
+            self.current_assembly_spec = assembly_spec
             self.bom_override_path = (
                 project.root / "docs" / "production" / "bom" / "bom.user-overrides.json"
             )
@@ -967,6 +975,8 @@ def run_gui(project_path: Path | None = None) -> int:
             self.plugin_details.clear()
             self.plugin_results_table.setRowCount(0)
             self.plugin_docs.setMarkdown("Select a supplier to view its local documentation.")
+            self.plugin_board_details.clear()
+            self.plugin_assembly_details.clear()
             self.plugins = []
             self.save_plugin_settings_button.setEnabled(False)
             self.save_plugin_credentials_button.setEnabled(False)
@@ -1079,7 +1089,46 @@ def run_gui(project_path: Path | None = None) -> int:
             )
             self.refresh_plugin_results(manifest.id)
             self.refresh_plugin_docs(plugins[row].path)
+            self.refresh_plugin_capability_views(manifest)
             self._build_plugin_settings_form(manifest)
+
+        def refresh_plugin_capability_views(self, manifest: Manifest) -> None:
+            for capability, spec, checker, view, title in (
+                (
+                    "pcb_fab",
+                    getattr(self, "current_board_spec", None),
+                    check_board,
+                    self.plugin_board_details,
+                    "Board fabrication",
+                ),
+                (
+                    "pcb_assembly",
+                    getattr(self, "current_assembly_spec", None),
+                    check_assembly,
+                    self.plugin_assembly_details,
+                    "Assembly",
+                ),
+            ):
+                declared = manifest.capabilities.get(capability)
+                if not isinstance(declared, dict):
+                    view.setPlainText(f"{manifest.name} does not declare {title} capability.")
+                elif spec is None:
+                    view.setPlainText(f"No project {title.lower()} metrics are available.")
+                else:
+                    findings = checker(spec, manifest)
+                    view.setPlainText(
+                        f"Supplier: {manifest.name} ({manifest.id})\n"
+                        f"Capability: {capability}\n\nDeclared supplier limits:\n"
+                        f"{json.dumps(declared.get('limits', {}), indent=2, sort_keys=True)}"
+                        f"\n\nProject metrics:\n"
+                        f"{json.dumps(spec.model_dump(), indent=2, sort_keys=True)}"
+                        "\n\nCompatibility findings:\n"
+                        + (
+                            "\n".join(f"• {finding.message}" for finding in findings)
+                            if findings
+                            else "No violations reported by the declared limits."
+                        )
+                    )
 
         def refresh_plugin_results(self, supplier_id: str) -> None:
             results = [

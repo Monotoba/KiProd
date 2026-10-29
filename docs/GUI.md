@@ -23,7 +23,9 @@ is shown. Credential values are never written to project files or logs. The GUI
 does not call supplier adapters. Each selected supplier has Overview, Results, Docs,
 and Settings tabs. Results lists matching offers already imported from local quote
 files; Docs renders the plugin-local `README.md` when present. Neither pane invokes
-the plugin or makes network requests. Quotes Inbox lists captured
+the plugin or makes network requests. Board Fab and Assembly tabs show each
+supplier's declared manifest limits beside project metrics and compatibility
+findings. Quotes Inbox lists captured
 `.eml` replies and locally saved quote-import JSON. Selecting an offer file shows
 its parsed candidates and a separate review queue for source rows that were not
 extracted. Double-clicking a queued row opens its source file when it is stored
