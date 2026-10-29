@@ -119,7 +119,8 @@
 - [ ] Highlight the cited row/cell or PDF span and review queued rows without extracted offers.
 - [x] Add configurable price and lead-time comparison weights, persisted for reproducible runs.
 - [x] Show coverage gaps, lead time, and landed-cost duty breakdown in comparisons.
-- [ ] Add best-mix analysis and comparison charts.
+- [x] Add best-mix analysis with line-level source references and supplier charges.
+- [ ] Add comparison charts.
 - [ ] Add editors for component, board, assembly, AI, email/signing, approval, and plugin settings.
 - [ ] Add run-all, quote-only, stop, run queue, and AI cost status controls.
 - [ ] Run interactive GUI acceptance checks on supported desktop platforms.

@@ -30,6 +30,29 @@ def comparison_markdown(comparison: Comparison) -> str:
         lines.extend([""] + [f"- `{source}`" for source in row.source_refs] + [""])
     lines.extend(["## Coverage gaps", ""])
     lines.extend([f"- {mpn}" for mpn in comparison.coverage_gaps] or ["None identified."])
+    lines.extend(["", "## Best mix by quantity and currency", ""])
+    if not comparison.best_mix:
+        lines.append("No BOM requirements were supplied for best-mix analysis.")
+    for mix in comparison.best_mix:
+        lines.extend(
+            [
+                f"### {mix.board_quantity} boards · {mix.currency}",
+                "",
+                f"Total: {mix.total} {mix.currency}; per board: {mix.per_board} {mix.currency}",
+                f"Parts: {mix.parts_total}; shipping: {mix.shipping}; NRE: {mix.nre}; "
+                f"duty: {mix.duty}; fees: {mix.fees}",
+                f"Suppliers: {', '.join(mix.suppliers) or 'none'}",
+                "",
+                "| MPN | Supplier | Supplier P/N | Extended | Source |",
+                "|---|---|---|---:|---|",
+            ]
+        )
+        for line in mix.lines:
+            lines.append(
+                f"| {line.manufacturer_part_number} | {line.supplier_id} "
+                f"| {line.supplier_part_number} | {line.extended_price} | `{line.source_ref}` |"
+            )
+        lines.extend(["", "Coverage gaps: " + (", ".join(mix.coverage_gaps) or "none"), ""])
     return "\n".join(lines).rstrip() + "\n"
 
 

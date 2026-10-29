@@ -570,6 +570,7 @@ def run_gui(project_path: Path | None = None) -> int:
             reports_layout.addWidget(self.regenerate_button)
             reports_layout.addWidget(self.reports_list, 1)
             compare_page = QWidget()
+            self.compare_page = compare_page
             compare_layout = QVBoxLayout(compare_page)
             compare_actions = QHBoxLayout()
             self.compare_button = QPushButton("Compare saved landed-cost files…")
@@ -605,7 +606,25 @@ def run_gui(project_path: Path | None = None) -> int:
                 ]
             )
             self.comparison_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-            compare_layout.addWidget(self.comparison_table, 1)
+            self.best_mix_table = QTableWidget(0, 9)
+            self.best_mix_table.setHorizontalHeaderLabels(
+                [
+                    "Boards",
+                    "MPN",
+                    "Supplier",
+                    "Supplier PN",
+                    "Parts cost",
+                    "Source",
+                    "Mix total",
+                    "Per board",
+                    "Coverage gaps",
+                ]
+            )
+            self.best_mix_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+            self.comparison_views = QTabWidget()
+            self.comparison_views.addTab(self.comparison_table, "Supplier ranking")
+            self.comparison_views.addTab(self.best_mix_table, "Best mix")
+            compare_layout.addWidget(self.comparison_views, 1)
             self.coverage_label = QLabel("Choose saved landed-cost JSON files to compare.")
             compare_layout.addWidget(self.coverage_label)
             settings_page = QWidget()
@@ -1615,7 +1634,8 @@ def run_gui(project_path: Path | None = None) -> int:
             self.show_comparison(comparison)
             self.log.appendPlainText(f"Saved comparison run: {run_dir}")
             self.refresh_reports()
-            self.tabs.setCurrentIndex(self.tabs.indexOf(self.comparison_table.parentWidget()))
+            self.tabs.setCurrentIndex(self.tabs.indexOf(self.compare_page))
+            self.comparison_views.setCurrentWidget(self.comparison_table)
 
         def show_comparison(self, comparison: Comparison) -> None:
             self.comparison_table.setRowCount(len(comparison.rows))
@@ -1640,6 +1660,31 @@ def run_gui(project_path: Path | None = None) -> int:
                     self.comparison_table.setItem(row, column, QTableWidgetItem(value))
             gaps = ", ".join(comparison.coverage_gaps) or "none"
             self.coverage_label.setText(f"Coverage gaps: {gaps}")
+            mix_rows: list[tuple[Any, Any]] = []
+            for mix in comparison.best_mix:
+                if mix.lines:
+                    mix_rows.extend((mix, line) for line in mix.lines)
+                else:
+                    mix_rows.append((mix, None))
+            self.best_mix_table.setRowCount(max(1, len(mix_rows)))
+            for row, (mix, line) in enumerate(mix_rows):
+                values = [
+                    str(mix.board_quantity),
+                    line.manufacturer_part_number if line else "(no offer)",
+                    line.supplier_id if line else "",
+                    line.supplier_part_number if line else "",
+                    line.extended_price if line else "",
+                    line.source_ref if line else "",
+                    mix.total,
+                    mix.per_board,
+                    ", ".join(mix.coverage_gaps) or "none",
+                ]
+                for column, value in enumerate(values):
+                    self.best_mix_table.setItem(row, column, QTableWidgetItem(value))
+            if not mix_rows:
+                self.best_mix_table.setItem(
+                    0, 0, QTableWidgetItem("No matching BOM requirements for a best-mix view.")
+                )
 
         def regenerate_selected_report(self) -> None:
             if self.current_project_path is None:
@@ -1675,7 +1720,8 @@ def run_gui(project_path: Path | None = None) -> int:
             self.log.appendPlainText(f"Regenerated comparison reports in {run_dir}")
             self.show_comparison(comparison)
             self.refresh_reports()
-            self.tabs.setCurrentIndex(self.tabs.indexOf(self.comparison_table.parentWidget()))
+            self.tabs.setCurrentIndex(self.tabs.indexOf(self.compare_page))
+            self.comparison_views.setCurrentWidget(self.comparison_table)
 
         def open_report(self, row: int, column: int) -> None:
             del column

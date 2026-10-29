@@ -43,6 +43,10 @@ and lead-time weights within matching quantity and currency groups. The controls
 accept non-negative weights (price defaults to 1, lead time to 0); each run archives
 its weights so regeneration preserves the ranking. Lead time contributes only when
 at least one complete lead-time value is available for the comparison group.
+The Best mix tab selects the lowest extended-price source per required MPN within
+each quantity and currency group, then applies the selected source's supplier-level
+shipping, NRE, duty, and fees once per selected supplier. Each line retains its
+quote source reference, and uncovered MPNs remain visible as gaps.
 
 The current GUI provides an editable MPN column with a source label and a filter for
 lines missing MPNs or footprints. MPN overrides are saved in
