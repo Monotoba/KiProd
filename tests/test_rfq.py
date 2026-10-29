@@ -5,6 +5,7 @@ import sqlite3
 import subprocess
 import zipfile
 from email import policy
+from email.message import EmailMessage
 from email.parser import BytesParser
 from pathlib import Path
 
@@ -14,6 +15,7 @@ import kiprod.rfq.delivery as rfq_delivery
 import kiprod.rfq.package as rfq_package
 from kiprod.rfq.approval import approve_package, has_current_approval, package_sha256
 from kiprod.rfq.email import create_email_draft
+from kiprod.rfq.inbox import import_reply
 from kiprod.rfq.privacy import scan_privacy
 from kiprod.rfq.workflow import (
     get_rfq_status,
@@ -359,6 +361,72 @@ def test_smtp_failure_is_logged_and_rfq_remains_retryable(
             "SELECT succeeded FROM rfq_delivery_attempts WHERE rfq_id = ?", ("KP-send-2",)
         ).fetchone()
     assert attempt == (0,)
+
+
+def test_import_reply_matches_subject_saves_attachment_and_acknowledges(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database, _, _ = _approved_draft(tmp_path, monkeypatch, "KP-inbox-1")
+    transition_rfq(database, "KP-inbox-1", "sent")
+    reply = EmailMessage()
+    reply["From"] = "quotes@example.test"
+    reply["To"] = "buyer@example.test"
+    reply["Subject"] = "Re: RFQ KP-inbox-1 — pricing attached"
+    reply.set_content("Please see the quote.")
+    reply.add_attachment(
+        b"part,qty,unit_price\nX1,10,1.25\n",
+        maintype="text",
+        subtype="csv",
+        filename="../../quote.csv",
+    )
+    source = tmp_path / "supplier-reply.eml"
+    source.write_bytes(reply.as_bytes())
+
+    imported = import_reply(source, database, tmp_path / "replies")
+
+    assert imported.rfq_id == "KP-inbox-1"
+    assert imported.state == "acknowledged"
+    assert imported.attachments == ["quote.csv"]
+    assert (Path(imported.stored_message).parent / "quote.csv").read_bytes().startswith(b"part,qty")
+    assert get_rfq_status(database, "KP-inbox-1").state == "acknowledged"
+    duplicate = import_reply(source, database, tmp_path / "replies")
+    assert duplicate == imported
+
+
+def test_import_reply_matches_rfq_header_when_subject_has_no_id(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database, _, _ = _approved_draft(tmp_path, monkeypatch, "KP-inbox-2")
+    transition_rfq(database, "KP-inbox-2", "sent")
+    reply = EmailMessage()
+    reply["X-KiProd-RFQ-ID"] = "KP-inbox-2"
+    reply["Subject"] = "Re: Your quotation"
+    reply.set_content("Received")
+    source = tmp_path / "reply.eml"
+    source.write_bytes(reply.as_bytes())
+
+    imported = import_reply(source, database, tmp_path / "replies")
+
+    assert imported.rfq_id == "KP-inbox-2"
+    assert imported.state == "acknowledged"
+
+
+def test_import_reply_rejects_conflicting_rfq_ids(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database, _, _ = _approved_draft(tmp_path, monkeypatch, "KP-inbox-3")
+    _approved_draft(tmp_path, monkeypatch, "KP-inbox-4")
+    transition_rfq(database, "KP-inbox-3", "sent")
+    transition_rfq(database, "KP-inbox-4", "sent")
+    reply = EmailMessage()
+    reply["X-KiProd-RFQ-ID"] = "KP-inbox-3"
+    reply["Subject"] = "Re: KP-inbox-4"
+    reply.set_content("Conflicting reference")
+    source = tmp_path / "reply.eml"
+    source.write_bytes(reply.as_bytes())
+
+    with pytest.raises(ValueError, match="conflicting"):
+        import_reply(source, database, tmp_path / "replies")
 
 
 @pytest.mark.parametrize("name", ["../secret.txt", "/etc/passwd", "folder\\file.txt"])

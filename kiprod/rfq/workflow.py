@@ -65,6 +65,17 @@ def _connect(database: Path) -> sqlite3.Connection:
             FOREIGN KEY (rfq_id) REFERENCES rfqs(rfq_id)
         )"""
     )
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS rfq_inbox_messages (
+            message_sha256 TEXT PRIMARY KEY,
+            rfq_id TEXT NOT NULL,
+            source_path TEXT NOT NULL,
+            stored_path TEXT NOT NULL,
+            attachment_names TEXT NOT NULL,
+            imported_at TEXT NOT NULL,
+            FOREIGN KEY (rfq_id) REFERENCES rfqs(rfq_id)
+        )"""
+    )
     connection.commit()
     return connection
 
@@ -121,7 +132,12 @@ def get_rfq_status(database: Path, rfq_id: str) -> RFQStatus | None:
         return None
     with sqlite3.connect(database, timeout=10) as connection:
         connection.row_factory = sqlite3.Row
-        row = connection.execute("SELECT * FROM rfqs WHERE rfq_id = ?", (rfq_id,)).fetchone()
+        try:
+            row = connection.execute("SELECT * FROM rfqs WHERE rfq_id = ?", (rfq_id,)).fetchone()
+        except sqlite3.OperationalError as exc:
+            if "no such table" in str(exc):
+                return None
+            raise
     return RFQStatus.model_validate(dict(row)) if row is not None else None
 
 

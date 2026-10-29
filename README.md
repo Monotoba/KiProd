@@ -53,6 +53,10 @@ sends the exact approved `.eml` bytes over certificate-validated STARTTLS. Add
 `--username ACCOUNT` to authenticate; the password is read from the
 `KIPROD_SMTP_PASSWORD` environment variable (or the variable named by
 `--password-env`). Delivery failures are recorded and leave the RFQ retryable.
+To capture an exported supplier reply without connecting to a mailbox, run
+`kiprod rfq import-reply reply.eml`. KiProd matches the RFQ ID from the subject or
+`X-KiProd-RFQ-ID` header, stores the original message and sanitized attachments under
+`.kiprod/replies/`, and moves a sent RFQ to `acknowledged`.
 
 Project and supplier plugins live under
 `docs/production/quotes/config/suppliers/`. Use `kiprod plugins list` to inspect

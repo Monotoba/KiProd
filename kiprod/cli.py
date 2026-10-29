@@ -38,6 +38,7 @@ from kiprod.reports.run_archive import archive_inputs, input_paths, load_manifes
 from kiprod.rfq.approval import approve_package, has_current_approval, package_sha256
 from kiprod.rfq.delivery import send_approved_rfq
 from kiprod.rfq.email import create_email_draft
+from kiprod.rfq.inbox import import_reply
 from kiprod.rfq.package import build_package, verify_package
 from kiprod.rfq.workflow import get_rfq_status, register_email_draft
 
@@ -158,6 +159,30 @@ def rfq_send(
     except (OSError, RuntimeError, ValueError) as exc:
         raise typer.BadParameter(str(exc)) from exc
     typer.echo(f"RFQ {status.rfq_id} sent to {status.recipient}; state is {status.state}")
+
+
+@rfq_app.command("import-reply")
+def rfq_import_reply(
+    message: Path = typer.Argument(..., exists=True, dir_okay=False),
+    output_root: Path = typer.Option(
+        Path("docs/production/.kiprod/replies"),
+        "--output-root",
+        help="Local directory for captured messages and attachments.",
+    ),
+    database: Path = typer.Option(
+        Path("docs/production/.kiprod/state.sqlite"),
+        "--database",
+        help="Local RFQ audit database.",
+    ),
+) -> None:
+    """Match and capture a saved supplier reply without connecting to a mailbox."""
+    try:
+        imported = import_reply(message, database, output_root)
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    typer.echo(f"Matched {imported.rfq_id}; state is {imported.state}")
+    typer.echo(f"Stored email: {imported.stored_message}")
+    typer.echo("Attachments: " + (", ".join(imported.attachments) or "none"))
 
 
 @rfq_app.command("approve")
