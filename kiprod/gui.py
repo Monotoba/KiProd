@@ -31,7 +31,15 @@ from kiprod.core.bom_edits import (
     load_bom_overrides,
     save_bom_overrides,
 )
-from kiprod.core.config import ConfigError, load, parse_quantities, save_project_quantities
+from kiprod.core.config import (
+    DEFAULT_TOML,
+    ConfigError,
+    load,
+    parse_quantities,
+    project_config_path,
+    save_project_config_text,
+    save_project_quantities,
+)
 from kiprod.core.models import AssemblySpec, BoardSpec, NormalizedBOM, Offer, Project
 from kiprod.core.project import discover
 from kiprod.kicad.board import extract as extract_board
@@ -695,11 +703,20 @@ def run_gui(project_path: Path | None = None) -> int:
             self.settings_quantity = QLineEdit()
             self.settings_paths = QPlainTextEdit()
             self.settings_paths.setReadOnly(True)
+            self.settings_toml = QPlainTextEdit()
+            self.settings_toml.setPlaceholderText("Project-local KiProd TOML configuration")
+            self.save_config_text_button = QPushButton("Validate and save project TOML")
+            self.save_config_text_button.clicked.connect(self.save_project_config)
             self.save_settings_button = QPushButton("Save project settings")
             self.save_settings_button.clicked.connect(self.save_settings)
             settings_layout.addRow("Board quantities", self.settings_quantity)
             settings_layout.addRow("Effective paths", self.settings_paths)
             settings_layout.addRow(self.save_settings_button)
+            settings_layout.addRow(
+                "Advanced project TOML (preserves entered comments and unknown keys)",
+                self.settings_toml,
+            )
+            settings_layout.addRow(self.save_config_text_button)
             self.tabs.addTab(self.project_page, "Project")
             self.tabs.addTab(bom_page, "BOM & Specs")
             self.tabs.addTab(review_page, "Review")
@@ -1053,16 +1070,29 @@ def run_gui(project_path: Path | None = None) -> int:
                 self.settings_quantity.clear()
                 self.settings_paths.setPlainText(f"Configuration error:\n{exc}")
                 self.save_settings_button.setEnabled(False)
+                config_path = project_config_path(project.root)
+                self.settings_toml.setPlainText(
+                    config_path.read_text(encoding="utf-8")
+                    if config_path.is_file()
+                    else DEFAULT_TOML
+                )
+                self.save_config_text_button.setEnabled(True)
                 self.log.appendPlainText(f"WARNING: project settings could not be loaded: {exc}")
                 return
             self.save_settings_button.setEnabled(True)
+            self.save_config_text_button.setEnabled(True)
             self.settings_quantity.setText(", ".join(map(str, settings.quantities.boards)))
+            config_path = project_config_path(project.root)
+            self.settings_toml.setPlainText(
+                config_path.read_text(encoding="utf-8") if config_path.is_file() else DEFAULT_TOML
+            )
             self.settings_paths.setPlainText(
                 f"Production: {settings.paths.production}\n"
                 f"Configuration: {settings.paths.config}\n"
                 f"Local state: {settings.paths.state}\n\n"
-                "Only board quantities are editable here. Other settings and unknown TOML keys "
-                "are preserved. Secrets belong in the operating system keyring."
+                "Board quantities have a focused editor above. The TOML editor validates the "
+                "project configuration and preserves unknown keys and comments. Secrets belong "
+                "in the operating system keyring."
             )
 
         def save_settings(self) -> None:
@@ -1076,6 +1106,20 @@ def run_gui(project_path: Path | None = None) -> int:
                 return
             self.log.appendPlainText(f"Saved project settings: {config_path}")
             self.statusBar().showMessage("Project settings saved")
+            self.refresh_settings(self.current_project)
+
+        def save_project_config(self) -> None:
+            if self.current_project is None:
+                return
+            try:
+                config_path = save_project_config_text(
+                    self.current_project.root, self.settings_toml.toPlainText()
+                )
+            except (ConfigError, OSError) as exc:
+                QMessageBox.critical(self, "Project TOML was not saved", str(exc))
+                return
+            self.log.appendPlainText(f"Saved validated project TOML: {config_path}")
+            self.statusBar().showMessage("Project TOML saved")
             self.refresh_settings(self.current_project)
 
         @staticmethod

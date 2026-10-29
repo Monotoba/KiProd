@@ -10,6 +10,7 @@ from kiprod.core.config import (
     ConfigError,
     load,
     parse_quantities,
+    save_project_config_text,
     save_project_quantities,
     update_quantities,
 )
@@ -63,6 +64,32 @@ def test_save_project_quantities_creates_only_project_quantity_override(tmp_path
     settings = load(tmp_path, user)
     assert settings.quantities.boards == [3, 30]
     assert settings.paths.production == "custom-production"
+
+
+def test_project_toml_editor_validates_and_preserves_comments_and_unknown_keys(
+    tmp_path: Path,
+) -> None:
+    source = (
+        "# Keep project notes\n"
+        '[paths]\nproduction = "factory"\nconfig = "cfg"\nstate = "state"\n\n'
+        "[quantities]\nboards = [1, 5]\n\n"
+        '[components.resistor.power_w]\npolicy = "default"\nvalue = 0.25\n\n'
+        "[future_plugin]\nkept = true\n"
+    )
+    path = save_project_config_text(tmp_path, source)
+
+    assert path.read_text(encoding="utf-8") == source
+    settings = load(tmp_path)
+    assert settings.components["resistor"]["power_w"].value == 0.25
+
+
+def test_project_toml_editor_rejects_invalid_settings_and_secret_values(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(ConfigError, match="invalid project TOML"):
+        save_project_config_text(tmp_path, "[quantities\nboards = [1]")
+    with pytest.raises(ConfigError, match="store secret values"):
+        save_project_config_text(tmp_path, '[service]\napi_key = "do-not-save"\n')
 
 
 def test_rejects_invalid_quantity_ranges() -> None:

@@ -61,12 +61,12 @@ lines missing MPNs or footprints. MPN overrides are saved in
 provides read-only board/assembly/supplier/quote views and a review view with
 append-only accept/dismiss/defer decisions and comments. Saved landed-cost
 comparison and report regeneration are available; regeneration checks saved input
-hashes first. The project settings editor changes board quantities while preserving
-unrelated TOML keys. Review decisions are stored separately in
-`review.decisions.json`.
+hashes first. Settings include a focused board-quantity editor and a validated project
+TOML editor for paths and component rules. The TOML editor preserves entered comments
+and unknown keys, and rejects secret-like keys so credentials stay in the OS keyring.
+Review decisions are stored separately in `review.decisions.json`.
 
-M8 still includes provenance badges for all BOM fields and approved schematic write-back, direct
-review source navigation, editable manifest-generated supplier settings, in-GUI quote
-confirmation, richer weighted comparison, broader settings editors, run controls,
-and interactive desktop acceptance checks. These require PySide6 and a desktop
-session; the current automated checks exercise the data and artifact layer headlessly.
+M8 still includes run-all/quote-only/stop/queue controls, dedicated editors for
+assembly, AI, email/signing, and approval settings that do not yet have project config
+schemas, and interactive desktop acceptance checks. Automated checks exercise the
+data and artifact layer headlessly.

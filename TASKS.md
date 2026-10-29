@@ -121,7 +121,8 @@
 - [x] Show coverage gaps, lead time, and landed-cost duty breakdown in comparisons.
 - [x] Add best-mix analysis with line-level source references and supplier charges.
 - [x] Add comparison charts grouped by board quantity and currency.
-- [ ] Add editors for component, board, assembly, AI, email/signing, approval, and plugin settings.
+- [x] Add validated project TOML editing for paths and component rules while preserving comments and unknown keys; keep board quantities in their focused editor.
+- [ ] Add dedicated assembly, AI, email/signing, and approval editors when those settings have defined schemas.
 - [ ] Add run-all, quote-only, stop, run queue, and AI cost status controls.
 - [ ] Run interactive GUI acceptance checks on supported desktop platforms.
 

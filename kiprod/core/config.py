@@ -65,6 +65,61 @@ class Settings(BaseModel):
     components: dict[str, dict[str, Rule]] = {}
 
 
+def _reject_secret_keys(value: object, prefix: str = "") -> None:
+    secret_names = {
+        "api_key",
+        "password",
+        "secret",
+        "credential",
+        "private_key",
+        "token",
+    }
+    secret_suffixes = tuple(f"_{name}" for name in secret_names)
+    if isinstance(value, dict):
+        for key, nested in value.items():
+            normalized = str(key).casefold().replace("-", "_")
+            if normalized in secret_names or normalized.endswith(secret_suffixes):
+                raise ConfigError(
+                    f"project setting {prefix + str(key)} resembles a secret; "
+                    "store secret values in the OS keyring"
+                )
+            _reject_secret_keys(nested, f"{prefix}{key}.")
+    elif isinstance(value, list):
+        for nested in value:
+            _reject_secret_keys(nested, prefix)
+
+
+def save_project_config_text(project_root: Path, source: str) -> Path:
+    """Validate and save project TOML verbatim, retaining comments and unknown keys."""
+    try:
+        parsed = tomllib.loads(source)
+    except tomllib.TOMLDecodeError as exc:
+        raise ConfigError(f"invalid project TOML: {exc}") from exc
+    _reject_secret_keys(parsed)
+    try:
+        Settings.model_validate(_merge(DEFAULT_CONFIG, parsed))
+    except ValueError as exc:
+        raise ConfigError(str(exc)) from exc
+    destination = project_config_path(project_root)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    normalized = source.rstrip() + "\n"
+    temporary_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=destination.parent, delete=False
+        ) as handle:
+            temporary_name = handle.name
+            handle.write(normalized)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary_name, destination)
+    finally:
+        if temporary_name is not None:
+            Path(temporary_name).unlink(missing_ok=True)
+    load(project_root)
+    return destination
+
+
 def _merge(base: dict[str, object], override: Mapping[str, Any]) -> dict[str, object]:
     merged = deepcopy(base)
     for key, value in override.items():
