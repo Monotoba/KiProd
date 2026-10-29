@@ -15,6 +15,13 @@ refreshes the local supplier and quote views. Work runs in a background
 thread; the run bar shows progress and the lower drawer records output paths and
 warnings.
 
+Run All builds BOM/review and board outputs. Quote-only refresh reads local captured
+replies and imported offers without regenerating BOM artifacts. Stop is cooperative:
+it is enabled during discovery and analysis, and stops at a safe checkpoint before
+writing outputs. Queued jobs run sequentially and show queued/running/completed/stopped
+or failed status. The usage indicator reports $0.00 because these GUI run modes do
+not make AI requests.
+
 The Components view discovers project, user, and bundled plugin manifests in that
 precedence order. It builds basic settings forms from manifest fields and saves
 values under `quotes/config/plugin-settings/`, preserving unknown keys. Secret

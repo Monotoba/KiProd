@@ -123,7 +123,10 @@
 - [x] Add comparison charts grouped by board quantity and currency.
 - [x] Add validated project TOML editing for paths and component rules while preserving comments and unknown keys; keep board quantities in their focused editor.
 - [ ] Add dedicated assembly, AI, email/signing, and approval editors when those settings have defined schemas.
-- [ ] Add run-all, quote-only, stop, run queue, and AI cost status controls.
+- [x] Add run-all and local quote-only modes.
+- [x] Add stop requests at safe worker checkpoints before output writes.
+- [x] Add a queued run list with per-job status and sequential execution.
+- [x] Show AI usage/cost status; current GUI run modes make no AI requests.
 - [ ] Run interactive GUI acceptance checks on supported desktop platforms.
 
 ## Later milestones

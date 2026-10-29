@@ -3,6 +3,7 @@ from __future__ import annotations
 import shutil
 from decimal import Decimal
 from pathlib import Path
+from threading import Event
 
 import pytest
 
@@ -10,10 +11,12 @@ from kiprod.analysis.landed import LandedCost, LandedLine
 from kiprod.core.models import Offer, PriceBreak, SourceRef
 from kiprod.core.project import discover
 from kiprod.gui import (
+    RunCancelled,
     _comparison_chart_html,
     _create_comparison,
     _evidence_path,
     _load_project,
+    _load_quote_project,
     _quote_results,
     _regenerate_comparison,
 )
@@ -53,6 +56,34 @@ def test_gui_workflow_writes_bom_review_and_board_outputs(tmp_path: Path) -> Non
     assert (output_dir / "board_assembly.json").is_file()
     assert [value for value, _message in progress] == sorted(value for value, _ in progress)
     assert progress[-1][0] == 95
+
+
+def test_run_all_cancellation_before_write_leaves_no_new_outputs(tmp_path: Path) -> None:
+    project_path = tmp_path / "native_counter"
+    shutil.copytree(Path(__file__).parent / "projects" / "native_counter", project_path)
+    cancelled = Event()
+    cancelled.set()
+
+    with pytest.raises(RunCancelled):
+        _load_project(project_path, None, cancelled=cancelled)
+
+    assert not (project_path / "docs" / "production" / "bom").exists()
+
+
+def test_quote_only_run_reads_local_data_without_generating_bom(tmp_path: Path) -> None:
+    project_path = tmp_path / "native_counter"
+    shutil.copytree(Path(__file__).parent / "projects" / "native_counter", project_path)
+    quote = project_path / "docs" / "production" / "quotes" / "offers.json"
+    quote.parent.mkdir(parents=True)
+    quote.write_text(
+        QuoteImportResult(supplier_id="local", source_file="quote.csv").model_dump_json(),
+        encoding="utf-8",
+    )
+
+    result = _load_quote_project(project_path)
+
+    assert len(result.offers) == 1
+    assert not (project_path / "docs" / "production" / "bom").exists()
 
 
 def test_gui_quote_views_find_captured_mail_and_typed_offer_files(tmp_path: Path) -> None:

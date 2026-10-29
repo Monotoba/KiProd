@@ -3,10 +3,12 @@ from __future__ import annotations
 import json
 import sys
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from html import escape
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from threading import Event
 from typing import Any, cast
 from uuid import uuid4
 
@@ -67,6 +69,38 @@ from kiprod.rfq.offer_review import (
     record_offer_decision,
 )
 from kiprod.rfq.quote_import import QuoteImportResult, quote_source_preview_html
+
+
+class RunCancelled(Exception):
+    """Raised when a GUI worker reaches a safe cancellation checkpoint."""
+
+
+@dataclass(frozen=True)
+class QuoteRefreshResult:
+    project: Project
+    replies: list[Path]
+    offers: list[tuple[Path, QuoteImportResult]]
+
+
+def _check_cancelled(cancelled: Event | None) -> None:
+    if cancelled is not None and cancelled.is_set():
+        raise RunCancelled("Run stopped at a safe checkpoint; no new outputs were written.")
+
+
+def _load_quote_project(
+    project_path: Path,
+    progress: Callable[[int, str], None] | None = None,
+    cancelled: Event | None = None,
+) -> QuoteRefreshResult:
+    project = discover(project_path)
+    _check_cancelled(cancelled)
+    if progress:
+        progress(35, "Project discovered; reading local quote data")
+    replies, offers = _quote_results(project)
+    _check_cancelled(cancelled)
+    if progress:
+        progress(95, "Local quote data refreshed")
+    return QuoteRefreshResult(project, replies, offers)
 
 
 def _create_comparison(
@@ -281,6 +315,9 @@ def _load_project(
     project_path: Path,
     variant: str | None,
     progress: Callable[[int, str], None] | None = None,
+    *,
+    cancelled: Event | None = None,
+    cancellable: Callable[[bool], None] | None = None,
 ) -> tuple[
     Project,
     NormalizedBOM,
@@ -291,6 +328,7 @@ def _load_project(
     Path,
 ]:
     project = discover(project_path)
+    _check_cancelled(cancelled)
     if progress:
         progress(10, "Project discovered")
     if variant:
@@ -301,17 +339,13 @@ def _load_project(
             bom = build(project, exported_bom=exported)
     else:
         bom = build(project)
+    _check_cancelled(cancelled)
     if progress:
         progress(35, "Normalized BOM built")
     output_dir = project.root / "docs" / "production" / "bom"
     override_path = output_dir / "bom.user-overrides.json"
     bom = apply_bom_overrides(bom, load_bom_overrides(override_path))
-    json_path, csv_path = write_bom(bom, output_dir)
     report = review_bom(bom)
-    review_path = output_dir / "review.deterministic.json"
-    review_path.write_text(report.model_dump_json(indent=2) + "\n", encoding="utf-8")
-    if progress:
-        progress(60, "BOM and deterministic review saved")
     board_spec: BoardSpec | None = None
     assembly_spec: AssemblySpec | None = None
     if project.boards:
@@ -328,6 +362,14 @@ def _load_project(
                 }
             )
         assembly_spec = extract_assembly(project.boards[0])
+    _check_cancelled(cancelled)
+    if cancellable:
+        cancellable(False)
+    json_path, csv_path = write_bom(bom, output_dir)
+    (output_dir / "review.deterministic.json").write_text(
+        report.model_dump_json(indent=2) + "\n", encoding="utf-8"
+    )
+    if board_spec is not None and assembly_spec is not None:
         (output_dir / "board_assembly.json").write_text(
             json.dumps(
                 {"board": board_spec.model_dump(), "assembly": assembly_spec.model_dump()},
@@ -336,6 +378,8 @@ def _load_project(
             + "\n",
             encoding="utf-8",
         )
+    if progress:
+        progress(80, "BOM, review, and board artifacts saved")
     elif progress:
         progress(90, "No PCB found; board and assembly analysis skipped")
     if progress:
@@ -376,19 +420,42 @@ def run_gui(project_path: Path | None = None) -> int:
     class ProjectWorker(QObject):  # type: ignore[valid-type,misc]
         completed = Signal(object)
         failed = Signal(str)
+        cancelled = Signal(str)
+        cancellable = Signal(bool)
         progress = Signal(int, str)
         finished = Signal()
 
-        def __init__(self, path: Path, variant: str | None) -> None:
+        def __init__(self, path: Path, variant: str | None, mode: str) -> None:
             super().__init__()
             self.path = path
             self.variant = variant
+            self.mode = mode
+            self.cancel_requested = Event()
+
+        def request_cancel(self) -> None:
+            self.cancel_requested.set()
 
         def run(self) -> None:
             try:
-                self.completed.emit(
-                    _load_project(self.path, self.variant, progress=self.progress.emit)
-                )
+                self.cancellable.emit(True)
+                result: object
+                if self.mode == "quote-only":
+                    result = _load_quote_project(
+                        self.path,
+                        progress=self.progress.emit,
+                        cancelled=self.cancel_requested,
+                    )
+                else:
+                    result = _load_project(
+                        self.path,
+                        self.variant,
+                        progress=self.progress.emit,
+                        cancelled=self.cancel_requested,
+                        cancellable=self.cancellable.emit,
+                    )
+                self.completed.emit(result)
+            except RunCancelled as exc:
+                self.cancelled.emit(str(exc))
             except Exception as exc:  # Surface file/tool errors in the status drawer.
                 self.failed.emit(f"{type(exc).__name__}: {exc}")
             finally:
@@ -404,29 +471,51 @@ def run_gui(project_path: Path | None = None) -> int:
             self.current_project_path: Path | None = None
             self.thread: Any = None
             self.worker: Any = None
+            self.queued_jobs: list[int] = []
+            self.queue_running = False
+            self.active_queue_row: int | None = None
 
             central = QWidget()
             root_layout = QVBoxLayout(central)
+            project_bar = QHBoxLayout()
             run_bar = QHBoxLayout()
             self.project_field = QLineEdit(str(initial_path or Path.cwd()))
             self.project_field.setPlaceholderText("KiCad project directory or .kicad_pro file")
             browse_button = QPushButton("Browse…")
             self.variant_combo = QComboBox()
             self.variant_combo.addItem("Default variant", "")
-            self.run_button = QPushButton("Build BOM and review")
+            self.run_mode_combo = QComboBox()
+            self.run_mode_combo.addItem("Run all", "all")
+            self.run_mode_combo.addItem("Quote-only", "quote-only")
+            self.run_button = QPushButton("Run selected")
+            self.queue_button = QPushButton("Add to queue")
+            self.queue_button.clicked.connect(self.enqueue_current_run)
+            self.run_queue_button = QPushButton("Run queue")
+            self.run_queue_button.clicked.connect(self.start_queue)
+            self.stop_button = QPushButton("Stop")
+            self.stop_button.setEnabled(False)
+            self.stop_button.clicked.connect(self.stop_run)
+            self.ai_usage_label = QLabel("AI cost: no AI calls in current run modes")
             self.progress_bar = QProgressBar()
             self.progress_bar.setRange(0, 100)
             self.progress_bar.setValue(0)
             self.progress_bar.setFormat("Ready")
             self.open_folder_button = QPushButton("Open output folder")
             self.open_folder_button.setEnabled(False)
-            run_bar.addWidget(QLabel("Project"))
-            run_bar.addWidget(self.project_field, 1)
-            run_bar.addWidget(browse_button)
-            run_bar.addWidget(self.variant_combo)
+            project_bar.addWidget(QLabel("Project"))
+            project_bar.addWidget(self.project_field, 1)
+            project_bar.addWidget(browse_button)
+            project_bar.addWidget(QLabel("Variant"))
+            project_bar.addWidget(self.variant_combo)
+            run_bar.addWidget(self.run_mode_combo)
             run_bar.addWidget(self.run_button)
+            run_bar.addWidget(self.queue_button)
+            run_bar.addWidget(self.run_queue_button)
+            run_bar.addWidget(self.stop_button)
             run_bar.addWidget(self.progress_bar)
             run_bar.addWidget(self.open_folder_button)
+            run_bar.addWidget(self.ai_usage_label)
+            root_layout.addLayout(project_bar)
             root_layout.addLayout(run_bar)
 
             splitter = QSplitter(Qt.Orientation.Vertical)
@@ -729,6 +818,10 @@ def run_gui(project_path: Path | None = None) -> int:
             self.tabs.addTab(self.quotes_tabs, "Quotes Inbox")
             self.tabs.addTab(compare_page, "Compare")
             self.tabs.addTab(reports_page, "Reports")
+            self.queue_table = QTableWidget(0, 3)
+            self.queue_table.setHorizontalHeaderLabels(["Project", "Mode", "Status"])
+            self.queue_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+            self.tabs.addTab(self.queue_table, "Run Queue")
             self.tabs.addTab(settings_page, "Settings")
             splitter.addWidget(self.tabs)
             self.log = QPlainTextEdit()
@@ -759,23 +852,49 @@ def run_gui(project_path: Path | None = None) -> int:
             if not path_text:
                 QMessageBox.warning(self, "Project required", "Select a KiCad project folder.")
                 return
+            mode = str(self.run_mode_combo.currentData())
             project_path = Path(path_text).expanduser()
+            if (
+                mode == "quote-only"
+                and self.current_project_path is not None
+                and project_path.resolve() != self.current_project_path.resolve()
+            ):
+                QMessageBox.information(
+                    self,
+                    "Load the project first",
+                    "Run all once before switching projects in quote-only mode.",
+                )
+                return
+            self._start_run(project_path, mode)
+
+        def _start_run(self, project_path: Path, mode: str, queue_row: int | None = None) -> None:
             same_project = (
                 self.current_project_path is not None
                 and project_path.resolve() == self.current_project_path.resolve()
             )
-            variant = self.variant_combo.currentData() if same_project else None
+            variant = self.variant_combo.currentData() if same_project and mode == "all" else None
+            self.active_queue_row = queue_row
             self.run_button.setEnabled(False)
+            self.queue_button.setEnabled(False)
+            self.run_queue_button.setEnabled(False)
+            self.stop_button.setEnabled(False)
             self.progress_bar.setValue(0)
             self.progress_bar.setFormat("Starting…")
-            self.statusBar().showMessage("Building normalized BOM and deterministic review…")
-            self.log.appendPlainText(f"Loading project: {project_path}")
+            message = (
+                "Refreshing local quote data…"
+                if mode == "quote-only"
+                else "Building normalized BOM and deterministic review…"
+            )
+            self.statusBar().showMessage(message)
+            self.log.appendPlainText(f"Starting {mode} run: {project_path}")
             self.thread = QThread(self)
-            self.worker = ProjectWorker(project_path, variant or None)
+            self.worker = ProjectWorker(project_path, variant or None, mode)
             self.worker.moveToThread(self.thread)
             self.thread.started.connect(self.worker.run)
             self.worker.completed.connect(self.on_completed)
             self.worker.failed.connect(self.on_failed)
+            self.worker.cancelled.connect(self.on_run_cancelled)
+            self.worker.cancellable.connect(self.on_cancellable)
             self.worker.progress.connect(self.on_progress)
             self.worker.finished.connect(self.thread.quit)
             self.worker.finished.connect(self.worker.deleteLater)
@@ -783,7 +902,99 @@ def run_gui(project_path: Path | None = None) -> int:
             self.thread.finished.connect(self.on_finished)
             self.thread.start()
 
+        def enqueue_current_run(self) -> None:
+            path = self.project_field.text().strip()
+            if not path:
+                QMessageBox.warning(self, "Project required", "Select a KiCad project folder.")
+                return
+            mode = str(self.run_mode_combo.currentData())
+            row = self.queue_table.rowCount()
+            self.queue_table.insertRow(row)
+            self.queue_table.setItem(row, 0, QTableWidgetItem(str(Path(path).expanduser())))
+            self.queue_table.setItem(row, 1, QTableWidgetItem(mode))
+            self.queue_table.setItem(row, 2, QTableWidgetItem("Queued"))
+            self.queued_jobs.append(row)
+            self.run_queue_button.setEnabled(True)
+            self.tabs.setCurrentIndex(self.tabs.indexOf(self.queue_table))
+
+        def start_queue(self) -> None:
+            if not self.queued_jobs:
+                QMessageBox.information(self, "Queue is empty", "Add one or more runs first.")
+                return
+            self.queue_running = True
+            self._start_next_queued_run()
+
+        def _start_next_queued_run(self) -> None:
+            if not self.queue_running:
+                return
+            while self.queued_jobs:
+                row = self.queued_jobs.pop(0)
+                path_item = self.queue_table.item(row, 0)
+                mode_item = self.queue_table.item(row, 1)
+                if path_item is None or mode_item is None:
+                    continue
+                self.queue_table.setItem(row, 2, QTableWidgetItem("Running"))
+                self._start_run(Path(path_item.text()), mode_item.text(), row)
+                return
+            self.queue_running = False
+
+        def stop_run(self) -> None:
+            worker = self.worker
+            if worker is None:
+                return
+            worker.request_cancel()
+            self.stop_button.setEnabled(False)
+            self.progress_bar.setFormat("Stopping at the next safe checkpoint…")
+            self.statusBar().showMessage("Stop requested; waiting for the current safe checkpoint.")
+
+        def on_cancellable(self, enabled: bool) -> None:
+            self.stop_button.setEnabled(enabled and self.worker is not None)
+
         def on_completed(self, result: object) -> None:
+            if isinstance(result, QuoteRefreshResult):
+                project = result.project
+                project_changed = (
+                    self.current_project_path is None
+                    or self.current_project_path.resolve() != project.root.resolve()
+                )
+                if project_changed:
+                    self.project_page.setPlainText(
+                        f"Project: {project.pro_file}\nQuote-only refresh; BOM has not been built."
+                    )
+                    self.current_json_path = None
+                    self.current_bom = None
+                    self.current_findings = []
+                    self.current_board_spec = None
+                    self.current_assembly_spec = None
+                    self.bom_table.setRowCount(0)
+                    self.review_table.setRowCount(0)
+                    self.board_table.setRowCount(0)
+                    self.assembly_table.setRowCount(0)
+                    self.board_checks_table.setRowCount(0)
+                    self.assembly_checks_table.setRowCount(0)
+                    self.open_folder_button.setEnabled(False)
+                    self.show_comparison(Comparison(rows=[]))
+                    self.refresh_settings(project)
+                    self.variant_combo.blockSignals(True)
+                    self.variant_combo.clear()
+                    self.variant_combo.addItem("Default variant", "")
+                    for variant in project.variants:
+                        self.variant_combo.addItem(variant, variant)
+                    self.variant_combo.blockSignals(False)
+                self.current_project = project
+                self.current_project_path = project.root
+                self.refresh_quote_files(project, (result.replies, result.offers))
+                self.refresh_plugins(project)
+                self.refresh_reports()
+                self.ai_usage_label.setText("AI cost: $0.00 (no AI calls)")
+                self.log.appendPlainText(
+                    f"Refreshed {len(result.replies)} captured replies and "
+                    f"{len(result.offers)} imported quote files."
+                )
+                self.statusBar().showMessage("Quote-only refresh complete")
+                self.progress_bar.setValue(100)
+                self.progress_bar.setFormat("Quote refresh complete")
+                return
             project, bom, report, board_spec, assembly_spec, json_path, _csv_path = cast(
                 tuple[
                     Project,
@@ -876,6 +1087,7 @@ def run_gui(project_path: Path | None = None) -> int:
                 f"{len(report.findings)} deterministic findings."
             )
             self.statusBar().showMessage(f"Ready — {len(bom.lines)} BOM lines")
+            self.ai_usage_label.setText("AI cost: $0.00 (no AI calls)")
             self.progress_bar.setValue(100)
             self.progress_bar.setFormat("Complete")
             if not project.boards:
@@ -1478,8 +1690,12 @@ def run_gui(project_path: Path | None = None) -> int:
             self.log.appendPlainText(f"Saved credential(s) to OS keyring for {manifest.id}")
             self._build_plugin_settings_form(manifest)
 
-        def refresh_quote_files(self, project: Project) -> None:
-            reply_paths, offer_results = _quote_results(project)
+        def refresh_quote_files(
+            self,
+            project: Project,
+            quote_data: tuple[list[Path], list[tuple[Path, QuoteImportResult]]] | None = None,
+        ) -> None:
+            reply_paths, offer_results = quote_data or _quote_results(project)
             self.reply_table.setRowCount(len(reply_paths))
             for row, path in enumerate(reply_paths):
                 self.reply_table.setItem(row, 0, QTableWidgetItem(path.name))
@@ -1719,12 +1935,35 @@ def run_gui(project_path: Path | None = None) -> int:
         def on_failed(self, message: str) -> None:
             self.log.appendPlainText("ERROR: " + message)
             self.statusBar().showMessage("Project run failed")
+            self._set_active_queue_status("Failed")
+            self.queue_running = False
             QMessageBox.critical(self, "KiProd run failed", message)
 
+        def on_run_cancelled(self, message: str) -> None:
+            self.log.appendPlainText(message)
+            self.statusBar().showMessage("Run stopped")
+            self.progress_bar.setFormat("Stopped")
+            self._set_active_queue_status("Stopped")
+            self.queue_running = False
+
+        def _set_active_queue_status(self, status: str) -> None:
+            if self.active_queue_row is not None:
+                self.queue_table.setItem(self.active_queue_row, 2, QTableWidgetItem(status))
+
         def on_finished(self) -> None:
+            if self.active_queue_row is not None:
+                status_item = self.queue_table.item(self.active_queue_row, 2)
+                if status_item is not None and status_item.text() == "Running":
+                    self._set_active_queue_status("Complete")
+            self.active_queue_row = None
             self.run_button.setEnabled(True)
+            self.queue_button.setEnabled(True)
+            self.run_queue_button.setEnabled(bool(self.queued_jobs))
+            self.stop_button.setEnabled(False)
             self.worker = None
             self.thread = None
+            if self.queue_running:
+                self._start_next_queued_run()
 
         def refresh_reports(self) -> None:
             if self.current_project_path is None:
@@ -1841,11 +2080,12 @@ def run_gui(project_path: Path | None = None) -> int:
                 )
 
         def approve_best_mix_writeback(self) -> None:
-            if self.current_project_path is None or not hasattr(self, "current_bom"):
+            bom = getattr(self, "current_bom", None)
+            if self.current_project_path is None or not isinstance(bom, NormalizedBOM):
                 QMessageBox.information(self, "Project required", "Build a project BOM first.")
                 return
             updates: dict[tuple[Path, str, str], SchematicFieldUpdate] = {}
-            bom_lines = {line.mpn.casefold(): line for line in self.current_bom.lines if line.mpn}
+            bom_lines = {line.mpn.casefold(): line for line in bom.lines if line.mpn}
             for mix in getattr(self, "current_comparison", Comparison(rows=[])).best_mix:
                 for offer_line in mix.lines:
                     bom_line = bom_lines.get(offer_line.manufacturer_part_number.casefold())
