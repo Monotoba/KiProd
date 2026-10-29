@@ -95,3 +95,6 @@ architecture and safety constraints.
 Synthetic manual-test inputs for CSV, XLSX, PDF, and privacy preflight are in
 [`examples/testing_inputs/`](examples/testing_inputs/README.md). They contain
 fictional data and include commands for exercising the CLI.
+
+AI provider setup, prompt overrides, budgets, and model evaluation are described in
+[`docs/AI_PROVIDERS.md`](docs/AI_PROVIDERS.md).

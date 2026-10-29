@@ -2,15 +2,23 @@ from __future__ import annotations
 
 import getpass
 import importlib.util
+import ipaddress
 import json
 import os
 import shutil
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from urllib.parse import urlsplit
 
 import typer
 
+from kiprod.ai.anthropic import AnthropicProvider
+from kiprod.ai.evaluation import evaluate_review_fixtures
+from kiprod.ai.openai_compatible import OpenAICompatibleProvider
+from kiprod.ai.openai_responses import OpenAIResponsesProvider
+from kiprod.ai.provider import LLMProvider, LLMResult, Message, ProviderFeature
+from kiprod.ai.runtime import AIRequestManager, RolePolicy
 from kiprod.analysis.assembly import extract as extract_assembly
 from kiprod.analysis.capabilities import check_assembly, check_board
 from kiprod.analysis.comparison import compare
@@ -32,6 +40,7 @@ from kiprod.core.constraints import apply, write
 from kiprod.core.project import ProjectNotFoundError, discover
 from kiprod.kicad.board import extract as extract_board
 from kiprod.kicad.cli_adapter import KiCadCliError, export_bom, export_placements, version
+from kiprod.net.http import HttpClient
 from kiprod.plugins.host import PluginError, discover_plugins
 from kiprod.reports.markdown import comparison_markdown
 from kiprod.reports.run_archive import archive_inputs, input_paths, load_manifest
@@ -52,6 +61,172 @@ plugins_app = typer.Typer(help="Discover and validate supplier plugins.", no_arg
 app.add_typer(plugins_app, name="plugins")
 rfq_app = typer.Typer(help="Create and verify local supplier RFQ packages.", no_args_is_help=True)
 app.add_typer(rfq_app, name="rfq")
+ai_app = typer.Typer(help="Evaluate and run typed AI review tasks.", no_args_is_help=True)
+app.add_typer(ai_app, name="ai")
+
+
+class _BudgetedRoleProvider:
+    def __init__(self, provider: LLMProvider, manager: AIRequestManager) -> None:
+        self.provider = provider
+        self.manager = manager
+        self.name = provider.name
+        self.is_local = provider.is_local
+
+    def complete(
+        self,
+        messages: list[Message],
+        *,
+        schema: dict[str, object] | None = None,
+        max_tokens: int,
+        temperature: float = 0.0,
+    ) -> LLMResult:
+        result = self.manager.complete(
+            "reasoning",
+            messages,
+            schema=schema,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+        if not isinstance(result, LLMResult):
+            raise RuntimeError("budget manager returned a dry-run plan during model evaluation")
+        return result
+
+    def supports(self, feature: ProviderFeature) -> bool:
+        return self.provider.supports(feature)
+
+    def estimate_cost(self, prompt_tokens: int, completion_tokens: int) -> float | None:
+        return self.provider.estimate_cost(prompt_tokens, completion_tokens)
+
+
+def _ai_provider(
+    provider_type: str,
+    model: str,
+    base_url: str | None,
+    api_key: str | None,
+    prompt_cost_per_million: float | None,
+    completion_cost_per_million: float | None,
+) -> LLMProvider:
+    if provider_type == "openai":
+        endpoint = base_url or "https://api.openai.com/v1"
+    elif provider_type == "anthropic":
+        endpoint = base_url or "https://api.anthropic.com"
+    elif provider_type == "compatible":
+        if not base_url:
+            raise ValueError("--base-url is required for the compatible provider")
+        endpoint = base_url
+    else:
+        raise ValueError("provider must be one of: openai, anthropic, compatible")
+    parsed = urlsplit(endpoint)
+    if (
+        parsed.scheme not in {"https", "http"}
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError("provider base URL must be a valid HTTP(S) origin/path")
+    host = parsed.hostname.casefold()
+    local = host == "localhost"
+    try:
+        local = local or ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        pass
+    if parsed.scheme == "http" and not local:
+        raise ValueError("unencrypted model providers are allowed only on loopback")
+    client = HttpClient({host}, allow_local_http=parsed.scheme == "http" and local)
+    if provider_type == "openai":
+        if not api_key:
+            raise ValueError("OpenAI API key is required")
+        return OpenAIResponsesProvider(
+            api_key=api_key,
+            base_url=endpoint,
+            model=model,
+            http=client,
+            prompt_cost_per_million=prompt_cost_per_million,
+            completion_cost_per_million=completion_cost_per_million,
+        )
+    if provider_type == "anthropic":
+        if not api_key:
+            raise ValueError("Anthropic API key is required")
+        return AnthropicProvider(
+            api_key=api_key,
+            base_url=endpoint,
+            model=model,
+            http=client,
+            prompt_cost_per_million=prompt_cost_per_million,
+            completion_cost_per_million=completion_cost_per_million,
+        )
+    return OpenAICompatibleProvider(
+        base_url=endpoint,
+        provider_name="openai_compatible",
+        api_key=api_key,
+        model=model,
+        http=client,
+        prompt_cost_per_million=prompt_cost_per_million,
+        completion_cost_per_million=completion_cost_per_million,
+    )
+
+
+@ai_app.command("eval")
+def ai_evaluate(
+    provider_type: str = typer.Argument(..., help="Provider: openai, anthropic, compatible."),
+    model: str = typer.Option(..., "--model"),
+    base_url: str | None = typer.Option(None, "--base-url"),
+    api_key_env: str | None = typer.Option(None, "--api-key-env"),
+    fixtures: Path = typer.Option(Path("tests/fixtures/ai_review"), "--fixtures", exists=True),
+    expected: Path = typer.Option(
+        Path("tests/fixtures/ai_review/expected.json"), "--expected", exists=True
+    ),
+    prompt_dir: list[Path] = typer.Option([], "--prompt-dir", exists=True, file_okay=False),
+    max_output_tokens: int = typer.Option(2000, "--max-output-tokens", min=16),
+    max_run_tokens: int = typer.Option(20000, "--max-run-tokens", min=1),
+    max_run_cost: float | None = typer.Option(None, "--max-run-cost", min=0.0),
+    prompt_cost_per_million: float | None = typer.Option(None, "--prompt-cost-per-million"),
+    completion_cost_per_million: float | None = typer.Option(
+        None, "--completion-cost-per-million"
+    ),
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """Make live provider requests and evaluate one model against labeled BOM fixtures."""
+    key_env = api_key_env or {
+        "openai": "OPENAI_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY",
+        "compatible": "KIPROD_AI_API_KEY",
+    }.get(provider_type)
+    api_key = os.environ.get(key_env) if key_env else None
+    if key_env and key_env not in os.environ:
+        raise typer.BadParameter(f"API key environment variable is not set: {key_env}")
+    try:
+        provider = _ai_provider(
+            provider_type,
+            model,
+            base_url,
+            api_key,
+            prompt_cost_per_million,
+            completion_cost_per_million,
+        )
+        manager = AIRequestManager(
+            {"reasoning": RolePolicy(provider, model, max_output_tokens=max_output_tokens)},
+            max_run_tokens=max_run_tokens,
+            max_run_cost=max_run_cost,
+        )
+        budgeted = _BudgetedRoleProvider(provider, manager)
+        evaluation = evaluate_review_fixtures(
+            fixtures,
+            expected,
+            budgeted,
+            prompt_dirs=prompt_dir or None,
+        )
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    serialized = evaluation.model_dump_json(indent=2) + "\n"
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(serialized, encoding="utf-8")
+    typer.echo(serialized, nl=False)
+    if not evaluation.passed:
+        raise typer.Exit(code=1)
 
 
 @rfq_app.command("package")

@@ -78,7 +78,7 @@
 - [x] Expand quote fixtures with alternate supplier-style headers and title/metadata preambles for CSV/XLSX, with independently labeled expected fields.
 - [ ] Validate quote extraction on independently reviewed real-world supplier samples.
 
-## M7 — Typed AI and review layer (in progress)
+## M7 — Typed AI and review layer (complete)
 
 - [x] Define a provider-neutral LLM protocol with typed messages and result metadata.
 - [x] Add deterministic BOM findings and a no-provider fallback.
@@ -88,7 +88,7 @@
 - [x] Add native OpenAI Responses and Anthropic Messages adapters with structured JSON output and usage metadata.
 - [x] Add role-based provider selection, local-only role enforcement, run token/cost caps, dry-run planning, and in-memory content-hash caching.
 - [x] Add versioned Markdown prompt files with validated front matter and ordered override directories.
-- [ ] Add model evaluation against labeled review fixtures.
+- [x] Add labeled BOM review evaluation with typed-schema success rate, exact finding precision/recall/F1, citation grounding, and CLI support for configured providers.
 
 ## Later milestones
 
@@ -96,9 +96,9 @@
 
 ## Recommended completion order
 
-1. Continue M6's real-world supplier quote validation while retaining the passing deterministic fixture checks.
-2. Finish M7's provider adapters, budgets, caching, prompts, and evaluation on the stable BOM and review schemas.
-3. Build the M8 GUI, then M9 KiCad launchers, then M10 hardening and release checks.
+1. Collect independently reviewed real-world supplier samples to close M6's remaining validation item.
+2. Build the M8 GUI on the completed analysis and AI review layers.
+3. Add M9 KiCad launchers, then finish M10 hardening and release checks.
 
 M3–M5 are complete, and M4 provides durable analysis outputs. M6's real-world
 validation needs representative sample files, so code-side work can continue while

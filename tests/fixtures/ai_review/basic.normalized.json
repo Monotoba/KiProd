@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "project": "basic",
+  "input_hashes": {
+    "basic.kicad_pro": "0ca1cc40c355ae8a8b399cdee0ce32d2d042274466258e1040d229ddb061a253",
+    "basic.kicad_sch": "d2089010a2d4cd36081979dfa1dd01beaa259df73bfb2700f9ff55607977d9c9"
+  },
+  "lines": [
+    {
+      "line_id": "4790c88db2b3",
+      "references": ["C1"],
+      "quantity": 1,
+      "value": "100n",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "mpn": null,
+      "fields": {
+        "Reference": "C1",
+        "Value": "100n",
+        "Footprint": "Capacitor_SMD:C_0603_1608Metric"
+      },
+      "resolved_fields": {},
+      "sources": [{"path": "basic.kicad_sch", "reference": "C1"}]
+    },
+    {
+      "line_id": "57143c4d8f95",
+      "references": ["R1", "R2"],
+      "quantity": 2,
+      "value": "4k7",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "mpn": "RC0603FR-074K7L",
+      "fields": {
+        "Reference": "R1",
+        "Value": "4k7",
+        "Footprint": "Resistor_SMD:R_0603_1608Metric",
+        "MPN": "RC0603FR-074K7L"
+      },
+      "resolved_fields": {},
+      "sources": [
+        {"path": "basic.kicad_sch", "reference": "R1"},
+        {"path": "basic.kicad_sch", "reference": "R2"}
+      ]
+    }
+  ],
+  "imported_bom": null
+}

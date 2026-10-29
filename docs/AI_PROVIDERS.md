@@ -152,3 +152,24 @@ limited to 64 KiB, front matter only accepts `role`, `schema`, and `version`, an
 the loaded prompt version is stored with each AI finding and the review report.
 Prompt text and BOM data remain separate messages; the BOM payload omits arbitrary
 fields, resolved values, and project input hashes.
+
+## Model evaluation
+
+The labeled review fixture set is in `tests/fixtures/ai_review/`. Evaluate a local
+OpenAI-compatible server with:
+
+```bash
+./scripts/run.sh ai eval compatible \
+  --base-url http://127.0.0.1:11434/v1 \
+  --model local-model-name \
+  --max-run-tokens 20000 \
+  --output /tmp/kiprod-ai-evaluation.json
+```
+
+The command makes live requests to the selected provider. Native OpenAI and
+Anthropic modes read their API keys from `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`
+by default; `--api-key-env` selects another environment variable. Set
+`--max-run-cost` with explicit per-million token rates to enforce a cost cap; if the
+provider price is unknown, the budget manager blocks the request. The report
+includes schema-valid rate, exact finding precision/recall/F1, citation grounding,
+and per-fixture errors. Tests use a fixture provider and do not make live calls.

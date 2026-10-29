@@ -1,0 +1,14 @@
+{
+  "fixtures": [
+    {
+      "path": "basic.normalized.json",
+      "findings": [
+        {
+          "code": "bom.verify_resistor_rating",
+          "severity": "info",
+          "line_ids": ["57143c4d8f95"]
+        }
+      ]
+    }
+  ]
+}
