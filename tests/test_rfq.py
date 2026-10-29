@@ -188,6 +188,34 @@ def test_privacy_scan_has_no_false_positive_on_native_kicad_project() -> None:
     assert scan_privacy(native_project, usernames=[]) == []
 
 
+def test_privacy_preflight_cli_reports_clean_selected_file(tmp_path: Path) -> None:
+    from typer.testing import CliRunner
+
+    from kiprod.cli import app
+
+    source = tmp_path / "bom.csv"
+    source.write_text("Reference,Quantity\nR1,1\n", encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["rfq", "scan-privacy", str(source)])
+
+    assert result.exit_code == 0, result.output
+    assert "No privacy findings in 1 selected file" in result.output
+
+
+def test_privacy_preflight_cli_exits_with_findings(tmp_path: Path) -> None:
+    from typer.testing import CliRunner
+
+    from kiprod.cli import app
+
+    source = tmp_path / "design.txt"
+    source.write_text(f"source path: {Path.home()}/private/design.kicad_pcb", encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["rfq", "scan-privacy", str(source)])
+
+    assert result.exit_code == 3
+    assert "embedded local filesystem path" in result.output
+
+
 def test_privacy_scan_blocks_package_before_malware_scan_or_signing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

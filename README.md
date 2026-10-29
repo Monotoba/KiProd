@@ -43,6 +43,8 @@ and `gpg` executables and never sends the package. Including PDFs also requires
 `pdfinfo` so document metadata can be checked.
 Package staging also blocks text files containing the current user's home path or
 username and files with explicit hidden-layer markers.
+Run `kiprod rfq scan-privacy bom.csv drawing.pdf` to preflight explicitly selected
+files without creating a package; it exits 3 when a finding blocks packaging.
 Create a local message draft with `kiprod rfq draft KP-board-20261029-1 package.zip
 --to quotes@example.com --from buyer@example.com --subject "RFQ KP-board-20261029-1"
 --body request.txt --output request.eml`. It verifies and attaches the signed archive,

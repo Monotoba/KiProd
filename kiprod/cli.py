@@ -41,6 +41,7 @@ from kiprod.rfq.email import create_email_draft
 from kiprod.rfq.inbox import import_reply
 from kiprod.rfq.mailbox import poll_mailbox
 from kiprod.rfq.package import build_package, verify_package
+from kiprod.rfq.privacy import scan_privacy
 from kiprod.rfq.quote_import import parse_quote_attachment
 from kiprod.rfq.workflow import get_rfq_status, register_email_draft
 
@@ -78,6 +79,29 @@ def rfq_verify(package: Path = typer.Argument(..., exists=True, dir_okay=False))
     except (OSError, RuntimeError, ValueError) as exc:
         raise typer.BadParameter(str(exc)) from exc
     typer.echo("Verified RFQ package files: " + ", ".join(files))
+
+
+@rfq_app.command("scan-privacy")
+def rfq_scan_privacy(
+    files: list[Path] = typer.Argument(..., exists=True, dir_okay=False, readable=True),
+) -> None:
+    """Run the RFQ privacy checks on explicitly selected files without packaging them."""
+    names = [path.name for path in files]
+    if len(names) != len(set(names)):
+        raise typer.BadParameter("input files must have unique filenames")
+    try:
+        with TemporaryDirectory(prefix="kiprod-privacy-") as temporary:
+            stage = Path(temporary)
+            for path in files:
+                shutil.copyfile(path, stage / path.name)
+            findings = scan_privacy(stage)
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    if findings:
+        for finding in findings:
+            typer.echo(finding, err=True)
+        raise typer.Exit(code=3)
+    typer.echo(f"No privacy findings in {len(files)} selected file(s).")
 
 
 @rfq_app.command("draft")
