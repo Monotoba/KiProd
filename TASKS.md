@@ -67,7 +67,8 @@
 - [x] Add SMTP/STARTTLS delivery of the exact approved email bytes; log failures and leave those RFQs retryable.
 - [x] Match locally captured `.eml` replies by RFQ ID in subject/header, preserve the original, save sanitized attachments, and acknowledge the RFQ.
 - [x] Parse CSV/XLSX quote tables into source-backed offer candidates with deterministic confidence and incomplete-row review queue.
-- [ ] Add IMAP/Graph/Gmail polling and PDF quote extraction with fixture-based accuracy evaluation.
+- [x] Parse labeled-field PDF quotes into low-confidence candidates that always require human review.
+- [ ] Add IMAP/Graph/Gmail polling, scanned-PDF OCR, and evaluate extraction accuracy against a representative fixture set.
 
 ## Later milestones
 

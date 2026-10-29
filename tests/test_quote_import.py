@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 
 import pytest
 
+import kiprod.rfq.quote_import as quote_import
 from kiprod.rfq.quote_import import parse_quote_attachment
 
 _HEADER = (
@@ -107,3 +108,61 @@ def test_xlsx_without_optional_dependency_has_actionable_error(tmp_path: Path) -
             parse_quote_attachment(workbook, "supplier-a")
     finally:
         monkeypatch.undo()
+
+
+def test_labeled_pdf_quote_is_parsed_but_always_requires_review(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import subprocess
+
+    pdf = tmp_path / "quote.pdf"
+    pdf.write_bytes(b"fixture PDF")
+    extracted_text = (
+        "Manufacturer Part Number: MPN-1\n"
+        "Supplier Part Number: SKU-1\n"
+        "Quantity: 10\n"
+        "Unit Price: 0.50\n"
+        "Currency: USD\n"
+        "Stock: 100\n"
+        "Lead Time Days: 5\n\n"
+        "Manufacturer Part Number: MPN-1\n"
+        "Supplier Part Number: SKU-1\n"
+        "Quantity: 100\n"
+        "Unit Price: 0.25\n"
+        "Currency: USD\n"
+    )
+    monkeypatch.setattr(quote_import.shutil, "which", lambda _: "/usr/bin/pdftotext")
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(stdout=extracted_text),
+    )
+
+    result = parse_quote_attachment(pdf, "supplier-a")
+
+    assert len(result.offers) == 1
+    assert [price.quantity for price in result.offers[0].offer.price_breaks] == [10, 100]
+    assert result.offers[0].confidence == 0.72
+    assert result.offers[0].requires_review
+    assert result.review_queue[0].source_ref.reference == "blocks:1,2"
+
+
+def test_scanned_pdf_without_extracted_text_stays_in_review_queue(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import subprocess
+
+    pdf = tmp_path / "scan.pdf"
+    pdf.write_bytes(b"image-only PDF")
+    monkeypatch.setattr(quote_import.shutil, "which", lambda _: "/usr/bin/pdftotext")
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(stdout=""),
+    )
+
+    result = parse_quote_attachment(pdf, "supplier-a")
+
+    assert result.offers == []
+    assert len(result.review_queue) == 1
+    assert result.review_queue[0].confidence == 0.1

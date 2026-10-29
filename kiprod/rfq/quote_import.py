@@ -3,6 +3,8 @@ from __future__ import annotations
 import csv
 import math
 import re
+import shutil
+import subprocess
 from collections import defaultdict
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -91,6 +93,52 @@ def _read_xlsx(path: Path) -> tuple[list[object], list[list[object]]]:
     return list(rows[0]), [list(row) for row in rows[1:]]
 
 
+def _read_pdf(path: Path) -> tuple[list[object], list[list[object]]]:
+    executable = shutil.which("pdftotext")
+    if executable is None:
+        raise ValueError("PDF quote import requires the local `pdftotext` executable")
+    try:
+        result = subprocess.run(
+            [executable, "-layout", "-enc", "UTF-8", str(path), "-"],
+            capture_output=True,
+            check=True,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise ValueError(f"could not extract quote text from PDF {path}: {exc}") from exc
+    reverse = {alias: key for key, aliases in _ALIASES.items() for alias in aliases}
+    headers = [
+        "MPN",
+        "Supplier Part Number",
+        "Quantity",
+        "Unit Price",
+        "Currency",
+        "Stock",
+        "Lead Time Days",
+    ]
+    header_keys = [reverse[_header_key(header)] for header in headers]
+    blocks = re.split(r"\n\s*\n|\f", result.stdout)
+    rows: list[list[object]] = []
+    for block in blocks:
+        fields: dict[str, str] = {}
+        for line in block.splitlines():
+            label, separator, value = line.partition(":")
+            if not separator:
+                continue
+            key = reverse.get(_header_key(label))
+            if key is None:
+                continue
+            cleaned = value.strip()
+            if key in fields and fields[key] != cleaned:
+                fields[key] = ""
+            else:
+                fields[key] = cleaned
+        if fields:
+            rows.append([fields.get(key, "") for key in header_keys])
+    return cast(tuple[list[object], list[list[object]]], (headers, rows))
+
+
 def _cell(row: list[object], mapping: dict[str, int], name: str) -> str:
     index = mapping.get(name)
     if index is None or index >= len(row) or row[index] is None:
@@ -124,12 +172,16 @@ def parse_quote_attachment(
     *,
     currency: str | None = None,
 ) -> QuoteImportResult:
-    """Parse CSV/XLSX quote tables into source-backed offers and a review queue."""
+    """Parse CSV/XLSX tables or labeled PDF blocks into offers and review items."""
     suffix = path.suffix.casefold()
+    source_kind = "row"
     if suffix == ".csv":
         headers, rows = _read_csv(path)
     elif suffix in {".xlsx", ".xlsm"}:
         headers, rows = _read_xlsx(path)
+    elif suffix == ".pdf":
+        headers, rows = _read_pdf(path)
+        source_kind = "block"
     else:
         raise ValueError(f"unsupported quote attachment format: {suffix or 'unknown'}")
     if not supplier_id.strip():
@@ -159,18 +211,27 @@ def parse_quote_attachment(
             )
         )
         return result
+    if suffix == ".pdf" and not rows:
+        result.review_queue.append(
+            QuoteReviewItem(
+                source_ref=SourceRef(path=source_path, reference="pdf"),
+                confidence=0.1,
+                issue="no labeled quote fields could be extracted from PDF text",
+            )
+        )
+        return result
 
     grouped: dict[tuple[str, str, str], list[tuple[int, PriceBreak, int | None, int | None]]] = (
         defaultdict(list)
     )
     bad_keys: set[tuple[str, str, str]] = set()
-    for row_number, row in enumerate(rows, start=2):
+    for row_number, row in enumerate(rows, start=1 if source_kind == "block" else 2):
         if not any(str(value or "").strip() for value in row):
             continue
         values = _row_value(row, mapping)
-        if mapping.get("currency") == -1:
+        if mapping.get("currency") == -1 or (not values.get("currency") and currency is not None):
             values["currency"] = normalized_currency
-        reference = SourceRef(path=source_path, reference=f"row:{row_number}")
+        reference = SourceRef(path=source_path, reference=f"{source_kind}:{row_number}")
         mpn = values.get("mpn", "")
         spn = values.get("spn", "")
         key: tuple[str, str, str] | None = None
@@ -227,9 +288,9 @@ def parse_quote_attachment(
             price_breaks=sorted((item[1] for item in items), key=lambda item: item.quantity),
             stock=next((item[2] for item in items if item[2] is not None), None),
             lead_time_days=next((item[3] for item in items if item[3] is not None), None),
-            source_ref=SourceRef(path=source_path, reference=f"rows:{rows_ref}"),
+            source_ref=SourceRef(path=source_path, reference=f"{source_kind}s:{rows_ref}"),
         )
-        confidence = 0.97 if suffix == ".csv" else 0.95
+        confidence = 0.72 if suffix == ".pdf" else (0.97 if suffix == ".csv" else 0.95)
         result.offers.append(
             ExtractedOffer(
                 offer=offer,
@@ -237,4 +298,13 @@ def parse_quote_attachment(
                 requires_review=confidence < _CONFIDENCE_THRESHOLD,
             )
         )
+        if confidence < _CONFIDENCE_THRESHOLD:
+            result.review_queue.append(
+                QuoteReviewItem(
+                    source_ref=offer.source_ref,
+                    confidence=confidence,
+                    issue="PDF-extracted quote requires human verification",
+                    candidate_mpn=mpn,
+                )
+            )
     return result
