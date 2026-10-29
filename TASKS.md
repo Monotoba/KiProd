@@ -83,7 +83,7 @@
 - [x] Persist Graph/Gmail page cursors and advance only after the page is processed; reset after the final page.
 - [x] Add a reproducible field-accuracy/precision/recall evaluation for quote fixtures with a 95% threshold, explicit optional-format skips, and enforced fixture review-policy expectations.
 - [x] Expand quote fixtures with alternate supplier-style headers and title/metadata preambles for CSV/XLSX, with independently labeled expected fields.
-- [ ] Validate quote extraction on independently reviewed real-world supplier samples (sample and labeling instructions: `docs/REAL_WORLD_QUOTE_VALIDATION.md`).
+- [x] Validate quote extraction on independently reviewed real-world supplier samples (results and scope: `docs/REAL_WORLD_QUOTE_VALIDATION.md`).
 
 ## M7 — Typed AI and review layer (complete)
 

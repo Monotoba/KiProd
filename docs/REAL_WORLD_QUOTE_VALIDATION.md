@@ -1,19 +1,39 @@
 # Real supplier quote validation
 
-M6's remaining acceptance item is to evaluate quote extraction on independently
-reviewed supplier documents. The checked-in quote fixtures are synthetic and do
-not satisfy this requirement.
+## Completed sample evaluation
 
-## Samples to provide
+The project owner confirmed that they reviewed the supplied DigiKey and Mouser
+quotes. Evaluation used private files under `examples/real-data/`; this directory
+is ignored by Git. Neither the quote files nor their expected labels or report
+are published.
 
-Provide real supplier-issued quote files in the formats you use, ideally CSV,
-XLSX, and PDF, with at least two different suppliers represented. Include
-ordinary line items, multiple price breaks where available, and examples of any
-supplier-specific column headings or preamble rows that have caused issues.
-Do not include purchase orders, account credentials, payment details, shipping
-addresses, or unrelated customer information. If you redact a file, preserve its
-table structure and all fields needed to validate parsing. Keep an unmodified
-original available locally so the redaction does not alter the expected values.
+The Mouser workbook contained 18 complete quoted rows, two incomplete price
+rows, and one unmatched row. For this local evaluation, its OOXML worksheet was
+reconstructed to a temporary CSV because `openpyxl` was unavailable in the
+development environment. The expected fields were mapped from the corresponding
+supplier columns and reviewed by the project owner. The parser extracted all 18
+rows exactly and sent the three incomplete rows to human review. Field accuracy,
+exact-row precision, and recall were each 100%.
+
+The DigiKey file contained 21 unmatched, unquoted rows. The parser produced no
+offers and sent all 21 rows to human review, as expected. The overall evaluation
+passed the 95% threshold with no skipped cases. The DigiKey sample was parsed
+directly; the Mouser sample evaluation exercised the shared table parser using
+the reconstructed CSV, not the original workbook's `openpyxl` loading path. The
+XLSX path remains covered by synthetic fixture tests.
+
+The reproducible evaluation command and expected JSON schema are described
+below. The private sample report is intentionally not stored in the repository.
+
+## Additional samples
+
+The M6 sample acceptance is complete. Further validation can add supplier-issued
+files in other formats, especially XLSX loaded directly and PDF, or quotes with
+multiple price breaks and additional supplier-specific headers. Do not include
+purchase orders, account credentials, payment details, shipping addresses, or
+unrelated customer information. If you redact a file, preserve its table
+structure and all fields needed to validate parsing. Keep an unmodified original
+available locally so the redaction does not alter the expected values.
 
 For every file, independently check each extracted line against the original
 document and prepare expected rows containing:
@@ -25,9 +45,9 @@ document and prepare expected rows containing:
 - `currency`: ISO currency code
 - `review_required`: whether the parser must put the result in the human-review queue
 
-The reviewer should also record supplier, quote date, source page/sheet/row, and
-any omitted or ambiguous rows. Do not use an LLM-generated annotation as the
-ground truth.
+For future samples, record supplier, quote date, source page/sheet/row, and any
+omitted or ambiguous rows. Do not use an LLM-generated annotation as the ground
+truth.
 
 ## Run the evaluation
 
