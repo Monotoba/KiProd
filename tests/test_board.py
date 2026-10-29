@@ -78,6 +78,7 @@ def test_assembly_extracts_placements_and_packaging_from_board() -> None:
     assert assembly.smallest_package_mm == 1.6
     assert assembly.bga_count == 1
     assert assembly.finest_pitch_mm == 0.5
+    assert assembly.programming_components == ["U1"]
 
 
 def test_assembly_capability_check_flags_pitch_and_unsupported_packages() -> None:
@@ -90,6 +91,7 @@ def test_assembly_capability_check_flags_pitch_and_unsupported_packages() -> Non
         bga_count=1,
         qfn_count=2,
         finest_pitch_mm=0.4,
+        programming_components=["U1"],
     )
     manifest = Manifest.model_validate(
         {
@@ -104,6 +106,7 @@ def test_assembly_capability_check_flags_pitch_and_unsupported_packages() -> Non
                         "min_pitch_mm": 0.5,
                         "supports_bga": False,
                         "supports_qfn": False,
+                        "supports_programming": False,
                     }
                 }
             },
@@ -115,4 +118,5 @@ def test_assembly_capability_check_flags_pitch_and_unsupported_packages() -> Non
         "min_pitch_mm",
         "supports_bga",
         "supports_qfn",
+        "supports_programming",
     }

@@ -51,7 +51,8 @@
 - [x] Extract top/bottom placements, unique footprint count, SMD/THT counts, and smallest recognized package.
 - [x] Compare placement count and unique parts to declared assembly supplier limits.
 - [x] Extract BGA/QFN/LGA counts and finest observed pad pitch; compare them with declared assembly supplier limits.
-- [ ] Extract board count and programming requirements for assembly planning.
+- [x] Identify components explicitly marked `Programming` or `Requires Programming` and check supplier support.
+- [ ] Extract boards-per-panel from PCB/fab documentation; project board-file count and requested production quantities are already reported separately.
 
 ## Later milestones
 

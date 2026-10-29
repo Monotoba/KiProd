@@ -55,6 +55,7 @@ class AssemblySpec(BaseModel):
     qfn_count: int = 0
     lga_count: int = 0
     finest_pitch_mm: float | None = None
+    programming_components: list[str] = Field(default_factory=list)
 
 
 class Part(BaseModel):

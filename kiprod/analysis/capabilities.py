@@ -118,4 +118,17 @@ def check_assembly(assembly: AssemblySpec, manifest: Manifest) -> list[Capabilit
                     ),
                 )
             )
+    programming_supported = limits.get("supports_programming")
+    if assembly.programming_components and programming_supported is False:
+        findings.append(
+            CapabilityFinding(
+                field="supports_programming",
+                required=float(len(assembly.programming_components)),
+                limit=0.0,
+                message=(
+                    f"{len(assembly.programming_components)} component(s) require programming, "
+                    "unsupported by supplier"
+                ),
+            )
+        )
     return findings

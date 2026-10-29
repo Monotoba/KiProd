@@ -27,6 +27,10 @@ def _property(footprint: list[SExpr], name: str) -> str:
     return ""
 
 
+def _truthy(value: str) -> bool:
+    return value.strip().casefold() in {"yes", "true", "1", "required"}
+
+
 def extract(path: Path) -> AssemblySpec:
     board = load(path)[0]
     footprints = [item for item in children(board, "footprint") if _property(item, "Reference")]
@@ -34,6 +38,7 @@ def extract(path: Path) -> AssemblySpec:
     sizes: list[float] = []
     bga = qfn = lga = 0
     pitches: list[float] = []
+    programming_components: list[str] = []
     for footprint in footprints:
         layer_nodes = children(footprint, "layer")
         layer = atom(layer_nodes[0], 1) if layer_nodes else ""
@@ -50,6 +55,12 @@ def extract(path: Path) -> AssemblySpec:
         else:
             smd += 1
         name = atom(footprint, 1) or ""
+        reference = _property(footprint, "Reference")
+        if any(
+            _truthy(_property(footprint, field))
+            for field in ("Programming", "Requires Programming")
+        ):
+            programming_components.append(reference)
         match = _PACKAGE_METRIC.search(name)
         if match:
             sizes.append(_METRIC_MM[match.group(1)])
@@ -82,4 +93,5 @@ def extract(path: Path) -> AssemblySpec:
         qfn_count=qfn,
         lga_count=lga,
         finest_pitch_mm=min(pitches) if pitches else None,
+        programming_components=sorted(programming_components),
     )

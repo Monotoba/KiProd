@@ -29,6 +29,7 @@
   (footprint "Package_BGA:BGA-4_2x2_0.5mm"
     (layer "F.Cu")
     (property "Reference" "U1")
+    (property "Programming" "yes")
     (attr smd)
     (pad "1" smd circle (at 0 0) (size 0.25 0.25))
     (pad "2" smd circle (at 0.5 0) (size 0.25 0.25))
