@@ -1,25 +1,38 @@
 {
   "id": "com.kiprod.supplier.lcsc",
-  "name": "LCSC Electronics",
+  "name": "LCSC",
   "version": "1.0.0",
   "homepage": "https://www.lcsc.com/",
-  "resources": [
-    "components"
-  ],
-  "aliases": [
-    "LCSC"
-  ],
-  "integration_status": "profile_only",
+  "resources": ["components"],
+  "aliases": ["LCSC"],
+  "integration_status": "adapter_configured",
+  "adapter": {
+    "module": "adapter",
+    "class": "LCSCAdapter",
+    "min_core": "0.1"
+  },
   "capabilities": {
     "components": {
-      "quote_channel": "manual_quote_import",
-      "catalog_api_status": "not_configured"
+      "quote_channel": "lcsc_partner_keyword_search",
+      "catalog_api_status": "requires_lcsc_approved_partner_credentials"
     }
   },
   "permissions": {
-    "network": [],
+    "network": ["ips.lcsc.com"],
     "email": false,
     "browser": false
   },
-  "fields": []
+  "credentials": [
+    {"key": "api_key", "label": "LCSC API key", "secret": true},
+    {"key": "api_secret", "label": "LCSC API secret", "secret": true}
+  ],
+  "fields": [
+    {
+      "key": "currency",
+      "label": "Display currency",
+      "type": "enum",
+      "default": "USD",
+      "options": ["USD", "CNY", "EUR", "HKD"]
+    }
+  ]
 }

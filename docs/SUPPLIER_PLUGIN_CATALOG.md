@@ -38,6 +38,13 @@ that keyword pricing may be cached up to 24 hours ([KeywordSearch docs](https://
 [pricing FAQ](https://developer.digikey.com/faq/products-plans-and-apis)). The
 adapter does not place orders or access carts.
 
+The LCSC profile includes a read-only partner Keyword Search adapter. It
+requires an API key and secret issued after LCSC approves an API application.
+The adapter uses exact-MPN search, caps results at the documented 30 per page,
+and reports the selected supported currency. LCSC's [API program](https://www.lcsc.com/agent/)
+requires application approval; the published [API docs](https://www.lcsc.com/docs/openapi/index.html)
+document the signed search endpoint. It does not access carts or ordering.
+
 The other component profiles use manual quote import. Unikeyic advertises API
 access by application on its official [company page](https://www.unikeyic.com/aboutus),
 but this does not configure or authorize an API connection in KiProd.
@@ -63,7 +70,7 @@ Imagineering, Inc.
 
 ## Integration boundary
 
-Mouser and DigiKey currently have supplier-specific live adapters. The generic
+Mouser, DigiKey, and LCSC currently have supplier-specific live adapters. The generic
 read-only JSON catalog protocol can support other suppliers that provide an
 approved API with a documented response mapping. Supplier-specific API
 integrations must confirm current API terms, endpoints, authentication, and

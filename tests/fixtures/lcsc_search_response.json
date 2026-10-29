@@ -1,0 +1,24 @@
+{
+  "success": true,
+  "code": "0",
+  "message": "success",
+  "result": {
+    "productList": [
+      {
+        "product_model": "RC0603FR-074K7L",
+        "lcsc_part_number": "C25804",
+        "stock_number": 12500,
+        "product_price_list": [
+          {"ladder": 1, "discount_price": "0.0120"},
+          {"ladder": 100, "discount_price": "0.0090"}
+        ]
+      },
+      {
+        "product_model": "RC0603FR-0710KL",
+        "lcsc_part_number": "C25805",
+        "stock_number": 8000,
+        "product_price_list": [{"ladder": 1, "discount_price": "0.0100"}]
+      }
+    ]
+  }
+}
