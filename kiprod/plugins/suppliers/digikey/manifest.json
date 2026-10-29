@@ -9,17 +9,58 @@
   "aliases": [
     "DIGIKEY"
   ],
-  "integration_status": "profile_only",
+  "integration_status": "adapter_configured",
+  "adapter": {
+    "module": "adapter",
+    "class": "DigiKeyAdapter",
+    "min_core": "0.1"
+  },
   "capabilities": {
     "components": {
-      "quote_channel": "manual_quote_import",
-      "catalog_api_status": "not_configured"
+      "quote_channel": "digikey_product_information_v4",
+      "catalog_api_status": "requires_user_oauth_application"
     }
   },
   "permissions": {
-    "network": [],
+    "network": [
+      "api.digikey.com"
+    ],
     "email": false,
     "browser": false
   },
-  "fields": []
+  "credentials": [
+    {
+      "key": "client_id",
+      "label": "DigiKey OAuth client ID",
+      "secret": true
+    },
+    {
+      "key": "client_secret",
+      "label": "DigiKey OAuth client secret",
+      "secret": true
+    }
+  ],
+  "fields": [
+    {
+      "key": "site",
+      "label": "DigiKey site",
+      "type": "enum",
+      "default": "US",
+      "options": ["US", "CA", "JP", "UK", "DE", "AT", "BE", "DK", "FI", "GR", "IE", "IT", "LU", "NL", "NO", "PT", "ES", "KR", "HK", "SG", "CN", "TW", "AU", "FR", "IN", "NZ", "SE", "MX", "CH", "IL", "PL", "SK", "SI", "LV", "LT", "EE", "CZ", "HU", "BG", "MY", "ZA", "RO", "TH", "PH", "BR", "VN"]
+    },
+    {
+      "key": "language",
+      "label": "Search language",
+      "type": "enum",
+      "default": "en",
+      "options": ["en", "ja", "de", "fr", "ko", "zhs", "zht", "it", "es", "he", "nl", "sv", "pl", "fi", "da", "no"]
+    },
+    {
+      "key": "currency",
+      "label": "Display currency",
+      "type": "enum",
+      "default": "USD",
+      "options": ["USD", "CAD", "JPY", "GBP", "EUR", "HKD", "SGD", "TWD", "KRW", "AUD", "NZD", "INR", "DKK", "NOK", "SEK", "ILS", "CNY", "PLN", "CHF", "CZK", "HUF", "RON", "ZAR", "MYR", "THB", "PHP"]
+    }
+  ]
 }

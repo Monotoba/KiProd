@@ -30,6 +30,14 @@ Mouser documents product pricing, availability, a maximum of 50 results per
 request, and rate limits on its [Search API page](https://www.mouser.com/en/api-search/).
 The adapter calls only the Search API; it does not create carts or orders.
 
+The DigiKey profile includes a read-only Product Information V4 adapter. It
+uses a user-registered OAuth 2-legged application, and site, language, and
+currency are configurable in supplier settings. KeywordSearch returns
+StandardPricing; DigiKey states that this endpoint does not return MyPricing and
+that keyword pricing may be cached up to 24 hours ([KeywordSearch docs](https://developer.digikey.com/products/product-information-v4/productsearch/keywordsearch),
+[pricing FAQ](https://developer.digikey.com/faq/products-plans-and-apis)). The
+adapter does not place orders or access carts.
+
 The other component profiles use manual quote import. Unikeyic advertises API
 access by application on its official [company page](https://www.unikeyic.com/aboutus),
 but this does not configure or authorize an API connection in KiProd.
@@ -55,7 +63,7 @@ Imagineering, Inc.
 
 ## Integration boundary
 
-Only Mouser currently has a supplier-specific live adapter. The generic
+Mouser and DigiKey currently have supplier-specific live adapters. The generic
 read-only JSON catalog protocol can support other suppliers that provide an
 approved API with a documented response mapping. Supplier-specific API
 integrations must confirm current API terms, endpoints, authentication, and

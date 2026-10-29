@@ -106,8 +106,8 @@ available plugins, `kiprod plugins test PLUGIN_ID` for an isolated health check,
 and `kiprod quote MPN --plugin PLUGIN_ID` to query a catalog plugin.
 The bundled supplier directory includes entries for all named component
 distributors, PCB fabricators, and EMS providers. Most are profile-only and do
-not provide live price or inventory data. Mouser has a read-only Search API
-adapter that requires a user-provided API key in the OS keyring. Install the
+not provide live price or inventory data. Mouser and DigiKey have read-only
+catalog adapters that require user-provided credentials in the OS keyring. Install the
 optional dependency with `./scripts/setup-suppliers.sh`. See
 [`docs/SUPPLIER_PLUGIN_CATALOG.md`](docs/SUPPLIER_PLUGIN_CATALOG.md).
 

@@ -1,0 +1,35 @@
+{
+  "Products": [],
+  "ProductsCount": 1,
+  "ExactMatches": [
+    {
+      "ManufacturerProductNumber": "RC0603FR-074K7L",
+      "ProductUrl": "https://www.digikey.com/product-detail/en/yageo/RC0603FR-074K7L/13-RC0603FR-074K7LCT-ND/123456",
+      "ProductVariations": [
+        {
+          "DigiKeyProductNumber": "13-RC0603FR-074K7LCT-ND",
+          "StandardPricing": [
+            {"BreakQuantity": 1, "UnitPrice": 0.012, "TotalPrice": 0.012},
+            {"BreakQuantity": 100, "UnitPrice": 0.006, "TotalPrice": 0.6}
+          ],
+          "QuantityAvailableforPackageType": 25000,
+          "MinimumOrderQuantity": 1,
+          "StandardPackage": 1
+        }
+      ]
+    },
+    {
+      "ManufacturerProductNumber": "OTHER-MPN",
+      "ProductVariations": [
+        {
+          "DigiKeyProductNumber": "OTHER-ND",
+          "StandardPricing": [
+            {"BreakQuantity": 1, "UnitPrice": 1.0, "TotalPrice": 1.0}
+          ],
+          "QuantityAvailableforPackageType": 10
+        }
+      ]
+    }
+  ],
+  "SearchLocaleUsed": {"Site": "US", "Language": "en", "Currency": "USD"}
+}
