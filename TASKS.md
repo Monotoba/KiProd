@@ -133,13 +133,15 @@
 ## Later milestones
 
 - [ ] M9: KiCad launchers (IPC action and legacy SWIG fallback).
+- [x] M9 implementation: IPC actions, SWIG fallback, installer, and BOM Generator hook.
+- [ ] M9 acceptance: verify launch and output parity in KiCad 9/10 IPC and KiCad 8/10 SWIG.
 - [ ] M10: hardening and release checks.
 
 ## Recommended completion order
 
 1. Collect independently reviewed real-world supplier samples to close M6's remaining validation item.
-2. Finish M8's standalone GUI against stored data and existing offline pipeline stages.
-3. Add M9 KiCad launchers, then finish M10 hardening and release checks.
+2. Finish M8's standalone GUI against stored data and perform interactive acceptance checks.
+3. Complete M9's KiCad launcher acceptance checks, then finish M10 release hardening.
 
 M3–M5 are complete, and M4 provides durable analysis outputs. M6's real-world
 validation needs representative sample files, so code-side work can continue while

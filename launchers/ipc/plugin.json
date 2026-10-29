@@ -1,0 +1,37 @@
+{
+  "$schema": "https://go.kicad.org/api/schemas/v1",
+  "identifier": "kiprod",
+  "name": "KiProd",
+  "description": "Open the KiProd production workspace from KiCad.",
+  "runtime": {
+    "type": "python",
+    "min_version": "3.11"
+  },
+  "actions": [
+    {
+      "identifier": "run-all",
+      "name": "Run KiProd production workflow",
+      "description": "Open KiProd and run the offline production workflow for this project.",
+      "show-button": true,
+      "scopes": ["pcb"],
+      "entrypoint": "launch.py",
+      "args": ["all"]
+    },
+    {
+      "identifier": "quote-only",
+      "name": "Refresh KiProd quote data",
+      "description": "Open KiProd and refresh local captured quotes for this project.",
+      "scopes": ["pcb"],
+      "entrypoint": "launch.py",
+      "args": ["quote-only"]
+    },
+    {
+      "identifier": "open",
+      "name": "Open KiProd",
+      "description": "Open the KiProd desktop workspace for this project.",
+      "scopes": ["pcb"],
+      "entrypoint": "launch.py",
+      "args": ["open"]
+    }
+  ]
+}

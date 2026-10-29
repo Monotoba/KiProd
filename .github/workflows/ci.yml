@@ -35,7 +35,7 @@ jobs:
         run: python -m pytest
 
       - name: Check formatting and lint
-        run: ruff check kiprod tests
+        run: ruff check kiprod tests launchers scripts
 
       - name: Check types
         run: mypy

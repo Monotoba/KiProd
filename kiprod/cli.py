@@ -75,12 +75,19 @@ def gui(
         dir_okay=True,
         help="Open a KiCad project directory or .kicad_pro file.",
     ),
+    mode: str = typer.Option(
+        "all",
+        "--mode",
+        help="Open the workspace, run offline stages, or refresh local quotes.",
+    ),
 ) -> None:
     """Open the standalone KiProd desktop workspace (requires the GUI extra)."""
     from kiprod.gui import run_gui
 
+    if mode not in {"open", "all", "quote-only"}:
+        raise typer.BadParameter("mode must be open, all, or quote-only", param_hint="--mode")
     try:
-        raise typer.Exit(code=run_gui(project))
+        raise typer.Exit(code=run_gui(project, mode))
     except RuntimeError as exc:
         raise typer.BadParameter(str(exc)) from exc
 

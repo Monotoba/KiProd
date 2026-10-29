@@ -1,0 +1,73 @@
+# KiCad launchers
+
+KiProd provides PCB Editor launchers for KiCad 8–11. Each launcher passes project
+paths and a requested GUI mode to the standalone KiProd process. KiProd then reads
+the project from disk through the same pipeline used by its CLI.
+
+## Install
+
+Set up the development environment and optional GUI dependency, then run the
+installer from that environment:
+
+```bash
+./scripts/setup.sh
+./scripts/setup-gui.sh
+./.venv/bin/python scripts/install_kicad_launchers.py --kicad-version 10.0
+```
+
+On Windows, run the installer with the interpreter in `.venv\Scripts\python.exe`.
+The installer stores the selected interpreter and project source path in the
+user-level `kiprod/launcher.json` configuration file. It copies launcher files
+into that KiCad version's user directories and prints the exact command to add to
+the Schematic Editor's BOM Generator. Pass `--documents-home PATH` for a custom
+KiCad documents directory. `KICAD_DOCUMENTS_HOME` is used when present.
+
+Restart KiCad after installing. In KiCad 9 and newer, enable the IPC API in
+**Preferences → Plugins**. KiCad's Python plugin environment installs the pinned
+`kicad-python` dependency from the IPC launcher's `requirements.txt` on first use;
+this can delay the actions appearing in the PCB Editor. The installer also adds
+the legacy SWIG action for KiCad 8–10. KiCad 11 removed that legacy API and uses
+the IPC launcher.
+
+## PCB Editor actions
+
+The IPC plugin registers three actions: **Run KiProd production workflow**,
+**Refresh KiProd quote data**, and **Open KiProd**. They read the open board's
+project directory from KiCad's IPC API, then start the configured KiProd Python
+environment in a separate process. The run and quote actions select the
+corresponding GUI mode; the open action starts the workspace without starting a
+run. The legacy SWIG fallback offers **Open KiProd** from **Tools → External
+Plugins** and only reads the current saved board path before launching the same
+standalone GUI.
+
+The launchers do not edit the board. Analysis and artifact generation remain in
+the standalone application. The launchers remove credential-like environment
+variables before starting KiProd, while preserving KiCad's IPC socket/token and
+desktop variables. The current GUI run modes do not make AI requests or send
+supplier email.
+
+## Schematic Editor BOM Generator
+
+Add the command printed by the installer in **Tools → Generate BOM**. KiCad
+substitutes `%I` with the generated netlist XML path and `%O` with the output path
+base. The hook derives the project directory from `%I`, runs
+`kiprod run --project PROJECT --non-interactive`, and copies the normalized
+`docs/production/bom/bom.csv` to KiCad's requested output CSV path. It reports a
+failure instead of exporting a partial BOM when the normal KiProd run cannot
+complete. The netlist is used to find the project directory; the pipeline reads
+saved schematic and project files, so unsaved editor changes are not included.
+
+## Limits
+
+- KiCad 9 and 10 IPC plugins require the PCB Editor and an open, saved board.
+- KiCad 8 can use the SWIG fallback; KiCad 11 uses IPC and does not load the SWIG
+  plugin.
+- KiCad 9/10 IPC provides project context only; BOM export and other processing
+  still use KiProd's offline code and `kicad-cli` where required.
+- The IPC actions and BOM Generator use the Python interpreter configured by the
+  installer. Re-run the installer after moving the KiProd checkout or virtual
+  environment.
+
+KiCad's [IPC add-on documentation](https://dev-docs.kicad.org/en/apis-and-binding/ipc-api/for-addon-developers/)
+and [PCB Python binding documentation](https://dev-docs.kicad.org/en/apis-and-binding/pcbnew/)
+describe the primary API and the deprecated fallback.

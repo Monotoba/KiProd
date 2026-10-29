@@ -7,7 +7,7 @@
 KiProd creates a traceable production package from a KiCad project: a normalized
 BOM, production review findings, supplier quotes, and comparison reports.
 
-Milestones **M1–M5** and **M7** are complete; **M6** and **M8** are in progress.
+Milestones **M1–M5** and **M7** are complete; **M6**, **M8**, and **M9** are in progress.
 The CLI supports offline BOM/configuration work, board and assembly analysis, local
 RFQ packaging, approval-gated SMTP delivery, and Graph/Gmail inbox polling. The
 generic catalog protocol, typed AI review contracts, an OpenAI-compatible model
@@ -17,8 +17,9 @@ slice covers project discovery, BOM generation, deterministic review, board and
 assembly metrics, supplier manifest discovery, and local quote review.
 It also edits saved MPN overrides, compares landed-cost records, regenerates
 hash-verified reports, and edits project board quantities.
-Supplier-specific live adapters and KiCad launchers have not shipped. Live email,
-mailbox, and model operations require user-provided credentials and configuration.
+Supplier-specific live adapters have not shipped. The KiCad launchers are implemented
+and awaiting interactive acceptance on supported KiCad versions. Live email, mailbox,
+and model operations require user-provided credentials and configuration.
 
 ## License
 
@@ -127,3 +128,8 @@ choose a project after startup).
 See [`docs/GUI.md`](docs/GUI.md) for the current views and workflow limits.
 High-DPI implementation guidance and the desktop acceptance checklist are in
 [`docs/HIGH_DPI_SUPPORT.md`](docs/HIGH_DPI_SUPPORT.md).
+
+PCB Editor IPC and legacy SWIG launchers, plus the Schematic Editor BOM Generator
+hook, can be installed with `./.venv/bin/python scripts/install_kicad_launchers.py`.
+See [`docs/KICAD_LAUNCHERS.md`](docs/KICAD_LAUNCHERS.md) for version support and
+setup details.

@@ -407,7 +407,7 @@ def _load_project(
     return project, bom, report, board_spec, assembly_spec, json_path, csv_path
 
 
-def run_gui(project_path: Path | None = None) -> int:
+def run_gui(project_path: Path | None = None, startup_mode: str = "all") -> int:
     (
         QApplication,
         QObject,
@@ -482,7 +482,7 @@ def run_gui(project_path: Path | None = None) -> int:
                 self.finished.emit()
 
     class MainWindow(QMainWindow):  # type: ignore[valid-type,misc]
-        def __init__(self, initial_path: Path | None) -> None:
+        def __init__(self, initial_path: Path | None, initial_mode: str) -> None:
             super().__init__()
             self.setWindowTitle("KiProd — KiCad production workspace")
             self.current_project: Project | None = None
@@ -510,6 +510,8 @@ def run_gui(project_path: Path | None = None) -> int:
             self.run_mode_combo = QComboBox()
             self.run_mode_combo.addItem("Run all", "all")
             self.run_mode_combo.addItem("Quote-only", "quote-only")
+            if initial_mode == "quote-only":
+                self.run_mode_combo.setCurrentIndex(1)
             self.run_mode_combo.setSizeAdjustPolicy(
                 QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon
             )
@@ -879,7 +881,7 @@ def run_gui(project_path: Path | None = None) -> int:
             self.run_button.clicked.connect(self.start_run)
             self.open_folder_button.clicked.connect(self.open_output_folder)
             self.statusBar().showMessage("Choose a KiCad project to get started.")
-            if initial_path is not None:
+            if initial_path is not None and initial_mode != "open":
                 self.start_run()
 
         def browse_project(self) -> None:
@@ -2244,6 +2246,6 @@ def run_gui(project_path: Path | None = None) -> int:
                 QDesktopServices.openUrl(QUrl.fromLocalFile(str(output_dir)))
 
     application = QApplication.instance() or QApplication(sys.argv)
-    window = MainWindow(project_path)
+    window = MainWindow(project_path, startup_mode)
     window.show()
     return int(application.exec())
