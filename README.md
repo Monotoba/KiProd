@@ -107,3 +107,5 @@ Install the optional desktop dependency with `./scripts/setup-gui.sh`, then laun
 the workspace with `./scripts/run.sh gui --project PATH` (or omit `--project` to
 choose a project after startup).
 See [`docs/GUI.md`](docs/GUI.md) for the current views and workflow limits.
+High-DPI implementation guidance and the desktop acceptance checklist are in
+[`docs/HIGH_DPI_SUPPORT.md`](docs/HIGH_DPI_SUPPORT.md).
