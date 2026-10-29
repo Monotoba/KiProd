@@ -65,6 +65,26 @@ ai_app = typer.Typer(help="Evaluate and run typed AI review tasks.", no_args_is_
 app.add_typer(ai_app, name="ai")
 
 
+@app.command("gui")
+def gui(
+    project: Path | None = typer.Option(
+        None,
+        "--project",
+        exists=True,
+        file_okay=True,
+        dir_okay=True,
+        help="Open a KiCad project directory or .kicad_pro file.",
+    ),
+) -> None:
+    """Open the standalone KiProd desktop workspace (requires the GUI extra)."""
+    from kiprod.gui import run_gui
+
+    try:
+        raise typer.Exit(code=run_gui(project))
+    except RuntimeError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+
 class _BudgetedRoleProvider:
     def __init__(self, provider: LLMProvider, manager: AIRequestManager) -> None:
         self.provider = provider
@@ -183,9 +203,7 @@ def ai_evaluate(
     max_run_tokens: int = typer.Option(20000, "--max-run-tokens", min=1),
     max_run_cost: float | None = typer.Option(None, "--max-run-cost", min=0.0),
     prompt_cost_per_million: float | None = typer.Option(None, "--prompt-cost-per-million"),
-    completion_cost_per_million: float | None = typer.Option(
-        None, "--completion-cost-per-million"
-    ),
+    completion_cost_per_million: float | None = typer.Option(None, "--completion-cost-per-million"),
     output: Path | None = typer.Option(None, "--output", "-o"),
 ) -> None:
     """Make live provider requests and evaluate one model against labeled BOM fixtures."""

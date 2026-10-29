@@ -3,13 +3,14 @@
 KiProd creates a traceable production package from a KiCad project: a normalized
 BOM, production review findings, supplier quotes, and comparison reports.
 
-Milestones **M1–M5** are complete; **M6** and **M7** are in progress.
+Milestones **M1–M5** and **M7** are complete; **M6** and **M8** are in progress.
 The CLI supports offline BOM/configuration work, board and assembly analysis, local
 RFQ packaging, approval-gated SMTP delivery, and Graph/Gmail inbox polling. The
 generic catalog protocol, typed AI review contracts, an OpenAI-compatible model
 adapter, native OpenAI and Anthropic adapters, and role-based request budgets are
-available; versioned project prompt overrides are supported. Supplier-specific live
-adapters and the GUI have not shipped. Live email, mailbox, and model operations
+available; versioned project prompt overrides are supported. The first desktop GUI
+slice covers project discovery, BOM generation, deterministic review, and report
+opening. Supplier-specific live adapters and KiCad launchers have not shipped. Live email, mailbox, and model operations
 require user-provided credentials and configuration.
 
 ## Quick start
@@ -98,3 +99,7 @@ fictional data and include commands for exercising the CLI.
 
 AI provider setup, prompt overrides, budgets, and model evaluation are described in
 [`docs/AI_PROVIDERS.md`](docs/AI_PROVIDERS.md).
+
+Install the optional desktop dependency with `./scripts/setup-gui.sh`, then launch
+the workspace with `./scripts/run.sh gui --project PATH` (or omit `--project` to
+choose a project after startup).

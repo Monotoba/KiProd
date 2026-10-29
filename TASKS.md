@@ -90,14 +90,28 @@
 - [x] Add versioned Markdown prompt files with validated front matter and ordered override directories.
 - [x] Add labeled BOM review evaluation with typed-schema success rate, exact finding precision/recall/F1, citation grounding, and CLI support for configured providers.
 
+## M8 — Standalone desktop GUI (in progress)
+
+- [x] Add an optional PySide6 desktop entry point and GUI setup script.
+- [x] Add project selection and a run bar with project/variant context and background BOM generation.
+- [x] Show normalized BOM and deterministic review findings from generated artifacts.
+- [x] List, open, and regenerate supported BOM/review artifacts from the GUI.
+- [ ] Add components/supplier view backed by plugin manifests and stored offers.
+- [x] Add board and assembly metric views backed by existing analysis engines.
+- [ ] Add quotes inbox, comparison, and full reports views backed by stored run data.
+- [ ] Add editable project settings views.
+- [ ] Add status/log drawer with progress, warnings, and output-folder shortcuts.
+- [ ] Add automated GUI smoke coverage and document platform setup/launch.
+
 ## Later milestones
 
-- [ ] M8–M10: GUI, KiCad launchers, and hardening.
+- [ ] M9: KiCad launchers (IPC action and legacy SWIG fallback).
+- [ ] M10: hardening and release checks.
 
 ## Recommended completion order
 
 1. Collect independently reviewed real-world supplier samples to close M6's remaining validation item.
-2. Build the M8 GUI on the completed analysis and AI review layers.
+2. Finish M8's standalone GUI against stored data and existing offline pipeline stages.
 3. Add M9 KiCad launchers, then finish M10 hardening and release checks.
 
 M3–M5 are complete, and M4 provides durable analysis outputs. M6's real-world
