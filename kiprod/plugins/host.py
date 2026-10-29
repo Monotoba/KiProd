@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -55,48 +56,71 @@ class LoadedPlugin:
                 cwd=self.path,
                 env={"PATH": "", "PYTHONPATH": str(Path(__file__).resolve().parents[2])},
             )
-            assert process.stdin is not None and process.stdout is not None
-            process.stdin.write(json.dumps(request) + "\n")
-            process.stdin.flush()
-            while True:
-                line = process.stdout.readline()
-                if not line:
-                    stderr = process.stderr.read() if process.stderr else ""
-                    raise PluginError(stderr.strip() or "plugin worker exited without a result")
-                payload = json.loads(line)
-                if payload.get("type") == "http":
-                    broker = http or self.http_client()
-                    try:
-                        response = broker.request(
-                            payload["method"],
-                            payload["url"],
-                            headers=payload.get("headers"),
-                            body=payload["body"].encode("latin1") if payload.get("body") else None,
-                        )
-                        response_data = {
+            timed_out = threading.Event()
+
+            def stop_worker() -> None:
+                timed_out.set()
+                process.kill()
+
+            timer = threading.Timer(timeout, stop_worker)
+            timer.start()
+            try:
+                return self._broker_worker(process, request, method, http, timed_out)
+            finally:
+                timer.cancel()
+                if process.poll() is None:
+                    process.kill()
+                    process.wait()
+        except OSError as exc:
+            raise PluginError(f"failed to start plugin worker: {exc}") from exc
+
+    def _broker_worker(
+        self,
+        process: subprocess.Popen[str],
+        request: dict[str, Any],
+        method: str,
+        http: HttpClient | None,
+        timed_out: threading.Event,
+    ) -> Any:
+        assert process.stdin is not None and process.stdout is not None
+        process.stdin.write(json.dumps(request) + "\n")
+        process.stdin.flush()
+        while True:
+            line = process.stdout.readline()
+            if not line:
+                if timed_out.is_set():
+                    raise PluginError(f"plugin {self.manifest.id} timed out calling {method}")
+                stderr = process.stderr.read() if process.stderr else ""
+                raise PluginError(stderr.strip() or "plugin worker exited without a result")
+            payload = json.loads(line)
+            if payload.get("type") == "http":
+                broker = http or self.http_client()
+                try:
+                    response = broker.request(
+                        payload["method"],
+                        payload["url"],
+                        headers=payload.get("headers"),
+                        body=payload["body"].encode("latin1") if payload.get("body") else None,
+                    )
+                    reply = {
+                        "ok": True,
+                        "response": {
                             "status": response.status,
                             "headers": response.headers,
                             "body": response.body.decode("latin1"),
-                        }
-                        reply = {"ok": True, "response": response_data}
-                    except (HttpError, KeyError, ValueError) as exc:
-                        reply = {"ok": False, "error": str(exc)}
-                    process.stdin.write(json.dumps(reply) + "\n")
-                    process.stdin.flush()
-                    continue
-                process.stdin.close()
-                try:
-                    process.wait(timeout=timeout)
-                except subprocess.TimeoutExpired as exc:
-                    process.kill()
-                    raise PluginError(
-                        f"plugin {self.manifest.id} timed out calling {method}"
-                    ) from exc
-                if process.returncode != 0 or not payload.get("ok"):
-                    raise PluginError(payload.get("error", "plugin call failed"))
-                return payload.get("result")
-        except OSError as exc:
-            raise PluginError(f"failed to start plugin worker: {exc}") from exc
+                        },
+                    }
+                except (HttpError, KeyError, ValueError) as exc:
+                    reply = {"ok": False, "error": str(exc)}
+                assert process.stdin is not None
+                process.stdin.write(json.dumps(reply) + "\n")
+                process.stdin.flush()
+                continue
+            process.stdin.close()
+            process.wait()
+            if process.returncode != 0 or not payload.get("ok"):
+                raise PluginError(payload.get("error", "plugin call failed"))
+            return payload.get("result")
 
 
 def load_manifest(plugin_dir: Path) -> Manifest:
