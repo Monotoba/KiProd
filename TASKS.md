@@ -54,7 +54,7 @@
 - [x] Identify components explicitly marked `Programming` or `Requires Programming` and check supplier support.
 - [x] Extract an explicit boards-per-panel value from supplied fabrication-note text files, retaining its source and rejecting conflicts.
 - [x] Discover likely fabrication/panel notes by filename and parse text or PDF documentation; project board-file count and requested production quantities are already reported separately.
-- [ ] Support additional fab-note naming conventions and scanned PDFs that require OCR.
+- [x] Support common fabrication, panel, assembly, manufacturing, and Gerber note filenames, with local OCR fallback for scanned PDFs.
 
 ## Later milestones
 

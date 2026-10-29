@@ -4,6 +4,7 @@ import re
 import shutil
 import subprocess
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 _PANEL_PATTERNS = (
     re.compile(r"\bboards\s+per\s+panel\s*[:=]\s*(\d+)\b", re.IGNORECASE),
@@ -11,7 +12,7 @@ _PANEL_PATTERNS = (
 )
 
 _NOTE_EXTENSIONS = {".md", ".rst", ".txt", ".pdf"}
-_NOTE_NAME = re.compile(r"(?:fab|fabrication|panel)", re.IGNORECASE)
+_NOTE_NAME = re.compile(r"(?:fab|fabrication|panel|assembly|manufacturing|gerber)", re.IGNORECASE)
 
 
 def discover_fabrication_notes(root: Path) -> list[Path]:
@@ -42,7 +43,46 @@ def _read_note(path: Path) -> str:
         )
     except (OSError, subprocess.SubprocessError) as exc:
         raise ValueError(f"could not extract text from fabrication PDF {path}: {exc}") from exc
-    return result.stdout
+    if result.stdout.strip():
+        return result.stdout
+    return _ocr_pdf(path)
+
+
+def _ocr_pdf(path: Path) -> str:
+    renderer = shutil.which("pdftoppm")
+    ocr = shutil.which("tesseract")
+    if renderer is None or ocr is None:
+        missing = ", ".join(
+            tool
+            for tool, executable in (("pdftoppm", renderer), ("tesseract", ocr))
+            if executable is None
+        )
+        raise RuntimeError(f"scanned fabrication PDF requires local OCR tools: {missing}")
+    try:
+        with TemporaryDirectory(prefix="kiprod-fab-ocr-") as temporary:
+            prefix = Path(temporary) / "page"
+            subprocess.run(
+                [renderer, "-f", "1", "-l", "10", "-png", "-r", "200", str(path), str(prefix)],
+                capture_output=True,
+                check=True,
+                timeout=60,
+            )
+            pages = sorted(Path(temporary).glob("page-*.png"))
+            if not pages:
+                return ""
+            text = []
+            for page in pages:
+                result = subprocess.run(
+                    [ocr, str(page), "stdout"],
+                    capture_output=True,
+                    check=True,
+                    text=True,
+                    timeout=60,
+                )
+                text.append(result.stdout)
+            return "\n".join(text)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise ValueError(f"could not OCR scanned fabrication PDF {path}: {exc}") from exc
 
 
 def extract_boards_per_panel(paths: list[Path]) -> tuple[int | None, str | None]:

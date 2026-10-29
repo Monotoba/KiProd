@@ -30,8 +30,9 @@ export, so variant DNP and field overrides are applied before normalization.
 documented boards-per-panel count in the board metrics. It discovers likely
 fabrication and panelization notes by filename; `--fab-notes` adds files explicitly.
 Text and PDF notes are supported, with PDF text extraction requiring `pdftotext`.
-Conflicting counts fail rather than silently choosing one. Without a supplied or
-discovered note, the value remains unknown.
+Scanned PDFs fall back to local OCR with `pdftoppm` and `tesseract`. Conflicting
+counts fail rather than silently choosing one. Without a supplied or discovered
+note, the value remains unknown.
 
 Project and supplier plugins live under
 `docs/production/quotes/config/suppliers/`. Use `kiprod plugins list` to inspect
