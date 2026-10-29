@@ -38,6 +38,8 @@ Create a local signed RFQ archive from explicitly selected files with
 `kiprod rfq package bom.csv cpl.csv --output package.zip --signing-key KEY_ID`,
 then verify it with `kiprod rfq verify package.zip`. This requires local `clamscan`
 and `gpg` executables and never sends the package.
+Package staging also blocks text files containing the current user's home path or
+username and files with explicit hidden-layer markers.
 Record a human approval for that exact archive with `kiprod rfq approve package.zip`;
 the CLI shows its SHA-256 before confirmation and stores the approval in the local
 `.kiprod/state.sqlite` audit database. `kiprod rfq approval-status package.zip` reports

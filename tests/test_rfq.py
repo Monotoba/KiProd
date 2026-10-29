@@ -8,6 +8,7 @@ import pytest
 
 import kiprod.rfq.package as rfq_package
 from kiprod.rfq.approval import approve_package, has_current_approval, package_sha256
+from kiprod.rfq.privacy import scan_privacy
 
 
 def _mock_tools(monkeypatch: pytest.MonkeyPatch, *, scan_status: int = 0) -> None:
@@ -74,6 +75,43 @@ def test_scanner_failure_blocks_package_creation(
     with pytest.raises(RuntimeError, match="malware detected"):
         rfq_package.build_package({"bom.csv": source}, tmp_path / "package.zip", "test-key")
     assert not (tmp_path / "package.zip").exists()
+
+
+def test_privacy_scan_detects_local_paths_usernames_and_hidden_layers(tmp_path: Path) -> None:
+    content = tmp_path / "board.kicad_pcb"
+    content.write_text(
+        '(comment "/home/alice/design.kicad_pcb")\n(layer "User.Drawings" user hide)',
+        encoding="utf-8",
+    )
+
+    findings = scan_privacy(
+        tmp_path,
+        sensitive_roots=[Path("/home/alice")],
+        usernames=["alice"],
+    )
+
+    assert findings == [
+        "board.kicad_pcb: embedded local filesystem path",
+        "board.kicad_pcb: embedded local username",
+        "board.kicad_pcb: hidden layer declaration",
+    ]
+
+
+def test_privacy_scan_blocks_package_before_malware_scan_or_signing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _mock_tools(monkeypatch)
+    source = tmp_path / "board.kicad_pcb"
+    source.write_text("PCB data", encoding="utf-8")
+    monkeypatch.setattr(rfq_package, "scan_privacy", lambda _: ["unsafe content"])
+    monkeypatch.setattr(
+        rfq_package,
+        "_run",
+        lambda *_args, **_kwargs: pytest.fail("external scanner/signing must not run"),
+    )
+
+    with pytest.raises(RuntimeError, match="privacy scan blocked"):
+        rfq_package.build_package({"board.kicad_pcb": source}, tmp_path / "package.zip", "test-key")
 
 
 def test_approval_is_bound_to_exact_package_bytes(tmp_path: Path) -> None:

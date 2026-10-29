@@ -60,7 +60,8 @@
 
 - [x] Package only explicitly selected files, generate a SHA-256 manifest, block scanner failures, sign with GPG, and verify archive contents/signature.
 - [x] Add interactive approval records bound to exact package hashes and invalidate approval status when package bytes change.
-- [ ] Add package path and content privacy scanning for embedded paths, usernames, and hidden layers.
+- [x] Block package creation when staged text contains local home paths, the current username, or an explicit hidden-layer marker.
+- [ ] Expand privacy scanning to structured Office/PDF metadata and format-specific hidden-layer states.
 - [ ] Add email composition and a stateful dispatch workflow that cannot send without approval.
 - [ ] Match captured inbox messages by RFQ number and import structured quote attachments.
 - [ ] Add fixture-based PDF/XLSX/CSV response extraction and confidence review queue.

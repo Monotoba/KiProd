@@ -9,6 +9,8 @@ from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
 from tempfile import TemporaryDirectory
 
+from kiprod.rfq.privacy import scan_privacy
+
 _MANIFEST = "MANIFEST.sha256"
 _SIGNATURE = f"{_MANIFEST}.sig"
 _HASH_LINE = re.compile(r"^([0-9a-f]{64}) ([0-9]+)  (.+)$")
@@ -88,6 +90,10 @@ def build_package(
         )
         manifest_path = stage / _MANIFEST
         manifest_path.write_text(manifest, encoding="utf-8", newline="\n")
+
+        privacy_findings = scan_privacy(stage)
+        if privacy_findings:
+            raise RuntimeError("RFQ privacy scan blocked package: " + "; ".join(privacy_findings))
 
         scan = _run([scanner_path, "--no-summary", "-r", str(stage)])
         if scan.returncode != 0:
