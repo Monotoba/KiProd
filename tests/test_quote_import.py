@@ -13,6 +13,7 @@ _HEADER = (
     "Manufacturer Part Number,Supplier Part Number,Qty Break,Unit Price,"
     "Currency,Stock,Lead Time Days\n"
 )
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def test_csv_quote_import_groups_price_breaks_and_preserves_row_sources(tmp_path: Path) -> None:
@@ -128,6 +129,16 @@ def test_xlsx_without_optional_dependency_has_actionable_error(tmp_path: Path) -
             parse_quote_attachment(workbook, "supplier-a")
     finally:
         monkeypatch.undo()
+
+
+def test_real_xlsx_fixture_finds_header_after_metadata_rows() -> None:
+    pytest.importorskip("openpyxl")
+
+    result = parse_quote_attachment(FIXTURES / "rfq_quote_supplier_d.xlsx", "supplier-a")
+
+    assert len(result.offers) == 1
+    assert result.offers[0].offer.manufacturer_part_number == "MPN-XLSX-1"
+    assert result.offers[0].offer.source_ref.reference == "rows:5"
 
 
 def test_labeled_pdf_quote_is_parsed_but_always_requires_review(
