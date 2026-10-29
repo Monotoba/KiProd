@@ -1,0 +1,12 @@
+{
+  "query": "RC0603FR-074K7L",
+  "offers": [
+    {
+      "supplier_part_number": "C14663",
+      "manufacturer_part_number": "RC0603FR-074K7L",
+      "currency": "USD",
+      "stock": 12000,
+      "price_breaks": [{"quantity": 1, "unit_price": "0.01"}]
+    }
+  ]
+}

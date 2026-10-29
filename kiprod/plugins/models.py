@@ -43,6 +43,36 @@ class Manifest(BaseModel):
     capabilities: dict[str, object] = Field(default_factory=dict)
     fields: list[dict[str, object]] = Field(default_factory=list)
 
+    @field_validator("fields")
+    @classmethod
+    def valid_fields(cls, fields: list[dict[str, object]]) -> list[dict[str, object]]:
+        keys: set[str] = set()
+        supported = {
+            "string",
+            "text",
+            "int",
+            "float",
+            "bool",
+            "enum",
+            "multi_enum",
+            "date",
+            "file",
+            "secret",
+            "table",
+            "group",
+        }
+        for item in fields:
+            key = item.get("key")
+            field_type = item.get("type", "string")
+            if not isinstance(key, str) or not key.strip():
+                raise ValueError("each plugin field requires a non-empty key")
+            if key in keys:
+                raise ValueError(f"duplicate plugin field key: {key}")
+            if field_type not in supported:
+                raise ValueError(f"unsupported plugin field type for {key}: {field_type}")
+            keys.add(key)
+        return fields
+
     @field_validator("id")
     @classmethod
     def valid_id(cls, value: str) -> str:
