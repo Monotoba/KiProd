@@ -61,6 +61,13 @@ temporary directory. It makes no network calls and leaves the tracked fixture
 files untouched. The script prints the project path, launch commands, and cleanup
 command.
 
+The Quote-only path was also started with Qt's offscreen platform on the prepared
+project. It completed with one imported quote file, one offer candidate, and no
+review items; selecting the file populated the candidate details with source CSV
+row references. This confirms local quote-data loading in the GUI code path but
+does not replace visual inspection of the inbox and source-evidence panes on a
+desktop.
+
 1. Install the GUI extra with `./scripts/setup-gui.sh`, then launch with
    `./scripts/run.sh gui --mode open`. Confirm the window opens and can be moved,
    resized, minimized, restored, and closed normally.
