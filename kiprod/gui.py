@@ -172,6 +172,7 @@ def _qt() -> tuple[Any, ...]:
             QTableWidget,
             QTableWidgetItem,
             QTabWidget,
+            QTextBrowser,
             QVBoxLayout,
             QWidget,
         )
@@ -201,6 +202,7 @@ def _qt() -> tuple[Any, ...]:
         QPushButton,
         QSplitter,
         QTabWidget,
+        QTextBrowser,
         QTableWidget,
         QTableWidgetItem,
         QVBoxLayout,
@@ -297,6 +299,7 @@ def run_gui(project_path: Path | None = None) -> int:
         QPushButton,
         QSplitter,
         QTabWidget,
+        QTextBrowser,
         QTableWidget,
         QTableWidgetItem,
         QVBoxLayout,
@@ -378,14 +381,27 @@ def run_gui(project_path: Path | None = None) -> int:
             self.save_plugin_credentials_button.clicked.connect(
                 self.save_selected_plugin_credentials
             )
-            supplier_details_layout = QVBoxLayout()
-            supplier_details_layout.addWidget(self.plugin_details, 1)
+            self.supplier_detail_tabs = QTabWidget()
+            self.supplier_detail_tabs.addTab(self.plugin_details, "Overview")
+            self.plugin_results_table = QTableWidget(0, 6)
+            self.plugin_results_table.setHorizontalHeaderLabels(
+                ["MPN", "Supplier PN", "Price breaks", "Currency", "Review", "Source"]
+            )
+            self.plugin_results_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+            self.supplier_detail_tabs.addTab(self.plugin_results_table, "Results")
+            self.plugin_docs = QTextBrowser()
+            self.plugin_docs.setOpenExternalLinks(False)
+            self.supplier_detail_tabs.addTab(self.plugin_docs, "Docs")
+            supplier_settings_page = QWidget()
+            supplier_details_layout = QVBoxLayout(supplier_settings_page)
             supplier_details_layout.addWidget(self.plugin_settings_widget)
             supplier_details_layout.addWidget(self.plugin_settings_status)
             supplier_details_layout.addWidget(self.save_plugin_settings_button)
             supplier_details_layout.addWidget(self.save_plugin_credentials_button)
+            self.supplier_detail_tabs.addTab(supplier_settings_page, "Settings")
             supplier_details = QWidget()
-            supplier_details.setLayout(supplier_details_layout)
+            supplier_container_layout = QVBoxLayout(supplier_details)
+            supplier_container_layout.addWidget(self.supplier_detail_tabs)
             self.quotes_tabs = QTabWidget()
             self.reply_table = QTableWidget(0, 2)
             self.reply_table.setHorizontalHeaderLabels(["Captured reply", "Path"])
@@ -703,9 +719,9 @@ def run_gui(project_path: Path | None = None) -> int:
                 self.assembly_table,
                 assembly_spec.model_dump() if assembly_spec else {},
             )
+            self.refresh_quote_files(project)
             self.refresh_plugins(project)
             self.refresh_supplier_checks(board_spec, assembly_spec)
-            self.refresh_quote_files(project)
             self.refresh_reports()
             self.open_folder_button.setEnabled(True)
             self.log.appendPlainText(
@@ -942,6 +958,8 @@ def run_gui(project_path: Path | None = None) -> int:
         def refresh_plugins(self, project: Project) -> None:
             self.plugins_table.setRowCount(0)
             self.plugin_details.clear()
+            self.plugin_results_table.setRowCount(0)
+            self.plugin_docs.setMarkdown("Select a supplier to view its local documentation.")
             self.plugins = []
             self.save_plugin_settings_button.setEnabled(False)
             self.save_plugin_credentials_button.setEnabled(False)
@@ -1052,7 +1070,46 @@ def run_gui(project_path: Path | None = None) -> int:
                 + "\n\nCapabilities:\n"
                 + capabilities
             )
+            self.refresh_plugin_results(manifest.id)
+            self.refresh_plugin_docs(plugins[row].path)
             self._build_plugin_settings_form(manifest)
+
+        def refresh_plugin_results(self, supplier_id: str) -> None:
+            results = [
+                (path, result)
+                for path, result in getattr(self, "offer_results", [])
+                if result.supplier_id == supplier_id
+            ]
+            rows = [(path, candidate) for path, result in results for candidate in result.offers]
+            self.plugin_results_table.setRowCount(len(rows))
+            for row, (path, candidate) in enumerate(rows):
+                offer = candidate.offer
+                values = [
+                    offer.manufacturer_part_number,
+                    offer.supplier_part_number or "",
+                    json.dumps([item.model_dump() for item in offer.price_breaks]),
+                    offer.currency,
+                    "Review required" if candidate.requires_review else "Imported",
+                    f"{path.name}: {offer.source_ref or ''}",
+                ]
+                for column, value in enumerate(values):
+                    self.plugin_results_table.setItem(row, column, QTableWidgetItem(value))
+            if not rows:
+                self.plugin_results_table.setRowCount(1)
+                self.plugin_results_table.setItem(
+                    0, 0, QTableWidgetItem("No imported offers for this supplier.")
+                )
+
+        def refresh_plugin_docs(self, plugin_path: Path) -> None:
+            readme = (plugin_path / "README.md").resolve()
+            try:
+                readme.relative_to(plugin_path.resolve())
+                content = readme.read_text(encoding="utf-8") if readme.is_file() else ""
+            except (OSError, ValueError):
+                content = ""
+            self.plugin_docs.setMarkdown(
+                content or "No local README.md is available for this supplier."
+            )
 
         def _build_plugin_settings_form(self, manifest: Manifest) -> None:
             while self.plugin_settings_layout.count():
@@ -1233,6 +1290,10 @@ def run_gui(project_path: Path | None = None) -> int:
                     candidate.requires_review for candidate in result.offers
                 )
                 self.offer_table.setItem(row, 3, QTableWidgetItem(str(needs_review)))
+            plugins = getattr(self, "plugins", [])
+            selected_row = getattr(self, "selected_plugin_row", -1)
+            if 0 <= selected_row < len(plugins):
+                self.refresh_plugin_results(plugins[selected_row].manifest.id)
 
         def open_reply(self, row: int, column: int) -> None:
             del column

@@ -20,7 +20,10 @@ precedence order. It builds basic settings forms from manifest fields and saves
 values under `quotes/config/plugin-settings/`, preserving unknown keys. Secret
 fields are entered into the system keyring and only their configured/missing status
 is shown. Credential values are never written to project files or logs. The GUI
-does not call supplier adapters. Quotes Inbox lists captured
+does not call supplier adapters. Each selected supplier has Overview, Results, Docs,
+and Settings tabs. Results lists matching offers already imported from local quote
+files; Docs renders the plugin-local `README.md` when present. Neither pane invokes
+the plugin or makes network requests. Quotes Inbox lists captured
 `.eml` replies and locally saved quote-import JSON. Selecting an offer file shows
 its parsed candidates and review queue. A candidate can be confirmed, corrected
 from typed offer JSON, or rejected; corrections must preserve its original source
