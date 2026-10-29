@@ -2,16 +2,17 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from kiprod.analysis.comparison import compare
+from kiprod.analysis.comparison import ComparisonWeights, compare
 from kiprod.analysis.landed import calculate
 from kiprod.core.models import Offer, PriceBreak, SourceRef
 
 
-def _offer(supplier: str, unit: float) -> Offer:
+def _offer(supplier: str, unit: float, lead_time_days: int | None = None) -> Offer:
     return Offer(
         supplier_id=supplier,
         supplier_part_number=f"{supplier}-PN",
         manufacturer_part_number="MPN-A",
+        lead_time_days=lead_time_days,
         price_breaks=[
             PriceBreak(quantity=1, unit_price=unit, currency="USD"),
             PriceBreak(quantity=100, unit_price=unit / 2, currency="USD"),
@@ -59,3 +60,15 @@ def test_comparison_ranks_per_board_and_finds_coverage_gaps() -> None:
     assert expensive_row.nre == "2"
     assert expensive_row.duty == "0.75"
     assert expensive_row.fees == "0.50"
+
+
+def test_comparison_weights_can_prioritize_lead_time_and_keep_price_ties() -> None:
+    slow_cheap = calculate([_offer("slow-cheap", 1.0, 40)], {"MPN-A": 10}, 10)
+    fast_expensive = calculate([_offer("fast-expensive", 2.0, 5)], {"MPN-A": 10}, 10)
+    comparison = compare(
+        [slow_cheap, fast_expensive],
+        weights=ComparisonWeights(price=0.2, lead_time=0.8),
+    )
+    assert [row.supplier_id for row in comparison.rows] == ["fast-expensive", "slow-cheap"]
+    assert comparison.rows[0].lead_time_days == 5
+    assert comparison.rows[0].ranking_score < comparison.rows[1].ranking_score

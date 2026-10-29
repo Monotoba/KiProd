@@ -15,7 +15,13 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def archive_inputs(inputs: list[Path], bom: Path | None, run_dir: Path) -> dict[str, Any]:
+def archive_inputs(
+    inputs: list[Path],
+    bom: Path | None,
+    run_dir: Path,
+    *,
+    comparison_weights: dict[str, float] | None = None,
+) -> dict[str, Any]:
     """Copy calculation inputs into a new immutable run folder and write its manifest."""
     manifest_path = run_dir / "run.json"
     if manifest_path.exists():
@@ -47,6 +53,7 @@ def archive_inputs(inputs: list[Path], bom: Path | None, run_dir: Path) -> dict[
         "python_version": ".".join(str(part) for part in sys.version_info[:3]),
         "landed_cost_inputs": archived,
         "bom": archived_bom,
+        "comparison_weights": comparison_weights or {"price": 1.0, "lead_time": 0.0},
     }
     (run_dir / "run.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     return manifest

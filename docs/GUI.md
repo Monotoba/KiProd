@@ -38,8 +38,11 @@ send messages. Headless smoke
 tests cover the data-loading and artifact-writing workflow without requiring PySide6.
 
 The comparison table and saved Markdown report include parts, shipping, NRE, duty,
-and fees beside the landed total and per-board amount. Ranking remains based on
-landed cost per board within each quantity and currency group.
+and fees beside the landed total and per-board amount. Ranking uses normalized price
+and lead-time weights within matching quantity and currency groups. The controls
+accept non-negative weights (price defaults to 1, lead time to 0); each run archives
+its weights so regeneration preserves the ranking. Lead time contributes only when
+at least one complete lead-time value is available for the comparison group.
 
 The current GUI provides an editable MPN column with a source label and a filter for
 lines missing MPNs or footprints. MPN overrides are saved in

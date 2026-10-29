@@ -15,6 +15,7 @@ class LandedLine(BaseModel):
     unit_price: Decimal
     extended_price: Decimal
     currency: str
+    lead_time_days: int | None = None
     source_ref: SourceRef
 
 
@@ -29,6 +30,7 @@ class LandedCost(BaseModel):
     fees: Decimal = Decimal("0")
     total: Decimal
     per_board: Decimal
+    lead_time_days: int | None = None
     lines: list[LandedLine] = Field(default_factory=list)
 
 
@@ -97,6 +99,7 @@ def calculate(
                 unit_price=unit,
                 extended_price=unit * buy,
                 currency=price.currency,
+                lead_time_days=offer.lead_time_days,
                 source_ref=offer.source_ref,
             )
         )
@@ -116,5 +119,10 @@ def calculate(
         fees=fees,
         total=total,
         per_board=total / board_quantity,
+        lead_time_days=(
+            max(line.lead_time_days for line in lines if line.lead_time_days is not None)
+            if lines and all(line.lead_time_days is not None for line in lines)
+            else None
+        ),
         lines=lines,
     )

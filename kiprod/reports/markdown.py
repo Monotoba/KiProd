@@ -8,17 +8,21 @@ def comparison_markdown(comparison: Comparison) -> str:
     lines = [
         "# Supplier comparison",
         "",
-        "Ranked by landed cost per board within each quantity and currency.",
+        f"Ranked using price weight {comparison.weights.price:g} and lead-time weight "
+        f"{comparison.weights.lead_time:g} within each quantity and currency. "
+        "Lower score is better.",
         "",
         "| Rank | Supplier | Boards | Currency | Parts | Shipping | NRE | Duty | Fees | Total "
-        "| Per board | Lines |",
-        "|---:|---|---:|:---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "| Per board | Lead days | Score | Lines |",
+        "|---:|---|---:|:---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in comparison.rows:
         lines.append(
             f"| {row.rank} | {row.supplier_id} | {row.board_quantity} | {row.currency} "
             f"| {row.parts_total} | {row.shipping} | {row.nre} | {row.duty} | {row.fees} "
-            f"| {row.total} | {row.per_board} | {row.quoted_lines} |"
+            f"| {row.total} | {row.per_board} "
+            f"| {row.lead_time_days if row.lead_time_days is not None else 'unknown'} "
+            f"| {row.ranking_score:.3f} | {row.quoted_lines} |"
         )
     lines.extend(["", "## Evidence", ""])
     for row in comparison.rows:

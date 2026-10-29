@@ -19,7 +19,7 @@ from kiprod.ai.review_decisions import (
 )
 from kiprod.analysis.assembly import extract as extract_assembly
 from kiprod.analysis.capabilities import check_assembly, check_board
-from kiprod.analysis.comparison import Comparison, compare
+from kiprod.analysis.comparison import Comparison, ComparisonWeights, compare
 from kiprod.analysis.landed import LandedCost
 from kiprod.analysis.panelization import discover_fabrication_notes, extract_boards_per_panel
 from kiprod.core.artifacts import write_bom
@@ -56,7 +56,10 @@ from kiprod.rfq.quote_import import QuoteImportResult
 
 
 def _create_comparison(
-    project: Project, input_files: list[Path], bom_path: Path
+    project: Project,
+    input_files: list[Path],
+    bom_path: Path,
+    weights: ComparisonWeights | None = None,
 ) -> tuple[Comparison, Path]:
     if not input_files:
         raise ValueError("select at least one landed-cost JSON file")
@@ -65,10 +68,16 @@ def _create_comparison(
     ]
     normalized_bom = NormalizedBOM.model_validate_json(bom_path.read_text(encoding="utf-8"))
     required_mpns = {line.mpn for line in normalized_bom.lines if line.mpn}
-    result = compare(costs, required_mpns)
+    weights = weights or ComparisonWeights()
+    result = compare(costs, required_mpns, weights)
     run_id = datetime.now(UTC).strftime("gui-%Y%m%dT%H%M%S") + "-" + uuid4().hex[:8]
     run_dir = project.root / "docs" / "production" / "quotes" / "runs" / run_id
-    archive_inputs(input_files, bom_path, run_dir)
+    archive_inputs(
+        input_files,
+        bom_path,
+        run_dir,
+        comparison_weights=weights.model_dump(),
+    )
     (run_dir / "comparison.md").write_text(comparison_markdown(result), encoding="utf-8")
     (run_dir / "comparison.json").write_text(
         result.model_dump_json(indent=2) + "\n", encoding="utf-8"
@@ -84,7 +93,8 @@ def _regenerate_comparison(run_dir: Path) -> Comparison:
     if bom_path is not None:
         normalized_bom = NormalizedBOM.model_validate_json(bom_path.read_text(encoding="utf-8"))
         required_mpns = {line.mpn for line in normalized_bom.lines if line.mpn}
-    result = compare(costs, required_mpns)
+    weights = ComparisonWeights.model_validate(manifest.get("comparison_weights", {}))
+    result = compare(costs, required_mpns, weights)
     (run_dir / "comparison.md").write_text(comparison_markdown(result), encoding="utf-8")
     (run_dir / "comparison.json").write_text(
         result.model_dump_json(indent=2) + "\n", encoding="utf-8"
@@ -565,9 +575,17 @@ def run_gui(project_path: Path | None = None) -> int:
             self.compare_button = QPushButton("Compare saved landed-cost files…")
             self.compare_button.clicked.connect(self.choose_comparison_inputs)
             compare_actions.addWidget(self.compare_button)
+            compare_actions.addWidget(QLabel("Price weight"))
+            self.compare_price_weight = QLineEdit("1")
+            self.compare_price_weight.setMaximumWidth(60)
+            compare_actions.addWidget(self.compare_price_weight)
+            compare_actions.addWidget(QLabel("Lead-time weight"))
+            self.compare_lead_weight = QLineEdit("0")
+            self.compare_lead_weight.setMaximumWidth(60)
+            compare_actions.addWidget(self.compare_lead_weight)
             compare_actions.addStretch(1)
             compare_layout.addLayout(compare_actions)
-            self.comparison_table = QTableWidget(0, 12)
+            self.comparison_table = QTableWidget(0, 14)
             self.comparison_table.setHorizontalHeaderLabels(
                 [
                     "Rank",
@@ -581,6 +599,8 @@ def run_gui(project_path: Path | None = None) -> int:
                     "NRE",
                     "Duty",
                     "Fees",
+                    "Lead days",
+                    "Score",
                     "Lines",
                 ]
             )
@@ -1577,10 +1597,16 @@ def run_gui(project_path: Path | None = None) -> int:
             if not paths:
                 return
             try:
+                weights = ComparisonWeights(
+                    price=float(self.compare_price_weight.text()),
+                    lead_time=float(self.compare_lead_weight.text()),
+                )
+                weights.normalized()
                 comparison, run_dir = _create_comparison(
                     self.current_project,
                     [Path(path) for path in paths],
                     self.current_json_path,
+                    weights,
                 )
             except (OSError, ValueError) as exc:
                 QMessageBox.critical(self, "Comparison failed", str(exc))
@@ -1606,6 +1632,8 @@ def run_gui(project_path: Path | None = None) -> int:
                     item.nre,
                     item.duty,
                     item.fees,
+                    str(item.lead_time_days) if item.lead_time_days is not None else "unknown",
+                    f"{item.ranking_score:.3f}",
                     str(item.quoted_lines),
                 ]
                 for column, value in enumerate(values):
