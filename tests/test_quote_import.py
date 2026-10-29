@@ -40,6 +40,23 @@ def test_csv_quote_import_groups_price_breaks_and_preserves_row_sources(tmp_path
     assert result.review_queue[0].confidence < 0.85
 
 
+def test_csv_quote_import_finds_header_after_supplier_export_preamble(tmp_path: Path) -> None:
+    quote = tmp_path / "supplier-quote.csv"
+    quote.write_text(
+        "ACME Electronics Quote Export\n"
+        "Quote Number,QT-2026-1042\n"
+        + _HEADER
+        + "MPN-1,SKU-1,10,0.50,USD,100,5\n"
+        + "MPN-1,SKU-1,100,0.25,USD,100,5\n",
+        encoding="utf-8",
+    )
+
+    result = parse_quote_attachment(quote, "supplier-a")
+
+    assert len(result.offers) == 1
+    assert result.offers[0].offer.source_ref.reference == "rows:4,5"
+
+
 def test_currency_can_be_supplied_explicitly_when_missing_from_csv(tmp_path: Path) -> None:
     quote = tmp_path / "quote.csv"
     quote.write_text(
@@ -77,6 +94,8 @@ def test_xlsx_rows_are_parsed_through_openpyxl_contract(
         def iter_rows(self, *, values_only: bool) -> list[tuple[object, ...]]:
             assert values_only
             return [
+                ("ACME Electronics Quote Export",),
+                ("Quote Number", "QT-2026-1042"),
                 ("MPN", "SKU", "Quantity", "Unit Price", "Currency"),
                 ("MPN-1", "SKU-1", 20, 0.75, "USD"),
             ]
@@ -95,6 +114,7 @@ def test_xlsx_rows_are_parsed_through_openpyxl_contract(
 
     assert len(result.offers) == 1
     assert result.offers[0].offer.price_breaks[0].unit_price == 0.75
+    assert result.offers[0].offer.source_ref.reference == "rows:4"
     assert result.offers[0].confidence == 0.95
 
 

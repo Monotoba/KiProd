@@ -15,6 +15,13 @@
       ]
     },
     {
+      "path": "rfq_quote_supplier_c.csv",
+      "rows": [
+        {"mpn": "OPAMP-2026", "spn": "ACME-OP-19", "quantity": 10, "unit_price": 2.15, "currency": "USD"},
+        {"mpn": "OPAMP-2026", "spn": "ACME-OP-19", "quantity": 100, "unit_price": 1.88, "currency": "USD"}
+      ]
+    },
+    {
       "path": "rfq_quote_labeled.pdf",
       "rows": [
         {"mpn": "MPN-PDF-1", "spn": "SKU-PDF-1", "quantity": 10, "unit_price": 0.75, "currency": "USD"}

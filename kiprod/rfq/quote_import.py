@@ -91,6 +91,20 @@ def _header_map(headers: list[object]) -> tuple[dict[str, int], list[str]]:
     return mapping, issues
 
 
+def _find_table_header(
+    headers: list[object], rows: list[list[object]], *, search_rows: int = 15
+) -> tuple[list[object], list[list[object]], int]:
+    """Find a complete quote table header near the top of a CSV/XLSX export."""
+    _, issues = _header_map(headers)
+    if not issues:
+        return headers, rows, 2
+    for index, candidate in enumerate(rows[:search_rows]):
+        _, candidate_issues = _header_map(candidate)
+        if not candidate_issues:
+            return candidate, rows[index + 1 :], index + 3
+    return headers, rows, 2
+
+
 def _read_csv(path: Path) -> tuple[list[object], list[list[object]]]:
     with path.open(newline="", encoding="utf-8-sig") as handle:
         rows = list(csv.reader(handle))
@@ -237,11 +251,14 @@ def parse_quote_attachment(
     used_ocr = False
     if suffix == ".csv":
         headers, rows = _read_csv(path)
+        headers, rows, first_data_row = _find_table_header(headers, rows)
     elif suffix in {".xlsx", ".xlsm"}:
         headers, rows = _read_xlsx(path)
+        headers, rows, first_data_row = _find_table_header(headers, rows)
     elif suffix == ".pdf":
         headers, rows, used_ocr = _read_pdf(path)
         source_kind = "block"
+        first_data_row = 1
     else:
         raise ValueError(f"unsupported quote attachment format: {suffix or 'unknown'}")
     if not supplier_id.strip():
@@ -285,7 +302,7 @@ def parse_quote_attachment(
         defaultdict(list)
     )
     bad_keys: set[tuple[str, str, str]] = set()
-    for row_number, row in enumerate(rows, start=1 if source_kind == "block" else 2):
+    for row_number, row in enumerate(rows, start=first_data_row):
         if not any(str(value or "").strip() for value in row):
             continue
         values = _row_value(row, mapping)
