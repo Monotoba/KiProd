@@ -41,6 +41,7 @@ from kiprod.core.project import ProjectNotFoundError, discover
 from kiprod.kicad.board import extract as extract_board
 from kiprod.kicad.cli_adapter import KiCadCliError, export_bom, export_placements, version
 from kiprod.net.http import HttpClient
+from kiprod.plugins.credentials import CredentialStoreUnavailable, get_credential
 from kiprod.plugins.host import PluginError, discover_plugins
 from kiprod.reports.markdown import comparison_markdown
 from kiprod.reports.run_archive import archive_inputs, input_paths, load_manifest
@@ -806,8 +807,16 @@ def quote_lookup(
         plugin = next((item for item in plugins if item.manifest.id == plugin_id), None)
         if plugin is None:
             raise PluginError(f"plugin not found: {plugin_id}")
-        offers = plugin.call("search", mpn)
-    except PluginError as exc:
+        credentials: dict[str, str] = {}
+        for credential in plugin.manifest.credentials:
+            value = get_credential(plugin.manifest.id, credential.key)
+            if value is None:
+                raise PluginError(
+                    f"{credential.label} is not configured; store it in the OS keyring first"
+                )
+            credentials[credential.key] = value
+        offers = plugin.call("search", mpn, **credentials)
+    except (PluginError, CredentialStoreUnavailable) as exc:
         typer.echo(f"Quote lookup failed: {exc}", err=True)
         raise typer.Exit(code=4) from exc
     typer.echo(json.dumps(offers, indent=2, sort_keys=True))

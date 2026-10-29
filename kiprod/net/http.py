@@ -86,7 +86,8 @@ class HttpClient:
             and _is_loopback(host)
         )
         if host not in self.allowed_hosts or (parsed.scheme != "https" and not local_http):
-            raise HttpError(f"URL is not permitted: {url}")
+            safe_url = parsed._replace(query="", fragment="").geturl()
+            raise HttpError(f"URL is not permitted: {safe_url}")
         verb = method.upper()
         if verb not in {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"}:
             raise HttpError(f"unsupported HTTP method: {verb}")

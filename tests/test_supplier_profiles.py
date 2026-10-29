@@ -76,8 +76,11 @@ def test_all_requested_supplier_profiles_are_discoverable() -> None:
     profiles = [plugin for plugin in plugins if plugin.manifest.id in SUPPLIERS]
     assert len(profiles) == len(SUPPLIERS)
     assert all(plugin.manifest.homepage.startswith("https://") for plugin in profiles)
-    assert all(plugin.manifest.status_label == "Profile only" for plugin in profiles)
     by_slug = {plugin.manifest.id.rsplit(".", 1)[-1]: plugin.manifest for plugin in profiles}
+    assert all(
+        manifest.status_label == ("Adapter available" if slug == "mouser" else "Profile only")
+        for slug, manifest in by_slug.items()
+    )
     assert len(COMPONENT_SUPPLIERS) == 11
     assert len(FABRICATION_SUPPLIERS) == 12
     assert len(ASSEMBLY_SUPPLIERS) == 5

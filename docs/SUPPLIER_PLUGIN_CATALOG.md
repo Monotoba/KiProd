@@ -19,8 +19,19 @@ Mouser, LCSC, DigiKey, Newark, Jameco, Unikeyic, TTI, Future Electronics,
 Verical, Rochester Electronics, and Allied Electronics & Automation (RS
 Americas).
 
-Each profile identifies manual quote import as its quote channel. Unikeyic
-advertises API access by application on its official [company page](https://www.unikeyic.com/aboutus),
+The Mouser profile includes a read-only Search API adapter. Request an API key,
+review Mouser's terms, and save the key in the OS keyring before searching:
+
+```bash
+kiprod quote MPN --plugin com.kiprod.supplier.mouser
+```
+
+Mouser documents product pricing, availability, a maximum of 50 results per
+request, and rate limits on its [Search API page](https://www.mouser.com/en/api-search/).
+The adapter calls only the Search API; it does not create carts or orders.
+
+The other component profiles use manual quote import. Unikeyic advertises API
+access by application on its official [company page](https://www.unikeyic.com/aboutus),
 but this does not configure or authorize an API connection in KiProd.
 
 ## PCB fabricators
@@ -44,9 +55,10 @@ Imagineering, Inc.
 
 ## Integration boundary
 
-No live supplier adapter is included for these profiles yet. The generic
-read-only JSON catalog protocol can support suppliers that provide an approved
-API with a documented response mapping. Supplier-specific API integrations
-must confirm current API terms, endpoints, authentication, and field provenance
-before they are enabled. Credentials must be supplied by the user and stored
-through the OS keyring; tests must continue using recorded fixtures only.
+Only Mouser currently has a supplier-specific live adapter. The generic
+read-only JSON catalog protocol can support other suppliers that provide an
+approved API with a documented response mapping. Supplier-specific API
+integrations must confirm current API terms, endpoints, authentication, and
+field provenance before they are enabled. Credentials must be supplied by the
+user and stored through the OS keyring; tests must continue using recorded
+fixtures only.

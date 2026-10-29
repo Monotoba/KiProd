@@ -7,7 +7,7 @@
 KiProd creates a traceable production package from a KiCad project: a normalized
 BOM, production review findings, supplier quotes, and comparison reports.
 
-Milestones **M1–M5** and **M7** are complete; **M6**, **M8**, and **M9** are in progress.
+Milestones **M1–M2**, **M4–M5**, and **M7** are complete; **M3**, **M6**, **M8**, and **M9** have remaining work.
 The CLI supports offline BOM/configuration work, board and assembly analysis, local
 RFQ packaging, approval-gated SMTP delivery, and Graph/Gmail inbox polling. The
 generic catalog protocol, typed AI review contracts, an OpenAI-compatible model
@@ -104,9 +104,11 @@ Project and supplier plugins live under
 `docs/production/quotes/config/suppliers/`. Use `kiprod plugins list` to inspect
 available plugins, `kiprod plugins test PLUGIN_ID` for an isolated health check,
 and `kiprod quote MPN --plugin PLUGIN_ID` to query a catalog plugin.
-The bundled supplier directory includes profile-only entries for all named
-component distributors, PCB fabricators, and EMS providers; these profiles are
-not live price or inventory integrations. See
+The bundled supplier directory includes entries for all named component
+distributors, PCB fabricators, and EMS providers. Most are profile-only and do
+not provide live price or inventory data. Mouser has a read-only Search API
+adapter that requires a user-provided API key in the OS keyring. Install the
+optional dependency with `./scripts/setup-suppliers.sh`. See
 [`docs/SUPPLIER_PLUGIN_CATALOG.md`](docs/SUPPLIER_PLUGIN_CATALOG.md).
 
 ## Development

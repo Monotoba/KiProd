@@ -51,7 +51,7 @@ class Manifest(BaseModel):
         if self.integration_status == "profile_only":
             return "Profile only"
         if self.integration_status == "adapter_configured":
-            return "Adapter configured"
+            return "Adapter available"
         return "Adapter configured" if self.adapter is not None else "Profile only"
 
     @field_validator("fields")

@@ -18,6 +18,14 @@ def test_http_client_enforces_https_host_allowlist() -> None:
         client.get("http://parts.example.test/parts")
 
 
+def test_http_client_redacts_query_values_when_rejecting_url() -> None:
+    client = HttpClient({"parts.example.test"})
+    with pytest.raises(HttpError) as error:
+        client.get("https://other.example.test/search?apiKey=secret-value")
+
+    assert "secret-value" not in str(error.value)
+
+
 def test_http_client_can_allow_explicit_loopback_http_for_local_models() -> None:
     local_url = "http://127.0.0.1:11434/v1/chat/completions"
     response = HttpResponse(200, {}, b"{}")

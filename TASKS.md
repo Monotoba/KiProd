@@ -20,7 +20,7 @@
 - [x] Implement default / flag / error / guess / inherit / ignore policy resolution and non-interactive exit 3 handling.
 - [x] Validate quantities, including add/remove and range shorthand.
 
-## M3 — Plugin host and sourcing (complete)
+## M3 — Plugin host and sourcing (in progress)
 
 - [x] Validate typed plugin manifests and load adapters from plugin folders.
 - [x] Discover plugins in precedence order and enforce declared network host access.
@@ -32,9 +32,11 @@
 - [x] Enforce network permissions through an HTTPS-only allowlisted HTTP client with fixture replay, caching, retries, and throttling.
 - [x] Add a recorded catalog adapter example with validated offers and required source references.
 - [x] Add CLI plugin discovery, health checks, and source-backed catalog search.
-- [x] Add a production read-only JSON catalog protocol adapter with typed offer validation and recorded-fixture coverage; supplier-specific live connectors still require API terms, endpoint, and credential configuration.
+- [x] Add a production read-only JSON catalog protocol adapter with typed offer validation and recorded-fixture coverage.
+- [x] Add a read-only Mouser Search API adapter with keyring credentials and recorded response-fixture coverage; requires the user to obtain a key and accept current terms before live use.
 - [x] Add discoverable profile plugins for all 28 named component distributors, PCB fabricators, and EMS/assembly suppliers, with aliases and official homepages.
-- [ ] Implement supplier-specific live catalog and quote integrations only where supplier API access, terms, endpoints, and credentials have been confirmed.
+- [x] Keep the Mouser API key in the OS keyring, redact it from source references and blocked-URL errors, and pass offers through the isolated worker as structured data.
+- [ ] Implement supplier-specific live catalog and quote integrations for remaining profiles only where supplier API access, terms, endpoints, and credentials have been confirmed.
 
 ## M4 — Analysis and reports (complete)
 

@@ -33,6 +33,14 @@ def has_credential(plugin_id: str, key: str) -> bool:
         raise CredentialStoreUnavailable("the operating system keyring could not be read") from exc
 
 
+def get_credential(plugin_id: str, key: str) -> str | None:
+    keyring = _keyring()
+    try:
+        return keyring.get_password(credential_service(plugin_id), key)
+    except Exception as exc:
+        raise CredentialStoreUnavailable("the operating system keyring could not be read") from exc
+
+
 def save_credential(plugin_id: str, key: str, value: str) -> None:
     if not value:
         raise ValueError("credential value must not be empty")

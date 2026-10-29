@@ -1,0 +1,28 @@
+{
+  "Errors": [],
+  "SearchResults": {
+    "NumberOfResult": 2,
+    "Parts": [
+      {
+        "MouserPartNumber": "603-RC0603FR-074K7L",
+        "ManufacturerPartNumber": "RC0603FR-074K7L",
+        "Manufacturer": "Yageo",
+        "AvailabilityInStock": "12,500",
+        "LeadTime": "21 Days",
+        "PriceBreaks": [
+          {"Quantity": 1, "Price": "$0.012", "Currency": "USD"},
+          {"Quantity": 100, "Price": "$0.006", "Currency": "USD"}
+        ]
+      },
+      {
+        "MouserPartNumber": "999-OTHER",
+        "ManufacturerPartNumber": "OTHER-MPN",
+        "AvailabilityInStock": "4",
+        "LeadTime": "14 Days",
+        "PriceBreaks": [
+          {"Quantity": 1, "Price": "$1.00", "Currency": "USD"}
+        ]
+      }
+    ]
+  }
+}

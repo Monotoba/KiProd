@@ -21,8 +21,11 @@ cd "${scratch_dir}"
   --output-dir "${scratch_dir}/output"
 test -s "${scratch_dir}/output/bom.normalized.json"
 test -s "${scratch_dir}/output/bom.csv"
-supplier_profiles="$("${scratch_dir}/venv/bin/kiprod" plugins list \
-  --project "${project_root}/tests/projects/basic" | grep -c 'Profile only$')"
-test "${supplier_profiles}" -eq 28
+supplier_listing="$("${scratch_dir}/venv/bin/kiprod" plugins list \
+  --project "${project_root}/tests/projects/basic")"
+profile_only_count="$(printf '%s\n' "${supplier_listing}" | grep -c 'Profile only$')"
+adapter_available_count="$(printf '%s\n' "${supplier_listing}" | grep -c 'Adapter available$')"
+test "${profile_only_count}" -eq 27
+test "${adapter_available_count}" -eq 1
 
-echo "Built wheel and source archive; installed wheel, generated a BOM, and found all supplier profiles."
+echo "Built wheel and source archive; installed wheel, generated a BOM, and found all supplier entries."

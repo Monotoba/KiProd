@@ -9,6 +9,13 @@ from pathlib import Path
 from typing import Any
 
 
+def _json_default(value: Any) -> Any:
+    model_dump = getattr(value, "model_dump", None)
+    if callable(model_dump):
+        return model_dump(mode="json")
+    return str(value)
+
+
 def _load_adapter(root: Path, module_name: str, class_name: str) -> Any:
     module_path = (root / Path(*module_name.split("."))).with_suffix(".py").resolve()
     if not module_path.is_relative_to(root.resolve()):
@@ -68,7 +75,8 @@ def main() -> int:
     method = getattr(adapter, request["method"])
     result = method(*request.get("args", []), **request.get("kwargs", {}))
     sys.stdout.write(
-        json.dumps({"type": "result", "ok": True, "result": result}, default=str) + "\n"
+        json.dumps({"type": "result", "ok": True, "result": result}, default=_json_default)
+        + "\n"
     )
     return 0
 
