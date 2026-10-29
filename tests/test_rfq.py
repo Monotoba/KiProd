@@ -183,6 +183,11 @@ def test_privacy_scan_detects_kicad_hidden_layer_visibility(tmp_path: Path) -> N
     ]
 
 
+def test_privacy_scan_has_no_false_positive_on_native_kicad_project() -> None:
+    native_project = Path(__file__).parent / "projects" / "native_counter"
+    assert scan_privacy(native_project, usernames=[]) == []
+
+
 def test_privacy_scan_blocks_package_before_malware_scan_or_signing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

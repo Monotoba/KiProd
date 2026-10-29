@@ -62,7 +62,8 @@
 - [x] Add interactive approval records bound to exact package hashes and invalidate approval status when package bytes change.
 - [x] Block package creation when staged text contains local home paths, the current username, or an explicit hidden-layer marker.
 - [x] Inspect Office XML metadata/hidden sheets, PDF metadata/optional-content layers, and KiCad saved layer visibility.
-- [ ] Validate privacy scanning against more real CAD exports and review false-positive rates.
+- [x] Verify privacy checks do not flag the native KiCad 10 counter project fixture.
+- [ ] Validate against additional real CAD exports and review false-positive rates.
 - [x] Compose local email drafts with a verified signed package attached and record the RFQ in `awaiting_approval`.
 - [x] Require approval of the exact saved email payload before the workflow can transition to `sent`.
 - [x] Add SMTP/STARTTLS delivery of the exact approved email bytes; log failures and leave those RFQs retryable.
