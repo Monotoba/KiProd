@@ -1,0 +1,12 @@
+{
+  "id": "com.example.fixture",
+  "name": "Fixture supplier",
+  "version": "1.0.0",
+  "resources": ["components"],
+  "region": {"country": "US", "ships_from": ["US"], "currency": "USD"},
+  "adapter": {"module": "adapter", "class": "FixtureAdapter", "min_core": "0.1"},
+  "credentials": [{"key": "token", "label": "Fixture token", "secret": true}],
+  "permissions": {"network": ["parts.example.test"], "email": false, "browser": false},
+  "capabilities": {"components": {"channels": ["api"]}},
+  "fields": []
+}

@@ -20,9 +20,14 @@
 - [x] Implement default / flag / error / guess / inherit / ignore policy resolution and non-interactive exit 3 handling.
 - [x] Validate quantities, including add/remove and range shorthand.
 
+## M3 — Plugin host and sourcing (in progress)
+
+- [x] Validate typed plugin manifests and load adapters from plugin folders.
+- [x] Discover plugins in precedence order and enforce declared network host access.
+- [ ] Add manifest schema file, subprocess isolation, and recorded supplier adapter fixtures.
+
 ## Later milestones (blocked on prior acceptance)
 
-- [ ] M3: plugin host and recorded supplier adapters.
 - [ ] M4: traceable analysis and reports.
 - [ ] M5: board/assembly extraction and RFQs.
 - [ ] M6: signed email RFQs and inbox.
