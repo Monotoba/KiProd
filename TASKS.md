@@ -37,7 +37,8 @@
 ## M4 — Analysis and reports (in progress)
 
 - [x] Calculate source-backed component landed costs with MOQ, order multiple, price breaks, attrition, and ancillary costs.
-- [ ] Build supplier comparisons and traceable Markdown/XLSX reports.
+- [x] Rank landed costs by quantity and currency; emit Markdown comparison and landed-cost reports with evidence refs.
+- [ ] Add XLSX workbooks and quantity coverage-gap analysis.
 
 ## Later milestones
 

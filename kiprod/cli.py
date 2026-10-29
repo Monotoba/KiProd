@@ -6,6 +6,8 @@ from tempfile import TemporaryDirectory
 
 import typer
 
+from kiprod.analysis.comparison import compare
+from kiprod.analysis.landed import LandedCost
 from kiprod.core.artifacts import write_bom
 from kiprod.core.bom import build
 from kiprod.core.config import (
@@ -19,6 +21,7 @@ from kiprod.core.constraints import apply, write
 from kiprod.core.project import ProjectNotFoundError, discover
 from kiprod.kicad.cli_adapter import KiCadCliError, export_bom, version
 from kiprod.plugins.host import PluginError, discover_plugins
+from kiprod.reports.markdown import comparison_markdown
 
 app = typer.Typer(help="Build traceable KiCad production artifacts.", no_args_is_help=True)
 config_app = typer.Typer(help="Manage layered project configuration.", no_args_is_help=True)
@@ -256,3 +259,21 @@ def quote_lookup(
         typer.echo(f"Quote lookup failed: {exc}", err=True)
         raise typer.Exit(code=4) from exc
     typer.echo(json.dumps(offers, indent=2, sort_keys=True))
+
+
+@app.command("compare")
+def compare_quotes(
+    inputs: list[Path] = typer.Argument(..., exists=True, dir_okay=False),
+    output: Path = typer.Option(Path("comparison.md"), "--output", "-o"),
+) -> None:
+    """Compare saved landed-cost JSON records and write an auditable Markdown table."""
+    costs: list[LandedCost] = []
+    try:
+        for path in inputs:
+            costs.append(LandedCost.model_validate_json(path.read_text(encoding="utf-8")))
+    except (OSError, ValueError) as exc:
+        raise typer.BadParameter(f"invalid landed-cost input: {exc}") from exc
+    report = comparison_markdown(compare(costs))
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(report, encoding="utf-8")
+    typer.echo(f"Wrote {output}")
