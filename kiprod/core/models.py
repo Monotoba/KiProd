@@ -31,6 +31,8 @@ class BoardSpec(BaseModel):
     min_track_mm: float | None = None
     min_drill_mm: float | None = None
     copper_finish: str | None = None
+    boards_per_panel: int | None = None
+    panel_count_source: str | None = None
     stackup: list[dict[str, str | float]] = Field(default_factory=list)
 
 

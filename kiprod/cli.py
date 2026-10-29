@@ -13,6 +13,7 @@ from kiprod.analysis.assembly import extract as extract_assembly
 from kiprod.analysis.capabilities import check_assembly, check_board
 from kiprod.analysis.comparison import compare
 from kiprod.analysis.landed import LandedCost
+from kiprod.analysis.panelization import extract_boards_per_panel
 from kiprod.core.artifacts import write_bom
 from kiprod.core.bom import build
 from kiprod.core.config import (
@@ -144,7 +145,16 @@ def project(
 @app.command("board")
 def inspect_board(
     project: Path = typer.Option(Path.cwd(), exists=True, file_okay=True, dir_okay=True),
-    plugin_id: str | None = typer.Option(None, "--supplier", help="Optional fab plugin to check."),
+    plugin_id: str | None = typer.Option(
+        None, "--supplier", help="Optional fab plugin to check."
+    ),
+    fab_notes: list[Path] = typer.Option(
+        [],
+        "--fab-notes",
+        exists=True,
+        dir_okay=False,
+        help="Fabrication note text file; repeatable.",
+    ),
 ) -> None:
     """Extract board fabrication metrics and optionally check supplier limits."""
     try:
@@ -154,6 +164,14 @@ def inspect_board(
     if not discovered.boards:
         raise typer.BadParameter("project has no .kicad_pcb board")
     board = extract_board(discovered.boards[0])
+    try:
+        boards_per_panel, panel_count_source = extract_boards_per_panel(fab_notes)
+    except (OSError, ValueError) as exc:
+        raise typer.BadParameter(str(exc), param_hint="--fab-notes") from exc
+    if boards_per_panel is not None:
+        board = board.model_copy(
+            update={"boards_per_panel": boards_per_panel, "panel_count_source": panel_count_source}
+        )
     assembly = extract_assembly(discovered.boards[0])
     typer.echo(
         json.dumps({"board": board.model_dump(), "assembly": assembly.model_dump()}, indent=2)

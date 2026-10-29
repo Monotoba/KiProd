@@ -52,7 +52,8 @@
 - [x] Compare placement count and unique parts to declared assembly supplier limits.
 - [x] Extract BGA/QFN/LGA counts and finest observed pad pitch; compare them with declared assembly supplier limits.
 - [x] Identify components explicitly marked `Programming` or `Requires Programming` and check supplier support.
-- [ ] Extract boards-per-panel from PCB/fab documentation; project board-file count and requested production quantities are already reported separately.
+- [x] Extract an explicit boards-per-panel value from supplied fabrication-note text files, retaining its source and rejecting conflicts.
+- [ ] Automatically discover fabrication notes and parse PDF/other fab documentation; project board-file count and requested production quantities are already reported separately.
 
 ## Later milestones
 

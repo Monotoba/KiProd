@@ -26,6 +26,11 @@ Use `kiprod project --project DIR` to discover named KiCad 10 design variants.
 `kiprod bom --project DIR --variant NAME` uses KiCad's own variant-aware BOM
 export, so variant DNP and field overrides are applied before normalization.
 
+`kiprod board --project DIR --fab-notes fab-notes.txt` includes an explicitly
+documented boards-per-panel count in the board metrics. The option is repeatable;
+conflicting counts fail rather than silently choosing one. Without a supplied note,
+the value remains unknown.
+
 Project and supplier plugins live under
 `docs/production/quotes/config/suppliers/`. Use `kiprod plugins list` to inspect
 available plugins, `kiprod plugins test PLUGIN_ID` for an isolated health check,

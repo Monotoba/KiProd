@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from kiprod.analysis.assembly import extract as extract_assembly
 from kiprod.analysis.capabilities import check_assembly, check_board
+from kiprod.analysis.panelization import extract_boards_per_panel
 from kiprod.analysis.placements import write_placements
 from kiprod.core.models import AssemblySpec, BoardSpec, Placement
 from kiprod.kicad.board import extract
@@ -120,3 +123,22 @@ def test_assembly_capability_check_flags_pitch_and_unsupported_packages() -> Non
         "supports_qfn",
         "supports_programming",
     }
+
+
+def test_extracts_explicit_boards_per_panel_from_fabrication_notes(tmp_path: Path) -> None:
+    notes = tmp_path / "fab-notes.txt"
+    notes.write_text("Panelization: 4 boards per panel\n", encoding="utf-8")
+    assert extract_boards_per_panel([notes]) == (4, str(notes))
+
+
+def test_panel_count_is_unknown_without_explicit_fabrication_notes() -> None:
+    assert extract_boards_per_panel([]) == (None, None)
+
+
+def test_panel_count_rejects_conflicting_fabrication_notes(tmp_path: Path) -> None:
+    first = tmp_path / "fab-a.txt"
+    second = tmp_path / "fab-b.txt"
+    first.write_text("Boards per panel: 4", encoding="utf-8")
+    second.write_text("Boards per panel: 6", encoding="utf-8")
+    with pytest.raises(ValueError, match="conflicting"):
+        extract_boards_per_panel([first, second])
