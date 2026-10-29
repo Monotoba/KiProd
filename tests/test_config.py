@@ -6,7 +6,13 @@ import pytest
 from typer.testing import CliRunner
 
 from kiprod.cli import app
-from kiprod.core.config import ConfigError, load, parse_quantities, update_quantities
+from kiprod.core.config import (
+    ConfigError,
+    load,
+    parse_quantities,
+    save_project_quantities,
+    update_quantities,
+)
 
 
 def test_configuration_layers_project_over_user(tmp_path: Path) -> None:
@@ -21,6 +27,42 @@ def test_configuration_layers_project_over_user(tmp_path: Path) -> None:
 def test_quantities_support_ranges_and_changes() -> None:
     assert parse_quantities("1, 10..30:10") == [1, 10, 20, 30]
     assert update_quantities([1, 5], add=[10], remove=[1]) == [5, 10]
+
+
+def test_save_project_quantities_preserves_other_settings(tmp_path: Path) -> None:
+    config_dir = tmp_path / "docs/production/quotes/config"
+    config_dir.mkdir(parents=True)
+    config_path = config_dir / "kiprod.toml"
+    config_path.write_text(
+        '[paths]\nproduction = "factory"\nconfig = "cfg"\nstate = "state"\n\n'
+        "[quantities]\nboards = [1, 5]\n\n"
+        '[components.resistor.power_w]\npolicy = "default"\nvalue = 0.25\n',
+        encoding="utf-8",
+    )
+
+    saved_path = save_project_quantities(tmp_path, [10, 1, 5])
+
+    settings = load(tmp_path)
+    contents = saved_path.read_text(encoding="utf-8")
+    assert settings.quantities.boards == [1, 5, 10]
+    assert settings.paths.production == "factory"
+    assert 'policy = "default"' in contents
+    assert "boards = [1, 5, 10]" in contents
+
+
+def test_save_project_quantities_creates_only_project_quantity_override(tmp_path: Path) -> None:
+    user = tmp_path / "user.toml"
+    user.write_text(
+        '[paths]\nproduction = "custom-production"\nconfig = "custom-config"\n'
+        'state = "custom-state"\n[quantities]\nboards = [2, 20]\n',
+        encoding="utf-8",
+    )
+
+    save_project_quantities(tmp_path, [3, 30])
+
+    settings = load(tmp_path, user)
+    assert settings.quantities.boards == [3, 30]
+    assert settings.paths.production == "custom-production"
 
 
 def test_rejects_invalid_quantity_ranges() -> None:

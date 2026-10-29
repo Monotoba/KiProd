@@ -1,11 +1,20 @@
 from __future__ import annotations
 
 import shutil
+from decimal import Decimal
 from pathlib import Path
 
+import pytest
+
+from kiprod.analysis.landed import LandedCost, LandedLine
 from kiprod.core.models import Offer, PriceBreak, SourceRef
 from kiprod.core.project import discover
-from kiprod.gui import _load_project, _quote_results
+from kiprod.gui import (
+    _create_comparison,
+    _load_project,
+    _quote_results,
+    _regenerate_comparison,
+)
 from kiprod.rfq.quote_import import ExtractedOffer, QuoteImportResult
 
 
@@ -69,3 +78,48 @@ def test_gui_quote_views_find_captured_mail_and_typed_offer_files(tmp_path: Path
     assert len(offers) == 1
     assert offers[0][0] == offer_file.resolve()
     assert offers[0][1].offers[0].offer.manufacturer_part_number == "MPN-1"
+
+
+def test_gui_comparison_archives_inputs_and_regenerates_only_after_hash_check(
+    tmp_path: Path,
+) -> None:
+    project_path = tmp_path / "native_counter"
+    shutil.copytree(Path(__file__).parent / "projects" / "native_counter", project_path)
+    _project, _bom, _review, _board, _assembly, bom_json, _csv = _load_project(project_path, None)
+    project = discover(project_path)
+    landed = LandedCost(
+        supplier_id="supplier-a",
+        board_quantity=10,
+        currency="USD",
+        parts_total=Decimal("5.00"),
+        total=Decimal("6.00"),
+        per_board=Decimal("0.60"),
+        lines=[
+            LandedLine(
+                manufacturer_part_number="MPN-1",
+                supplier_part_number="SKU-1",
+                required_quantity=10,
+                buy_quantity=10,
+                unit_price=Decimal("0.50"),
+                extended_price=Decimal("5.00"),
+                currency="USD",
+                source_ref=SourceRef(path="quote.csv", reference="row 2"),
+            )
+        ],
+    )
+    input_file = tmp_path / "landed.json"
+    input_file.write_text(landed.model_dump_json(), encoding="utf-8")
+
+    comparison, run_dir = _create_comparison(project, [input_file], bom_json)
+
+    assert comparison.rows[0].supplier_id == "supplier-a"
+    assert (run_dir / "comparison.md").is_file()
+    assert (run_dir / "comparison.json").is_file()
+    (run_dir / "comparison.md").unlink()
+    regenerated = _regenerate_comparison(run_dir)
+    assert regenerated == comparison
+    assert (run_dir / "comparison.md").is_file()
+    archived_input = next((run_dir / "inputs").glob("landed-*.json"))
+    archived_input.write_text("{}", encoding="utf-8")
+    with pytest.raises(ValueError, match="hash mismatch"):
+        _regenerate_comparison(run_dir)

@@ -3,22 +3,66 @@ from __future__ import annotations
 import json
 import sys
 from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, cast
+from uuid import uuid4
 
 from kiprod.ai.review import ReviewReport, review_bom
 from kiprod.analysis.assembly import extract as extract_assembly
+from kiprod.analysis.comparison import Comparison, compare
+from kiprod.analysis.landed import LandedCost
 from kiprod.analysis.panelization import discover_fabrication_notes, extract_boards_per_panel
 from kiprod.core.artifacts import write_bom
 from kiprod.core.bom import build
+from kiprod.core.config import ConfigError, load, parse_quantities, save_project_quantities
 from kiprod.core.models import AssemblySpec, BoardSpec, NormalizedBOM, Project
 from kiprod.core.project import discover
 from kiprod.kicad.board import extract as extract_board
 from kiprod.kicad.cli_adapter import export_bom
 from kiprod.plugins.host import PluginError, discover_plugins
 from kiprod.plugins.models import Manifest
+from kiprod.reports.markdown import comparison_markdown
+from kiprod.reports.run_archive import archive_inputs, input_paths, load_manifest
 from kiprod.rfq.quote_import import QuoteImportResult
+
+
+def _create_comparison(
+    project: Project, input_files: list[Path], bom_path: Path
+) -> tuple[Comparison, Path]:
+    if not input_files:
+        raise ValueError("select at least one landed-cost JSON file")
+    costs = [
+        LandedCost.model_validate_json(path.read_text(encoding="utf-8")) for path in input_files
+    ]
+    normalized_bom = NormalizedBOM.model_validate_json(bom_path.read_text(encoding="utf-8"))
+    required_mpns = {line.mpn for line in normalized_bom.lines if line.mpn}
+    result = compare(costs, required_mpns)
+    run_id = datetime.now(UTC).strftime("gui-%Y%m%dT%H%M%S") + "-" + uuid4().hex[:8]
+    run_dir = project.root / "docs" / "production" / "quotes" / "runs" / run_id
+    archive_inputs(input_files, bom_path, run_dir)
+    (run_dir / "comparison.md").write_text(comparison_markdown(result), encoding="utf-8")
+    (run_dir / "comparison.json").write_text(
+        result.model_dump_json(indent=2) + "\n", encoding="utf-8"
+    )
+    return result, run_dir
+
+
+def _regenerate_comparison(run_dir: Path) -> Comparison:
+    manifest = load_manifest(run_dir)
+    inputs, bom_path = input_paths(run_dir, manifest)
+    costs = [LandedCost.model_validate_json(path.read_text(encoding="utf-8")) for path in inputs]
+    required_mpns: set[str] = set()
+    if bom_path is not None:
+        normalized_bom = NormalizedBOM.model_validate_json(bom_path.read_text(encoding="utf-8"))
+        required_mpns = {line.mpn for line in normalized_bom.lines if line.mpn}
+    result = compare(costs, required_mpns)
+    (run_dir / "comparison.md").write_text(comparison_markdown(result), encoding="utf-8")
+    (run_dir / "comparison.json").write_text(
+        result.model_dump_json(indent=2) + "\n", encoding="utf-8"
+    )
+    return result
 
 
 def _plugin_paths(project: Project) -> list[Path]:
@@ -63,6 +107,7 @@ def _qt() -> tuple[Any, ...]:
             QApplication,
             QComboBox,
             QFileDialog,
+            QFormLayout,
             QHBoxLayout,
             QLabel,
             QLineEdit,
@@ -92,6 +137,7 @@ def _qt() -> tuple[Any, ...]:
         QUrl,
         QComboBox,
         QFileDialog,
+        QFormLayout,
         QHBoxLayout,
         QLabel,
         QLineEdit,
@@ -184,6 +230,7 @@ def run_gui(project_path: Path | None = None) -> int:
         QUrl,
         QComboBox,
         QFileDialog,
+        QFormLayout,
         QHBoxLayout,
         QLabel,
         QLineEdit,
@@ -228,6 +275,7 @@ def run_gui(project_path: Path | None = None) -> int:
             self.resize(1180, 760)
             self.current_project: Project | None = None
             self.current_json_path: Path | None = None
+            self.current_project_path: Path | None = None
             self.thread: Any = None
             self.worker: Any = None
 
@@ -307,11 +355,38 @@ def run_gui(project_path: Path | None = None) -> int:
             self.reports_list.setHorizontalHeaderLabels(["Artifact", "Path"])
             self.reports_list.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
             self.reports_list.cellDoubleClicked.connect(self.open_report)
-            settings_page = QPlainTextEdit(
-                "Project settings are managed with the CLI today.\n"
-                "Use `kiprod config show --project <project>` to inspect effective settings."
+            reports_page = QWidget()
+            reports_layout = QVBoxLayout(reports_page)
+            self.regenerate_button = QPushButton("Regenerate selected saved comparison")
+            self.regenerate_button.clicked.connect(self.regenerate_selected_report)
+            reports_layout.addWidget(self.regenerate_button)
+            reports_layout.addWidget(self.reports_list, 1)
+            compare_page = QWidget()
+            compare_layout = QVBoxLayout(compare_page)
+            compare_actions = QHBoxLayout()
+            self.compare_button = QPushButton("Compare saved landed-cost files…")
+            self.compare_button.clicked.connect(self.choose_comparison_inputs)
+            compare_actions.addWidget(self.compare_button)
+            compare_actions.addStretch(1)
+            compare_layout.addLayout(compare_actions)
+            self.comparison_table = QTableWidget(0, 7)
+            self.comparison_table.setHorizontalHeaderLabels(
+                ["Rank", "Supplier", "Boards", "Currency", "Total", "Per board", "Lines"]
             )
-            settings_page.setReadOnly(True)
+            self.comparison_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+            compare_layout.addWidget(self.comparison_table, 1)
+            self.coverage_label = QLabel("Choose saved landed-cost JSON files to compare.")
+            compare_layout.addWidget(self.coverage_label)
+            settings_page = QWidget()
+            settings_layout = QFormLayout(settings_page)
+            self.settings_quantity = QLineEdit()
+            self.settings_paths = QPlainTextEdit()
+            self.settings_paths.setReadOnly(True)
+            self.save_settings_button = QPushButton("Save project settings")
+            self.save_settings_button.clicked.connect(self.save_settings)
+            settings_layout.addRow("Board quantities", self.settings_quantity)
+            settings_layout.addRow("Effective paths", self.settings_paths)
+            settings_layout.addRow(self.save_settings_button)
             self.tabs.addTab(self.project_page, "Project")
             self.tabs.addTab(self.bom_table, "BOM & Specs")
             self.tabs.addTab(self.review_table, "Review")
@@ -322,7 +397,8 @@ def run_gui(project_path: Path | None = None) -> int:
             supplier_splitter.addWidget(self.plugin_details)
             self.tabs.addTab(supplier_splitter, "Components")
             self.tabs.addTab(self.quotes_tabs, "Quotes Inbox")
-            self.tabs.addTab(self.reports_list, "Reports")
+            self.tabs.addTab(compare_page, "Compare")
+            self.tabs.addTab(reports_page, "Reports")
             self.tabs.addTab(settings_page, "Settings")
             splitter.addWidget(self.tabs)
             self.log = QPlainTextEdit()
@@ -354,13 +430,18 @@ def run_gui(project_path: Path | None = None) -> int:
                 QMessageBox.warning(self, "Project required", "Select a KiCad project folder.")
                 return
             project_path = Path(path_text).expanduser()
+            same_project = (
+                self.current_project_path is not None
+                and project_path.resolve() == self.current_project_path.resolve()
+            )
+            variant = self.variant_combo.currentData() if same_project else None
             self.run_button.setEnabled(False)
             self.progress_bar.setValue(0)
             self.progress_bar.setFormat("Starting…")
             self.statusBar().showMessage("Building normalized BOM and deterministic review…")
             self.log.appendPlainText(f"Loading project: {project_path}")
             self.thread = QThread(self)
-            self.worker = ProjectWorker(project_path, self.variant_combo.currentData() or None)
+            self.worker = ProjectWorker(project_path, variant or None)
             self.worker.moveToThread(self.thread)
             self.thread.started.connect(self.worker.run)
             self.worker.completed.connect(self.on_completed)
@@ -386,12 +467,19 @@ def run_gui(project_path: Path | None = None) -> int:
                 result,
             )
             self.current_project = project
+            self.current_project_path = project.root
             self.current_json_path = json_path
+            self.refresh_settings(project)
+            selected_variant = self.variant_combo.currentData()
             self.variant_combo.blockSignals(True)
             self.variant_combo.clear()
             self.variant_combo.addItem("Default variant", "")
             for variant in project.variants:
                 self.variant_combo.addItem(variant, variant)
+            if selected_variant:
+                selected_index = self.variant_combo.findData(selected_variant)
+                if selected_index >= 0:
+                    self.variant_combo.setCurrentIndex(selected_index)
             self.variant_combo.blockSignals(False)
             self.project_page.setPlainText(
                 "Project: "
@@ -453,6 +541,38 @@ def run_gui(project_path: Path | None = None) -> int:
             self.progress_bar.setValue(value)
             self.progress_bar.setFormat(message)
             self.statusBar().showMessage(message)
+
+        def refresh_settings(self, project: Project) -> None:
+            try:
+                settings = load(project.root)
+            except ConfigError as exc:
+                self.settings_quantity.clear()
+                self.settings_paths.setPlainText(f"Configuration error:\n{exc}")
+                self.save_settings_button.setEnabled(False)
+                self.log.appendPlainText(f"WARNING: project settings could not be loaded: {exc}")
+                return
+            self.save_settings_button.setEnabled(True)
+            self.settings_quantity.setText(", ".join(map(str, settings.quantities.boards)))
+            self.settings_paths.setPlainText(
+                f"Production: {settings.paths.production}\n"
+                f"Configuration: {settings.paths.config}\n"
+                f"Local state: {settings.paths.state}\n\n"
+                "Only board quantities are editable here. Other settings and unknown TOML keys "
+                "are preserved. Secrets belong in the operating system keyring."
+            )
+
+        def save_settings(self) -> None:
+            if self.current_project is None:
+                return
+            try:
+                quantities = parse_quantities(self.settings_quantity.text())
+                config_path = save_project_quantities(self.current_project.root, quantities)
+            except (ConfigError, OSError) as exc:
+                QMessageBox.critical(self, "Settings were not saved", str(exc))
+                return
+            self.log.appendPlainText(f"Saved project settings: {config_path}")
+            self.statusBar().showMessage("Project settings saved")
+            self.refresh_settings(self.current_project)
 
         @staticmethod
         def _fill_metrics(table: Any, metrics: dict[str, Any]) -> None:
@@ -570,14 +690,112 @@ def run_gui(project_path: Path | None = None) -> int:
             self.thread = None
 
         def refresh_reports(self) -> None:
-            if self.current_project is None:
+            if self.current_project_path is None:
                 return
-            output_dir = self.current_project.root / "docs" / "production" / "bom"
-            paths = sorted(path for path in output_dir.iterdir() if path.is_file())
+            output_dir = self.current_project_path / "docs" / "production"
+            paths = (
+                sorted(
+                    path
+                    for path in output_dir.rglob("*")
+                    if path.is_file()
+                    and path.resolve().is_relative_to(output_dir.resolve())
+                    and path.suffix.casefold() in {".csv", ".json", ".md", ".xlsx"}
+                    and ".kiprod" not in path.relative_to(output_dir).parts
+                    and "config" not in path.relative_to(output_dir).parts
+                )
+                if output_dir.is_dir()
+                else []
+            )
             self.reports_list.setRowCount(len(paths))
             for row, path in enumerate(paths):
-                self.reports_list.setItem(row, 0, QTableWidgetItem(path.name))
+                self.reports_list.setItem(
+                    row, 0, QTableWidgetItem(str(path.relative_to(output_dir)))
+                )
                 self.reports_list.setItem(row, 1, QTableWidgetItem(str(path)))
+
+        def choose_comparison_inputs(self) -> None:
+            if (
+                self.current_project is None
+                or self.current_project_path is None
+                or self.current_json_path is None
+            ):
+                QMessageBox.warning(self, "Project required", "Build a project BOM first.")
+                return
+            paths, _filter = QFileDialog.getOpenFileNames(
+                self,
+                "Select saved landed-cost JSON files",
+                str(self.current_project_path / "docs" / "production" / "quotes"),
+                "JSON files (*.json)",
+            )
+            if not paths:
+                return
+            try:
+                comparison, run_dir = _create_comparison(
+                    self.current_project,
+                    [Path(path) for path in paths],
+                    self.current_json_path,
+                )
+            except (OSError, ValueError) as exc:
+                QMessageBox.critical(self, "Comparison failed", str(exc))
+                self.log.appendPlainText(f"ERROR: comparison failed: {exc}")
+                return
+            self.show_comparison(comparison)
+            self.log.appendPlainText(f"Saved comparison run: {run_dir}")
+            self.refresh_reports()
+            self.tabs.setCurrentIndex(self.tabs.indexOf(self.comparison_table.parentWidget()))
+
+        def show_comparison(self, comparison: Comparison) -> None:
+            self.comparison_table.setRowCount(len(comparison.rows))
+            for row, item in enumerate(comparison.rows):
+                values = [
+                    str(item.rank),
+                    item.supplier_id,
+                    str(item.board_quantity),
+                    item.currency,
+                    item.total,
+                    item.per_board,
+                    str(item.quoted_lines),
+                ]
+                for column, value in enumerate(values):
+                    self.comparison_table.setItem(row, column, QTableWidgetItem(value))
+            gaps = ", ".join(comparison.coverage_gaps) or "none"
+            self.coverage_label.setText(f"Coverage gaps: {gaps}")
+
+        def regenerate_selected_report(self) -> None:
+            if self.current_project_path is None:
+                return
+            selected = self.reports_list.currentRow()
+            path_item = self.reports_list.item(selected, 1) if selected >= 0 else None
+            if path_item is None:
+                QMessageBox.information(self, "Select a report", "Select a saved run report first.")
+                return
+            report_path = Path(path_item.text()).resolve()
+            run_root = (
+                self.current_project_path / "docs" / "production" / "quotes" / "runs"
+            ).resolve()
+            run_dir = next(
+                (
+                    parent
+                    for parent in (report_path.parent, *report_path.parents)
+                    if parent.is_relative_to(run_root) and (parent / "run.json").is_file()
+                ),
+                None,
+            )
+            if run_dir is None:
+                QMessageBox.information(
+                    self, "No saved comparison run", "The selected artifact is not in a saved run."
+                )
+                return
+            try:
+                comparison = _regenerate_comparison(run_dir)
+            except (OSError, ValueError, KeyError) as exc:
+                QMessageBox.critical(self, "Report regeneration failed", str(exc))
+                self.log.appendPlainText(f"ERROR: report regeneration failed: {exc}")
+                return
+            self.log.appendPlainText(f"Regenerated comparison reports in {run_dir}")
+            self.show_comparison(comparison)
+            self.refresh_reports()
+            self.tabs.setCurrentIndex(self.tabs.indexOf(self.comparison_table.parentWidget()))
 
         def open_report(self, row: int, column: int) -> None:
             del column

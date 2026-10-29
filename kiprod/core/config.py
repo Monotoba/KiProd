@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import re
+import tempfile
 import tomllib
 from collections.abc import Mapping
 from copy import deepcopy
@@ -84,6 +87,65 @@ def _read(path: Path) -> dict[str, object]:
 
 def project_config_path(project_root: Path) -> Path:
     return project_root / "docs" / "production" / "quotes" / "config" / "kiprod.toml"
+
+
+def save_project_quantities(project_root: Path, boards: list[int]) -> Path:
+    """Update only project board quantities while retaining other TOML settings."""
+    normalized = Quantities(boards=boards).boards
+    destination = project_config_path(project_root)
+    source = destination.read_text(encoding="utf-8") if destination.is_file() else ""
+    if source:
+        parsed = tomllib.loads(source)
+        quantities = parsed.get("quantities", {})
+        if not isinstance(quantities, dict):
+            raise ConfigError("project [quantities] setting must be a table")
+        source = _update_quantities_table(source, normalized)
+    else:
+        source = f"[quantities]\nboards = {normalized}\n"
+    try:
+        tomllib.loads(source)
+    except tomllib.TOMLDecodeError as exc:
+        raise ConfigError(f"project config could not be updated safely: {exc}") from exc
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=destination.parent, delete=False
+        ) as handle:
+            temporary_name = handle.name
+            handle.write(source.rstrip() + "\n")
+        os.replace(temporary_name, destination)
+    finally:
+        if temporary_name is not None:
+            Path(temporary_name).unlink(missing_ok=True)
+    load(project_root)
+    return destination
+
+
+def _update_quantities_table(source: str, boards: list[int]) -> str:
+    lines = source.splitlines()
+    header = re.compile(r"^\s*\[quantities\]\s*(?:#.*)?$")
+    start = next((index for index, line in enumerate(lines) if header.match(line)), None)
+    if start is None:
+        return source.rstrip() + f"\n\n[quantities]\nboards = {boards}\n"
+    end = next(
+        (index for index in range(start + 1, len(lines)) if re.match(r"^\s*\[", lines[index])),
+        len(lines),
+    )
+    key_pattern = re.compile(r"^\s*boards\s*=(.*)$")
+    key_index = next(
+        (index for index in range(start + 1, end) if key_pattern.match(lines[index])), None
+    )
+    if key_index is None:
+        lines.insert(end, f"boards = {boards}")
+    else:
+        match = key_pattern.match(lines[key_index])
+        assert match is not None
+        value = match.group(1).split("#", maxsplit=1)[0].strip()
+        if value.startswith("[") and "]" not in value:
+            raise ConfigError("cannot edit a multiline quantities.boards array from the GUI")
+        lines[key_index] = f"boards = {boards}"
+    return "\n".join(lines) + "\n"
 
 
 def load(project_root: Path, user_config: Path | None = None) -> Settings:

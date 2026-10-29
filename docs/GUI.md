@@ -22,7 +22,13 @@ its parsed candidates and review queue. Double-click opens the local file in the
 system viewer. These views do not poll mailboxes or send messages. Headless smoke
 tests cover the data-loading and artifact-writing workflow without requiring PySide6.
 
-The GUI currently provides read-only BOM, review, board, assembly, supplier, quote,
-and artifact views. Project settings editing, comparison/report regeneration, live
-supplier workflows, email approval actions, and full GUI interaction tests remain
-open in M8.
+The current GUI provides read-only BOM/review/board/assembly/supplier/quote views,
+saved landed-cost comparison and report regeneration, plus an editor for project
+board quantities. Report regeneration checks saved input hashes first. Project
+settings files are updated without replacing unrelated TOML keys.
+
+M8 still includes editable BOM provenance and approved schematic write-back, review
+workflow actions, editable manifest-generated supplier settings, in-GUI quote
+confirmation, richer weighted comparison, broader settings editors, run controls,
+and interactive desktop acceptance checks. These require PySide6 and a desktop
+session; the current automated checks exercise the data and artifact layer headlessly.

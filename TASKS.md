@@ -99,11 +99,20 @@
 - [x] Add a supplier view driven by plugin manifests, including safe credential labels and stored offer candidates.
 - [x] Add board and assembly metric views backed by existing analysis engines.
 - [x] List captured reply messages and inspect imported source-backed offer candidates.
-- [ ] Add comparison and full reports views backed by stored run data.
-- [ ] Add editable project settings views.
+- [x] Add saved landed-cost comparison, coverage gaps, verified run regeneration, and report artifact browsing.
+- [x] Add project settings editing for board quantities while preserving other TOML configuration.
 - [x] Add run progress, warning/error messages, and output-folder shortcuts.
 - [x] Add automated headless GUI workflow smoke coverage for generated artifacts and quote-data loading.
 - [x] Document GUI setup and launch.
+- [ ] Add editable BOM fields with source badges, filtering, and approval-gated KiCad write-back.
+- [ ] Add review evidence navigation and accept/dismiss/defer actions with comments.
+- [ ] Build supplier settings forms from manifests and show credential status, capabilities, results, and docs.
+- [ ] Add board-house and assembler settings/results panes with capability checks.
+- [ ] Add in-GUI quote candidate confirmation, correction, rejection, and source highlighting.
+- [ ] Add comparison weighting, best-mix analysis, gaps, lead-time/duty views, and charts.
+- [ ] Add editors for component, board, assembly, AI, email/signing, approval, and plugin settings.
+- [ ] Add run-all, quote-only, stop, run queue, and AI cost status controls.
+- [ ] Run interactive GUI acceptance checks on supported desktop platforms.
 
 ## Later milestones
 
