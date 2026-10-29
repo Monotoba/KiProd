@@ -60,6 +60,8 @@ To capture an exported supplier reply without connecting to a mailbox, run
 Poll Microsoft Graph or Gmail REST with a bearer token already obtained by the user:
 `kiprod rfq poll-mailbox graph` or `kiprod rfq poll-mailbox gmail`. The token is read
 from `KIPROD_MAILBOX_TOKEN`; polling is read-only and uses the allowlisted HTTPS client.
+Page cursors persist in the local state database; rerun the command while additional
+pages are available to continue the sweep.
 Parse structured CSV/XLSX quote attachments with
 `kiprod rfq parse-quote quote.csv --supplier-id supplier-a --output offers.json`.
 The output keeps source row references, candidate confidence, and incomplete rows in a

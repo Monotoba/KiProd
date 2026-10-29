@@ -220,6 +220,8 @@ def rfq_poll_mailbox(
     typer.echo(
         f"Checked {result.checked} message(s); imported {len(result.imported)} RFQ reply(s)."
     )
+    if result.more_available:
+        typer.echo("More mailbox pages are available; run the poll command again to continue.")
     for item in result.skipped + result.errors:
         typer.echo(item, err=True)
 

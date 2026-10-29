@@ -76,6 +76,13 @@ def _connect(database: Path) -> sqlite3.Connection:
             FOREIGN KEY (rfq_id) REFERENCES rfqs(rfq_id)
         )"""
     )
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS rfq_mailbox_cursors (
+            provider TEXT PRIMARY KEY,
+            cursor TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )"""
+    )
     connection.commit()
     return connection
 
@@ -189,3 +196,32 @@ def record_delivery_attempt(
             "(rfq_id, attempted_at, succeeded, detail) VALUES (?, ?, ?, ?)",
             (rfq_id, now, int(succeeded), detail[:1000]),
         )
+
+
+def get_mailbox_cursor(database: Path, provider: str) -> str | None:
+    if not database.is_file():
+        return None
+    with sqlite3.connect(database, timeout=10) as connection:
+        try:
+            row = connection.execute(
+                "SELECT cursor FROM rfq_mailbox_cursors WHERE provider = ?", (provider,)
+            ).fetchone()
+        except sqlite3.OperationalError as exc:
+            if "no such table" in str(exc):
+                return None
+            raise
+    return str(row[0]) if row is not None else None
+
+
+def save_mailbox_cursor(database: Path, provider: str, cursor: str | None) -> None:
+    now = datetime.now(UTC).isoformat()
+    with _connect(database) as connection:
+        if cursor is None:
+            connection.execute("DELETE FROM rfq_mailbox_cursors WHERE provider = ?", (provider,))
+        else:
+            connection.execute(
+                "INSERT INTO rfq_mailbox_cursors (provider, cursor, updated_at) VALUES (?, ?, ?) "
+                "ON CONFLICT(provider) DO UPDATE SET cursor = excluded.cursor, "
+                "updated_at = excluded.updated_at",
+                (provider, cursor, now),
+            )

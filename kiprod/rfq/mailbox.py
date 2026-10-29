@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from kiprod.net.http import HttpClient, HttpError
 from kiprod.rfq.inbox import InboxImport, import_reply, known_rfq_ids
+from kiprod.rfq.workflow import get_mailbox_cursor, save_mailbox_cursor
 
 _PROVIDERS = {
     "graph": "graph.microsoft.com",
@@ -24,6 +25,7 @@ class MailboxPollResult(BaseModel):
     imported: list[InboxImport] = Field(default_factory=list)
     skipped: list[str] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
+    more_available: bool = False
 
 
 def _contains_known_id(text: str, known: list[str]) -> bool:
@@ -33,7 +35,9 @@ def _contains_known_id(text: str, known: list[str]) -> bool:
     )
 
 
-def _graph_url(limit: int) -> str:
+def _graph_url(limit: int, cursor: str | None = None) -> str:
+    if cursor:
+        return cursor
     query = urlencode(
         {
             "$filter": "isRead eq false",
@@ -44,8 +48,11 @@ def _graph_url(limit: int) -> str:
     return f"https://graph.microsoft.com/v1.0/me/messages?{query}"
 
 
-def _gmail_url(limit: int) -> str:
-    query = urlencode({"q": "in:inbox", "maxResults": str(limit)})
+def _gmail_url(limit: int, cursor: str | None = None) -> str:
+    query_values = {"q": "in:inbox", "maxResults": str(limit)}
+    if cursor:
+        query_values["pageToken"] = cursor
+    query = urlencode(query_values)
     return f"https://gmail.googleapis.com/gmail/v1/users/me/messages?{query}"
 
 
@@ -106,16 +113,22 @@ def poll_mailbox(
     result = MailboxPollResult(provider=key, checked=0)
     if not known:
         return result
+    cursor = get_mailbox_cursor(database, key)
     try:
-        listing_url = _graph_url(limit) if key == "graph" else _gmail_url(limit)
+        listing_url = _graph_url(limit, cursor) if key == "graph" else _gmail_url(limit, cursor)
         listing_response = http.get(listing_url, headers=headers)
         if listing_response.status != 200:
             raise HttpError(f"mailbox API returned HTTP {listing_response.status}")
         listing = listing_response.json()
         if key == "graph":
             message_ids = [str(item["id"]) for item in _graph_candidates(listing, known)]
+            next_cursor = listing.get("@odata.nextLink") if isinstance(listing, dict) else None
         else:
             message_ids = _gmail_ids(listing)
+            next_cursor = listing.get("nextPageToken") if isinstance(listing, dict) else None
+        if next_cursor is not None and not isinstance(next_cursor, str):
+            raise ValueError("mailbox provider returned an invalid page cursor")
+        result.more_available = next_cursor is not None
     except (HttpError, ValueError, json.JSONDecodeError) as exc:
         result.errors.append(str(exc))
         return result
@@ -151,5 +164,11 @@ def poll_mailbox(
                 )
                 result.imported.append(imported)
             except (OSError, HttpError, ValueError, json.JSONDecodeError) as exc:
-                result.skipped.append(f"{key}:{message_id}: {exc}")
+                detail = f"{key}:{message_id}: {exc}"
+                if isinstance(exc, ValueError) and "does not match a known RFQ ID" in str(exc):
+                    result.skipped.append(detail)
+                else:
+                    result.errors.append(detail)
+    if not result.errors:
+        save_mailbox_cursor(database, key, next_cursor)
     return result

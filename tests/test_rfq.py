@@ -22,6 +22,7 @@ from kiprod.rfq.inbox import import_reply
 from kiprod.rfq.mailbox import _gmail_url, _graph_url, poll_mailbox
 from kiprod.rfq.privacy import scan_privacy
 from kiprod.rfq.workflow import (
+    get_mailbox_cursor,
     get_rfq_status,
     register_email_draft,
     transition_rfq,
@@ -522,3 +523,38 @@ def test_gmail_mailbox_poll_decodes_raw_message_and_imports_it(
     assert result.checked == 1
     assert result.imported[0].rfq_id == rfq_id
     assert result.imported[0].state == "acknowledged"
+
+
+def test_mailbox_pagination_cursor_advances_and_resets_after_last_page(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    rfq_id = "KP-pages-1"
+    database = _sent_rfq_for_mailbox(tmp_path, monkeypatch, rfq_id)
+    raw = _reply_bytes(rfq_id)
+    first_url = _gmail_url(1)
+    second_url = _gmail_url(1, "page-2")
+    raw_url = "https://gmail.googleapis.com/gmail/v1/users/me/messages/msg-1?format=raw"
+    http = HttpClient(
+        {"gmail.googleapis.com"},
+        fixtures={
+            ("GET", first_url): HttpResponse(
+                200,
+                {},
+                json.dumps({"messages": [{"id": "msg-1"}], "nextPageToken": "page-2"}).encode(),
+            ),
+            ("GET", raw_url): HttpResponse(
+                200,
+                {},
+                json.dumps({"raw": base64.urlsafe_b64encode(raw).decode().rstrip("=")}).encode(),
+            ),
+            ("GET", second_url): HttpResponse(200, {}, json.dumps({"messages": []}).encode()),
+        },
+    )
+
+    first = poll_mailbox("gmail", "token", database, tmp_path / "replies", limit=1, client=http)
+    assert first.more_available
+    assert get_mailbox_cursor(database, "gmail") == "page-2"
+
+    second = poll_mailbox("gmail", "token", database, tmp_path / "replies", limit=1, client=http)
+    assert not second.more_available
+    assert get_mailbox_cursor(database, "gmail") is None

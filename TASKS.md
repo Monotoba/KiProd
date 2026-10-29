@@ -70,7 +70,8 @@
 - [x] Parse labeled-field PDF quotes into low-confidence candidates that always require human review.
 - [x] Add local OCR fallback for scanned quote PDFs, with low confidence and mandatory careful review.
 - [x] Poll Microsoft Graph/Gmail REST with bearer tokens through the HTTPS allowlist and import matched replies read-only.
-- [ ] Add pagination/cursors and evaluate extraction accuracy against a representative fixture set.
+- [x] Persist Graph/Gmail page cursors and advance only after the page is processed; reset after the final page.
+- [ ] Evaluate extraction accuracy against a representative fixture set.
 
 ## Later milestones
 
