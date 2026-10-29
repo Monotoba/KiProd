@@ -33,6 +33,17 @@ Run these checks on each supported desktop platform before closing M8. Record th
 OS, desktop environment, KiCad version (if installed), display resolution, and
 display scaling with the results.
 
+### Screenshot review
+
+A user-provided desktop screenshot reviewed on 2026-10-29 shows the KiProd window
+within the captured screen bounds. The tab row exceeds the available width and
+shows Qt's tab-navigation arrows, keeping later pages reachable. The project
+field points to the KiProd repository rather than a KiCad project, so the empty
+workspace does not indicate a rendering failure. This confirms window fit and
+tab overflow behavior for that screenshot only; it does not record the display
+scaling percentage or verify project workflows, resize behavior, or other
+platforms.
+
 1. Install the GUI extra with `./scripts/setup-gui.sh`, then launch with
    `./scripts/run.sh gui --mode open`. Confirm the window opens and can be moved,
    resized, minimized, restored, and closed normally.

@@ -135,6 +135,7 @@
 - [x] Add a queued run list with per-job status and sequential execution.
 - [x] Show AI usage/cost status; current GUI run modes make no AI requests.
 - [x] Support Qt 6 high-DPI scaling with logical-pixel window sizing and responsive controls.
+- [x] Review user-provided desktop screenshot: the window fits the captured screen and the overflowing tab row exposes navigation arrows (details: `docs/GUI.md`).
 - [ ] Run interactive GUI acceptance checks on supported desktop platforms (procedure: `docs/GUI.md#interactive-desktop-acceptance`).
 
 ## Later milestones
