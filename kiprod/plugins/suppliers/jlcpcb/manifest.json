@@ -1,0 +1,32 @@
+{
+  "id": "com.kiprod.supplier.jlcpcb",
+  "name": "JLCPCB",
+  "version": "1.0.0",
+  "homepage": "https://jlcpcb.com/",
+  "resources": [
+    "fabrication",
+    "assembly"
+  ],
+  "aliases": [
+    "JLPCB"
+  ],
+  "integration_status": "profile_only",
+  "capabilities": {
+    "pcb_fab": {
+      "quote_channel": "manual_rfq",
+      "validation_status": "limits_not_configured",
+      "limits": {}
+    },
+    "pcb_assembly": {
+      "quote_channel": "manual_rfq",
+      "validation_status": "limits_not_configured",
+      "limits": {}
+    }
+  },
+  "permissions": {
+    "network": [],
+    "email": false,
+    "browser": false
+  },
+  "fields": []
+}

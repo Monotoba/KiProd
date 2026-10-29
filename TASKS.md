@@ -33,6 +33,8 @@
 - [x] Add a recorded catalog adapter example with validated offers and required source references.
 - [x] Add CLI plugin discovery, health checks, and source-backed catalog search.
 - [x] Add a production read-only JSON catalog protocol adapter with typed offer validation and recorded-fixture coverage; supplier-specific live connectors still require API terms, endpoint, and credential configuration.
+- [x] Add discoverable profile plugins for all 28 named component distributors, PCB fabricators, and EMS/assembly suppliers, with aliases and official homepages.
+- [ ] Implement supplier-specific live catalog and quote integrations only where supplier API access, terms, endpoints, and credentials have been confirmed.
 
 ## M4 — Analysis and reports (complete)
 

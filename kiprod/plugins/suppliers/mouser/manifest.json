@@ -1,0 +1,25 @@
+{
+  "id": "com.kiprod.supplier.mouser",
+  "name": "Mouser Electronics",
+  "version": "1.0.0",
+  "homepage": "https://www.mouser.com/",
+  "resources": [
+    "components"
+  ],
+  "aliases": [
+    "MOUSER"
+  ],
+  "integration_status": "profile_only",
+  "capabilities": {
+    "components": {
+      "quote_channel": "manual_quote_import",
+      "catalog_api_status": "not_configured"
+    }
+  },
+  "permissions": {
+    "network": [],
+    "email": false,
+    "browser": false
+  },
+  "fields": []
+}

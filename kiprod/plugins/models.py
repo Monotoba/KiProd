@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -35,6 +37,7 @@ class Manifest(BaseModel):
     name: str
     version: str
     homepage: str | None = None
+    integration_status: Literal["profile_only", "adapter_configured"] | None = None
     resource_types: list[str] = Field(default_factory=list, alias="resources")
     region: Region = Field(default_factory=Region)
     adapter: AdapterSpec | None = None
@@ -42,6 +45,14 @@ class Manifest(BaseModel):
     permissions: Permissions = Field(default_factory=Permissions)
     capabilities: dict[str, object] = Field(default_factory=dict)
     fields: list[dict[str, object]] = Field(default_factory=list)
+
+    @property
+    def status_label(self) -> str:
+        if self.integration_status == "profile_only":
+            return "Profile only"
+        if self.integration_status == "adapter_configured":
+            return "Adapter configured"
+        return "Adapter configured" if self.adapter is not None else "Profile only"
 
     @field_validator("fields")
     @classmethod

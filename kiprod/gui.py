@@ -1412,7 +1412,7 @@ def run_gui(project_path: Path | None = None, startup_mode: str = "all") -> int:
             for row, plugin in enumerate(plugins):
                 manifest = plugin.manifest
                 resources = ", ".join(manifest.resource_types) or "unspecified"
-                values = [manifest.name, resources, "Manifest found"]
+                values = [manifest.name, resources, manifest.status_label]
                 for column, value in enumerate(values):
                     self.plugins_table.setItem(row, column, QTableWidgetItem(value))
             self.plugins_table.selectRow(0)
@@ -1446,6 +1446,15 @@ def run_gui(project_path: Path | None = None, startup_mode: str = "all") -> int:
                 return
             rows: list[list[str]] = []
             for plugin in matching:
+                declared = plugin.manifest.capabilities.get(capability)
+                if isinstance(declared, dict) and (
+                    declared.get("validation_status") == "limits_not_configured"
+                    or not declared.get("limits")
+                ):
+                    rows.append(
+                        [plugin.manifest.name, "Limits not configured", "", "", ""]
+                    )
+                    continue
                 findings = checker(spec, plugin.manifest)
                 if findings:
                     for finding in findings:
@@ -1529,6 +1538,18 @@ def run_gui(project_path: Path | None = None, startup_mode: str = "all") -> int:
                     view.setPlainText(f"{manifest.name} does not declare {title} capability.")
                 elif spec is None:
                     view.setPlainText(f"No project {title.lower()} metrics are available.")
+                elif (
+                    declared.get("validation_status") == "limits_not_configured"
+                    or not declared.get("limits")
+                ):
+                    view.setPlainText(
+                        f"Supplier: {manifest.name} ({manifest.id})\n"
+                        f"Capability: {capability}\n\n"
+                        "No supplier limit data is configured. A compatibility conclusion "
+                        "cannot be drawn until verified capability limits are added.\n\n"
+                        "Project metrics:\n"
+                        f"{json.dumps(spec.model_dump(), indent=2, sort_keys=True)}"
+                    )
                 else:
                     findings = checker(spec, manifest)
                     view.setPlainText(

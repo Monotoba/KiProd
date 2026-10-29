@@ -1,0 +1,24 @@
+{
+  "id": "com.kiprod.supplier.aivon",
+  "name": "AIVON",
+  "version": "1.0.0",
+  "homepage": "https://www.aivon.com/",
+  "resources": [
+    "fabrication"
+  ],
+  "aliases": [],
+  "integration_status": "profile_only",
+  "capabilities": {
+    "pcb_fab": {
+      "quote_channel": "manual_rfq",
+      "validation_status": "limits_not_configured",
+      "limits": {}
+    }
+  },
+  "permissions": {
+    "network": [],
+    "email": false,
+    "browser": false
+  },
+  "fields": []
+}

@@ -1,0 +1,24 @@
+{
+  "id": "com.kiprod.supplier.circuits-central",
+  "name": "Circuits Central",
+  "version": "1.0.0",
+  "homepage": "https://www.circuits-central.com/",
+  "resources": [
+    "assembly"
+  ],
+  "aliases": [],
+  "integration_status": "profile_only",
+  "capabilities": {
+    "pcb_assembly": {
+      "quote_channel": "manual_rfq",
+      "validation_status": "limits_not_configured",
+      "limits": {}
+    }
+  },
+  "permissions": {
+    "network": [],
+    "email": false,
+    "browser": false
+  },
+  "fields": []
+}

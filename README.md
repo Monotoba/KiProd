@@ -104,6 +104,10 @@ Project and supplier plugins live under
 `docs/production/quotes/config/suppliers/`. Use `kiprod plugins list` to inspect
 available plugins, `kiprod plugins test PLUGIN_ID` for an isolated health check,
 and `kiprod quote MPN --plugin PLUGIN_ID` to query a catalog plugin.
+The bundled supplier directory includes profile-only entries for all named
+component distributors, PCB fabricators, and EMS providers; these profiles are
+not live price or inventory integrations. See
+[`docs/SUPPLIER_PLUGIN_CATALOG.md`](docs/SUPPLIER_PLUGIN_CATALOG.md).
 
 ## Development
 

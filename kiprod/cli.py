@@ -770,7 +770,10 @@ def plugins_list(
         return
     for plugin in plugins:
         resources = ", ".join(plugin.manifest.resource_types) or "unspecified"
-        typer.echo(f"{plugin.manifest.id}\t{plugin.manifest.name}\t{resources}")
+        typer.echo(
+            f"{plugin.manifest.id}\t{plugin.manifest.name}\t{resources}\t"
+            f"{plugin.manifest.status_label}"
+        )
 
 
 @plugins_app.command("test")

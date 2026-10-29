@@ -21,5 +21,8 @@ cd "${scratch_dir}"
   --output-dir "${scratch_dir}/output"
 test -s "${scratch_dir}/output/bom.normalized.json"
 test -s "${scratch_dir}/output/bom.csv"
+supplier_profiles="$("${scratch_dir}/venv/bin/kiprod" plugins list \
+  --project "${project_root}/tests/projects/basic" | grep -c 'Profile only$')"
+test "${supplier_profiles}" -eq 28
 
-echo "Built wheel and source archive; installed wheel and generated a BOM outside the checkout."
+echo "Built wheel and source archive; installed wheel, generated a BOM, and found all supplier profiles."

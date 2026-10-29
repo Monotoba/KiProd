@@ -1,0 +1,32 @@
+{
+  "id": "com.kiprod.supplier.sierra-circuits",
+  "name": "Sierra Circuits",
+  "version": "1.0.0",
+  "homepage": "https://www.protoexpress.com/",
+  "resources": [
+    "fabrication",
+    "assembly"
+  ],
+  "aliases": [
+    "SIERRA"
+  ],
+  "integration_status": "profile_only",
+  "capabilities": {
+    "pcb_fab": {
+      "quote_channel": "manual_rfq",
+      "validation_status": "limits_not_configured",
+      "limits": {}
+    },
+    "pcb_assembly": {
+      "quote_channel": "manual_rfq",
+      "validation_status": "limits_not_configured",
+      "limits": {}
+    }
+  },
+  "permissions": {
+    "network": [],
+    "email": false,
+    "browser": false
+  },
+  "fields": []
+}

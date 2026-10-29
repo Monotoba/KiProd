@@ -1,0 +1,30 @@
+{
+  "id": "com.kiprod.supplier.pcbway",
+  "name": "PCBWay",
+  "version": "1.0.0",
+  "homepage": "https://www.pcbway.com/",
+  "resources": [
+    "fabrication",
+    "assembly"
+  ],
+  "aliases": [],
+  "integration_status": "profile_only",
+  "capabilities": {
+    "pcb_fab": {
+      "quote_channel": "manual_rfq",
+      "validation_status": "limits_not_configured",
+      "limits": {}
+    },
+    "pcb_assembly": {
+      "quote_channel": "manual_rfq",
+      "validation_status": "limits_not_configured",
+      "limits": {}
+    }
+  },
+  "permissions": {
+    "network": [],
+    "email": false,
+    "browser": false
+  },
+  "fields": []
+}
