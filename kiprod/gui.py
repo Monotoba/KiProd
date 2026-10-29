@@ -58,7 +58,7 @@ from kiprod.rfq.offer_review import (
     load_offer_decisions,
     record_offer_decision,
 )
-from kiprod.rfq.quote_import import QuoteImportResult
+from kiprod.rfq.quote_import import QuoteImportResult, quote_source_preview_html
 
 
 def _create_comparison(
@@ -488,6 +488,7 @@ def run_gui(project_path: Path | None = None) -> int:
             self.offer_candidate_combo = QComboBox()
             self.offer_candidate_combo.currentIndexChanged.connect(self.show_selected_offer)
             candidate_views = QTabWidget()
+            self.offer_candidate_views = candidate_views
             candidate_views.addTab(self.offer_details, "Original candidate")
             candidate_views.addTab(self.offer_correction, "Correction")
             self.offer_review_queue_table = QTableWidget(0, 4)
@@ -496,7 +497,13 @@ def run_gui(project_path: Path | None = None) -> int:
             )
             self.offer_review_queue_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
             self.offer_review_queue_table.cellDoubleClicked.connect(self.open_review_queue_source)
+            self.offer_review_queue_table.currentCellChanged.connect(
+                self.show_review_queue_evidence
+            )
             candidate_views.addTab(self.offer_review_queue_table, "Review queue")
+            self.offer_source_preview = QTextBrowser()
+            self.offer_source_preview.setOpenExternalLinks(False)
+            candidate_views.addTab(self.offer_source_preview, "Source evidence")
             self.offer_review_comment = QLineEdit()
             self.offer_review_comment.setPlaceholderText(
                 "Comment (required for correction/rejection)"
@@ -1479,6 +1486,8 @@ def run_gui(project_path: Path | None = None) -> int:
             if not 0 <= row < len(results):
                 self.offer_candidate_combo.clear()
                 self.offer_details.clear()
+                self.offer_review_queue_table.setRowCount(0)
+                self.offer_source_preview.setHtml("<p>Select an imported quote source.</p>")
                 return
             _path, result = results[row]
             self.offer_review_queue_table.setRowCount(len(result.review_queue))
@@ -1519,6 +1528,44 @@ def run_gui(project_path: Path | None = None) -> int:
                 )
                 self.offer_correction.clear()
                 self.offer_review_status.setText("No extracted offer candidate is available.")
+                if result.review_queue:
+                    self.show_review_queue_evidence(0, 0, -1, -1)
+
+        def _show_offer_source_evidence(
+            self, source_path: str, source_reference: str | None
+        ) -> None:
+            if self.current_project_path is None:
+                self.offer_source_preview.setHtml("<p>Select a project first.</p>")
+                return
+            source = _quote_source_path(self.current_project_path, source_path)
+            if source is None:
+                self.offer_source_preview.setHtml(
+                    "<p>Source evidence is not stored inside the project production folder.</p>"
+                )
+                return
+            try:
+                self.offer_source_preview.setHtml(
+                    quote_source_preview_html(source, source_reference)
+                )
+            except (OSError, ValueError) as exc:
+                self.offer_source_preview.setHtml(
+                    f"<p>Could not preview source evidence: {escape(str(exc))}</p>"
+                )
+
+        def show_review_queue_evidence(
+            self, row: int, column: int, previous_row: int, previous_column: int
+        ) -> None:
+            del column, previous_row, previous_column
+            offer_row = self.offer_table.currentRow()
+            results = getattr(self, "offer_results", [])
+            if not 0 <= offer_row < len(results):
+                return
+            _path, result = results[offer_row]
+            if not 0 <= row < len(result.review_queue):
+                return
+            source_ref = result.review_queue[row].source_ref
+            self._show_offer_source_evidence(source_ref.path, source_ref.reference)
+            self.offer_candidate_views.setCurrentWidget(self.offer_source_preview)
 
         def open_review_queue_source(self, row: int, column: int) -> None:
             del column
@@ -1560,6 +1607,10 @@ def run_gui(project_path: Path | None = None) -> int:
                 f"requires review: {candidate.requires_review}\n\n"
                 + candidate.offer.model_dump_json(indent=2)
             )
+            self._show_offer_source_evidence(
+                candidate.offer.source_ref.path, candidate.offer.source_ref.reference
+            )
+            self.offer_candidate_views.setCurrentWidget(self.offer_source_preview)
             self.offer_correction.setPlainText(candidate.offer.model_dump_json(indent=2))
             key = candidate_key(result.supplier_id, result.source_file, index, candidate)
             decision = getattr(self, "offer_decisions", {}).get(key)

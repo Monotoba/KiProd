@@ -7,9 +7,11 @@ import shutil
 import subprocess
 from collections import defaultdict
 from decimal import Decimal, InvalidOperation
+from html import escape
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import cast
+from zipfile import BadZipFile
 
 from pydantic import BaseModel, Field
 
@@ -210,6 +212,86 @@ def _read_pdf(path: Path) -> tuple[list[object], list[list[object]], bool]:
             rows.append([fields.get(key, "") for key in header_keys])
     typed_headers, typed_rows = cast(tuple[list[object], list[list[object]]], (headers, rows))
     return typed_headers, typed_rows, used_ocr
+
+
+def quote_source_preview_html(path: Path, source_reference: str | None) -> str:
+    """Render a local CSV/XLSX/PDF text source with cited logical rows or blocks highlighted."""
+    reference_match = re.fullmatch(r"(?:rows?|blocks?):([0-9,]+)", source_reference or "")
+    selected = (
+        {int(value) for value in reference_match.group(1).split(",") if value}
+        if reference_match
+        else set()
+    )
+    suffix = path.suffix.casefold()
+    rows: list[list[object]] = []
+    if suffix == ".csv":
+        with path.open(newline="", encoding="utf-8-sig") as handle:
+            rows = [list(row) for row in csv.reader(handle)]
+    elif suffix in {".xlsx", ".xlsm"}:
+        try:
+            from openpyxl import load_workbook
+        except ImportError:
+            return (
+                "<html><body><p>XLSX source preview requires the optional reports dependencies.</p>"
+                "</body></html>"
+            )
+        try:
+            workbook = load_workbook(path, read_only=True, data_only=True)
+            try:
+                rows = [list(row) for row in workbook.active.iter_rows(values_only=True)]
+            finally:
+                workbook.close()
+        except (BadZipFile, OSError, ValueError) as exc:
+            return (
+                f"<html><body><p>Could not read XLSX source: {escape(str(exc))}</p></body></html>"
+            )
+    elif suffix == ".pdf":
+        text, _used_ocr = _pdf_text(path)
+        reverse = {alias: key for key, aliases in _ALIASES.items() for alias in aliases}
+        blocks = re.split(r"\n\s*\n|\f", text)
+        quote_blocks = [
+            block
+            for block in blocks
+            if any(
+                reverse.get(_header_key(line.partition(":")[0])) is not None
+                for line in block.splitlines()
+                if ":" in line
+            )
+        ]
+        if not quote_blocks:
+            return "<html><body><p>No extractable quote text is available.</p></body></html>"
+        body = ["<html><body><h3>PDF extracted text</h3>"]
+        for index, block in enumerate(quote_blocks, start=1):
+            color = "#fff2a8" if index in selected else "#f2f4f7"
+            body.append(
+                f"<h4>Block {index}</h4><table width='100%' cellspacing='0' cellpadding='6'>"
+                f"<tr bgcolor='{color}'><td><pre>{escape(block.strip())}</pre></td></tr></table>"
+            )
+        body.append("</body></html>")
+        return "".join(body)
+    else:
+        return "<html><body><p>No preview is available for this source format.</p></body></html>"
+
+    if not rows:
+        return "<html><body><p>The source file is empty.</p></body></html>"
+    body = [
+        "<html><body><h3>Source rows</h3><p>Highlighted rows are cited by the selected item.</p>",
+        "<table border='1' cellspacing='0' cellpadding='4'>",
+    ]
+    for row_number, row in enumerate(rows, start=1):
+        if row_number > 500 and row_number not in selected:
+            continue
+        color = " bgcolor='#fff2a8'" if row_number in selected else ""
+        body.append(f"<tr{color}><th>{row_number}</th>")
+        body.extend(f"<td>{escape(str(value) if value is not None else '')}</td>" for value in row)
+        body.append("</tr>")
+    if len(rows) > 500:
+        body.append(
+            f"<tr><td colspan='20'>Showing the first 500 rows and any cited rows "
+            f"(source has {len(rows)} rows).</td></tr>"
+        )
+    body.extend(["</table></body></html>"])
+    return "".join(body)
 
 
 def _cell(row: list[object], mapping: dict[str, int], name: str) -> str:

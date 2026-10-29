@@ -116,7 +116,7 @@
 - [x] Add supplier-specific board/assembly capability and offer-result panes.
 - [x] Confirm, correct, or reject imported offer candidates in the GUI with append-only decisions and source references.
 - [x] Open the project-stored quote file cited by a selected candidate.
-- [ ] Highlight the cited row/cell or PDF span and review queued rows without extracted offers.
+- [x] Highlight cited CSV/XLSX rows and extracted PDF quote blocks; expose queued rows with source evidence.
 - [x] Add configurable price and lead-time comparison weights, persisted for reproducible runs.
 - [x] Show coverage gaps, lead time, and landed-cost duty breakdown in comparisons.
 - [x] Add best-mix analysis with line-level source references and supplier charges.

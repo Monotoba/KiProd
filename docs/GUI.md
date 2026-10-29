@@ -29,7 +29,8 @@ findings. Quotes Inbox lists captured
 `.eml` replies and locally saved quote-import JSON. Selecting an offer file shows
 its parsed candidates and a separate review queue for source rows that were not
 extracted. Double-clicking a queued row opens its source file when it is stored
-inside the project. A candidate can be confirmed, corrected
+inside the project. Selecting a candidate or queued row opens an in-app evidence
+preview, highlighting the cited CSV/XLSX row or extracted PDF block. A candidate can be confirmed, corrected
 from typed offer JSON, or rejected; corrections must preserve its original source
 reference, and correction/rejection requires a comment. Decisions are append-only
 in `quotes/review.decisions.json`. The cited source file can be opened when it is
