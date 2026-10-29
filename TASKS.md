@@ -140,7 +140,8 @@
 - [ ] M10: hardening and release checks.
 - [x] M10 implementation: build distributions, install the wheel in an isolated environment, and verify CLI BOM output outside the checkout in CI and before releases; require lint, types, and tests before tagged release publication.
 - [x] Fix duplicate prompt-file inclusion exposed by the distribution build check.
-- [ ] M10 acceptance: confirm CI and tagged release workflows pass on GitHub.
+- [x] M10 acceptance: GitHub CI passed distribution build/install/BOM smoke checks and tests, lint, and types on Python 3.11–3.13 (commit `c4683dc`).
+- [ ] M10 acceptance: exercise the tagged release workflow when a versioned release is approved.
 
 ## Recommended completion order
 
