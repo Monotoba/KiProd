@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from kiprod.analysis.assembly import extract as extract_assembly
 from kiprod.analysis.capabilities import check_board
 from kiprod.analysis.placements import write_placements
 from kiprod.core.models import BoardSpec, Placement
@@ -65,3 +66,13 @@ def test_maps_placement_rows_to_assembler_column_names(tmp_path: Path) -> None:
         "Designator,Mid X,Mid Y,Layer,Rotation",
         "R1,10.0,20.0,top,90.0",
     ]
+
+
+def test_assembly_extracts_placements_and_packaging_from_board() -> None:
+    assembly = extract_assembly(FIXTURE)
+    assert assembly.placement_top == 1
+    assert assembly.placement_bottom == 1
+    assert assembly.unique_parts == 2
+    assert assembly.smd_count == 1
+    assert assembly.through_hole_count == 1
+    assert assembly.smallest_package_mm == 1.6

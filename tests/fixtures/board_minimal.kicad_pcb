@@ -17,4 +17,12 @@
   (gr_line (start 10 20) (end 50 20) (layer "Edge.Cuts"))
   (gr_line (start 50 20) (end 50 30) (layer "Edge.Cuts"))
   (gr_line (start 50 30) (end 10 30) (layer "Edge.Cuts"))
-  (gr_line (start 10 30) (end 10 20) (layer "Edge.Cuts")))
+  (gr_line (start 10 30) (end 10 20) (layer "Edge.Cuts"))
+  (footprint "Resistor_SMD:R_0603_1608Metric"
+    (layer "F.Cu")
+    (property "Reference" "R1")
+    (attr smd))
+  (footprint "Connector_THT:USB_B"
+    (layer "B.Cu")
+    (property "Reference" "J1")
+    (attr through_hole)))

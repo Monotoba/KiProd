@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from kiprod.core.models import BoardSpec
+from kiprod.core.models import AssemblySpec, BoardSpec
 from kiprod.plugins.models import Manifest
 
 
@@ -53,6 +53,35 @@ def check_board(board: BoardSpec, manifest: Manifest) -> list[CapabilityFinding]
                         f"{board.layers} copper layers are outside supplier range "
                         f"{minimum}–{maximum}"
                     ),
+                )
+            )
+    return findings
+
+
+def check_assembly(assembly: AssemblySpec, manifest: Manifest) -> list[CapabilityFinding]:
+    capabilities = manifest.capabilities.get("pcb_assembly", {})
+    if not isinstance(capabilities, dict):
+        return []
+    limits = capabilities.get("limits", {})
+    if not isinstance(limits, dict):
+        return []
+    findings: list[CapabilityFinding] = []
+    for key, required, label in (
+        (
+            "placements_per_side",
+            max(assembly.placement_top, assembly.placement_bottom),
+            "placements per side",
+        ),
+        ("unique_parts", assembly.unique_parts, "unique parts"),
+    ):
+        maximum = limits.get(key)
+        if isinstance(maximum, (int, float)) and required > maximum:
+            findings.append(
+                CapabilityFinding(
+                    field=key,
+                    required=float(required),
+                    limit=float(maximum),
+                    message=f"{label} {required} exceeds supplier limit {maximum}",
                 )
             )
     return findings

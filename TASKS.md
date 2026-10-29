@@ -48,7 +48,9 @@
 - [x] Compare extracted fabrication metrics against declared supplier limits.
 - [x] Extract stack-up layer types, material, thickness, and copper finish.
 - [x] Export KiCad position CSV and map placement rows to common assembler column names.
-- [ ] Extract board count and remaining placement/assembly parameters.
+- [x] Extract top/bottom placements, unique footprint count, SMD/THT counts, and smallest recognized package.
+- [x] Compare placement count and unique parts to declared assembly supplier limits.
+- [ ] Extract board count and remaining assembly requirements (BGA, pitch, programming).
 
 ## Later milestones
 

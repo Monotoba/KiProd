@@ -44,6 +44,15 @@ class Placement(BaseModel):
     rotation: float
 
 
+class AssemblySpec(BaseModel):
+    placement_top: int
+    placement_bottom: int
+    unique_parts: int
+    smd_count: int
+    through_hole_count: int
+    smallest_package_mm: float | None = None
+
+
 class Part(BaseModel):
     reference: str
     value: str = ""

@@ -9,7 +9,8 @@ from tempfile import TemporaryDirectory
 
 import typer
 
-from kiprod.analysis.capabilities import check_board
+from kiprod.analysis.assembly import extract as extract_assembly
+from kiprod.analysis.capabilities import check_assembly, check_board
 from kiprod.analysis.comparison import compare
 from kiprod.analysis.landed import LandedCost
 from kiprod.core.artifacts import write_bom
@@ -153,7 +154,10 @@ def inspect_board(
     if not discovered.boards:
         raise typer.BadParameter("project has no .kicad_pcb board")
     board = extract_board(discovered.boards[0])
-    typer.echo(board.model_dump_json(indent=2))
+    assembly = extract_assembly(discovered.boards[0])
+    typer.echo(
+        json.dumps({"board": board.model_dump(), "assembly": assembly.model_dump()}, indent=2)
+    )
     if plugin_id:
         try:
             plugin = next(
@@ -168,7 +172,7 @@ def inspect_board(
             raise typer.BadParameter(str(exc)) from exc
         if plugin is None:
             raise typer.BadParameter(f"plugin not found: {plugin_id}")
-        findings = check_board(board, plugin.manifest)
+        findings = check_board(board, plugin.manifest) + check_assembly(assembly, plugin.manifest)
         typer.echo(json.dumps([item.model_dump() for item in findings], indent=2))
 
 
