@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from importlib import import_module
 from typing import Any
 
 
@@ -9,7 +10,7 @@ class CredentialStoreUnavailable(RuntimeError):
 
 def _keyring() -> Any:
     try:
-        import keyring  # type: ignore[import-not-found]
+        keyring = import_module("keyring")
     except ImportError as exc:
         raise CredentialStoreUnavailable(
             "credential management requires the GUI extra; run ./scripts/setup-gui.sh"

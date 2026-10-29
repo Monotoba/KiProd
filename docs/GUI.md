@@ -15,6 +15,11 @@ refreshes the local supplier and quote views. Work runs in a background
 thread; the run bar shows progress and the lower drawer records output paths and
 warnings.
 
+The GUI uses Qt 6's device-pixel scaling and system fonts. Its initial window size
+is chosen from the screen's available logical geometry, capped at 1180 × 760 logical
+pixels and honoring the layout's minimum size when the screen allows. Layouts resize
+with the window; KiProd does not apply an additional manual scale factor.
+
 Run All builds BOM/review and board outputs. Quote-only refresh reads local captured
 replies and imported offers without regenerating BOM artifacts. Stop is cooperative:
 it is enabled during discovery and analysis, and stops at a safe checkpoint before

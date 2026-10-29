@@ -15,12 +15,21 @@ from kiprod.gui import (
     _comparison_chart_html,
     _create_comparison,
     _evidence_path,
+    _initial_window_size,
     _load_project,
     _load_quote_project,
     _quote_results,
     _regenerate_comparison,
 )
 from kiprod.rfq.quote_import import ExtractedOffer, QuoteImportResult
+
+
+def test_initial_gui_size_fits_available_logical_screen_geometry() -> None:
+    assert _initial_window_size(1920, 1080) == (1180, 760)
+    assert _initial_window_size(800, 600) == (752, 540)
+    assert _initial_window_size(400, 300) == (376, 270)
+    assert _initial_window_size(960, 540, 720, 510) == (902, 510)
+    assert _initial_window_size(400, 300, 720, 510) == (400, 300)
 
 
 def test_review_evidence_path_is_confined_to_project(tmp_path: Path) -> None:

@@ -127,6 +127,7 @@
 - [x] Add stop requests at safe worker checkpoints before output writes.
 - [x] Add a queued run list with per-job status and sequential execution.
 - [x] Show AI usage/cost status; current GUI run modes make no AI requests.
+- [x] Support Qt 6 high-DPI scaling with logical-pixel window sizing and responsive controls.
 - [ ] Run interactive GUI acceptance checks on supported desktop platforms.
 
 ## Later milestones

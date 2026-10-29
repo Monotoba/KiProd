@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from html import escape
+from importlib import import_module
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from threading import Event
@@ -85,6 +86,20 @@ class QuoteRefreshResult:
 def _check_cancelled(cancelled: Event | None) -> None:
     if cancelled is not None and cancelled.is_set():
         raise RunCancelled("Run stopped at a safe checkpoint; no new outputs were written.")
+
+
+def _initial_window_size(
+    available_width: int,
+    available_height: int,
+    minimum_width: int = 0,
+    minimum_height: int = 0,
+) -> tuple[int, int]:
+    """Choose an initial size in Qt logical pixels that fits the available screen."""
+    width = min(1180, int(available_width * 0.94))
+    height = min(760, int(available_height * 0.90))
+    width = max(width, min(minimum_width, available_width))
+    height = max(height, min(minimum_height, available_height))
+    return max(1, width), max(1, height)
 
 
 def _load_quote_project(
@@ -253,34 +268,39 @@ def _quote_source_path(project_root: Path, source_path: str) -> Path | None:
 
 def _qt() -> tuple[Any, ...]:
     try:
-        from PySide6.QtCore import QObject, Qt, QThread, QUrl, Signal  # type: ignore[import-not-found]
-        from PySide6.QtGui import QDesktopServices  # type: ignore[import-not-found]
-        from PySide6.QtWidgets import (  # type: ignore[import-not-found]
-            QApplication,
-            QCheckBox,
-            QComboBox,
-            QFileDialog,
-            QFormLayout,
-            QHBoxLayout,
-            QLabel,
-            QLineEdit,
-            QMainWindow,
-            QMessageBox,
-            QPlainTextEdit,
-            QProgressBar,
-            QPushButton,
-            QSplitter,
-            QTableWidget,
-            QTableWidgetItem,
-            QTabWidget,
-            QTextBrowser,
-            QVBoxLayout,
-            QWidget,
-        )
+        qtcore = import_module("PySide6.QtCore")
+        qtgui = import_module("PySide6.QtGui")
+        qtwidgets = import_module("PySide6.QtWidgets")
     except ImportError as exc:
         raise RuntimeError(
             "The desktop GUI requires PySide6. Install it with `./scripts/setup-gui.sh`."
         ) from exc
+    QApplication = qtwidgets.QApplication
+    QCheckBox = qtwidgets.QCheckBox
+    QComboBox = qtwidgets.QComboBox
+    QFileDialog = qtwidgets.QFileDialog
+    QFormLayout = qtwidgets.QFormLayout
+    QHBoxLayout = qtwidgets.QHBoxLayout
+    QLabel = qtwidgets.QLabel
+    QLineEdit = qtwidgets.QLineEdit
+    QMainWindow = qtwidgets.QMainWindow
+    QMessageBox = qtwidgets.QMessageBox
+    QPlainTextEdit = qtwidgets.QPlainTextEdit
+    QProgressBar = qtwidgets.QProgressBar
+    QPushButton = qtwidgets.QPushButton
+    QSplitter = qtwidgets.QSplitter
+    QTableWidget = qtwidgets.QTableWidget
+    QTableWidgetItem = qtwidgets.QTableWidgetItem
+    QTabWidget = qtwidgets.QTabWidget
+    QTextBrowser = qtwidgets.QTextBrowser
+    QVBoxLayout = qtwidgets.QVBoxLayout
+    QWidget = qtwidgets.QWidget
+    QObject = qtcore.QObject
+    Qt = qtcore.Qt
+    QThread = qtcore.QThread
+    QUrl = qtcore.QUrl
+    Signal = qtcore.Signal
+    QDesktopServices = qtgui.QDesktopServices
     return (
         QApplication,
         QObject,
@@ -465,7 +485,6 @@ def run_gui(project_path: Path | None = None) -> int:
         def __init__(self, initial_path: Path | None) -> None:
             super().__init__()
             self.setWindowTitle("KiProd — KiCad production workspace")
-            self.resize(1180, 760)
             self.current_project: Project | None = None
             self.current_json_path: Path | None = None
             self.current_project_path: Path | None = None
@@ -481,26 +500,35 @@ def run_gui(project_path: Path | None = None) -> int:
             run_bar = QHBoxLayout()
             self.project_field = QLineEdit(str(initial_path or Path.cwd()))
             self.project_field.setPlaceholderText("KiCad project directory or .kicad_pro file")
-            browse_button = QPushButton("Browse…")
+            browse_button = QPushButton("Browse")
             self.variant_combo = QComboBox()
             self.variant_combo.addItem("Default variant", "")
+            self.variant_combo.setSizeAdjustPolicy(
+                QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon
+            )
+            self.variant_combo.setMinimumContentsLength(10)
             self.run_mode_combo = QComboBox()
             self.run_mode_combo.addItem("Run all", "all")
             self.run_mode_combo.addItem("Quote-only", "quote-only")
-            self.run_button = QPushButton("Run selected")
-            self.queue_button = QPushButton("Add to queue")
+            self.run_mode_combo.setSizeAdjustPolicy(
+                QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon
+            )
+            self.run_mode_combo.setMinimumContentsLength(9)
+            self.run_button = QPushButton("Run")
+            self.queue_button = QPushButton("Add job")
             self.queue_button.clicked.connect(self.enqueue_current_run)
             self.run_queue_button = QPushButton("Run queue")
             self.run_queue_button.clicked.connect(self.start_queue)
             self.stop_button = QPushButton("Stop")
             self.stop_button.setEnabled(False)
             self.stop_button.clicked.connect(self.stop_run)
-            self.ai_usage_label = QLabel("AI cost: no AI calls in current run modes")
+            self.ai_usage_label = QLabel("AI: $0.00 (unused)")
+            self.ai_usage_label.setToolTip("The current GUI run modes make no AI requests.")
             self.progress_bar = QProgressBar()
             self.progress_bar.setRange(0, 100)
             self.progress_bar.setValue(0)
             self.progress_bar.setFormat("Ready")
-            self.open_folder_button = QPushButton("Open output folder")
+            self.open_folder_button = QPushButton("Output folder")
             self.open_folder_button.setEnabled(False)
             project_bar.addWidget(QLabel("Project"))
             project_bar.addWidget(self.project_field, 1)
@@ -512,9 +540,8 @@ def run_gui(project_path: Path | None = None) -> int:
             run_bar.addWidget(self.queue_button)
             run_bar.addWidget(self.run_queue_button)
             run_bar.addWidget(self.stop_button)
-            run_bar.addWidget(self.progress_bar)
+            run_bar.addWidget(self.progress_bar, 1)
             run_bar.addWidget(self.open_folder_button)
-            run_bar.addWidget(self.ai_usage_label)
             root_layout.addLayout(project_bar)
             root_layout.addLayout(run_bar)
 
@@ -832,6 +859,21 @@ def run_gui(project_path: Path | None = None) -> int:
             splitter.setSizes([540, 170])
             root_layout.addWidget(splitter, 1)
             self.setCentralWidget(central)
+            self.statusBar().addPermanentWidget(self.ai_usage_label)
+            screen = QApplication.primaryScreen()
+            if screen is not None:
+                geometry = screen.availableGeometry()
+                minimum = self.minimumSizeHint()
+                self.resize(
+                    *_initial_window_size(
+                        geometry.width(),
+                        geometry.height(),
+                        minimum.width(),
+                        minimum.height(),
+                    )
+                )
+            else:
+                self.resize(1180, 760)
 
             browse_button.clicked.connect(self.browse_project)
             self.run_button.clicked.connect(self.start_run)
@@ -986,7 +1028,7 @@ def run_gui(project_path: Path | None = None) -> int:
                 self.refresh_quote_files(project, (result.replies, result.offers))
                 self.refresh_plugins(project)
                 self.refresh_reports()
-                self.ai_usage_label.setText("AI cost: $0.00 (no AI calls)")
+                self.ai_usage_label.setText("AI: $0.00 (unused)")
                 self.log.appendPlainText(
                     f"Refreshed {len(result.replies)} captured replies and "
                     f"{len(result.offers)} imported quote files."
@@ -1087,7 +1129,7 @@ def run_gui(project_path: Path | None = None) -> int:
                 f"{len(report.findings)} deterministic findings."
             )
             self.statusBar().showMessage(f"Ready — {len(bom.lines)} BOM lines")
-            self.ai_usage_label.setText("AI cost: $0.00 (no AI calls)")
+            self.ai_usage_label.setText("AI: $0.00 (unused)")
             self.progress_bar.setValue(100)
             self.progress_bar.setFormat("Complete")
             if not project.boards:
