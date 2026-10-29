@@ -23,9 +23,6 @@ kiprod = "kiprod.cli:app"
 [tool.hatch.build.targets.wheel]
 packages = ["kiprod"]
 
-[tool.hatch.build.targets.wheel.force-include]
-"kiprod/prompts" = "kiprod/prompts"
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
