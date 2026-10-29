@@ -5,8 +5,9 @@ BOM, production review findings, supplier quotes, and comparison reports.
 
 Milestones **M1–M5** are complete; **M6** remains in progress.
 The CLI supports offline BOM/configuration work, board and assembly analysis, local
-RFQ packaging, approval-gated SMTP delivery, and Graph/Gmail inbox polling. No
-production catalog adapter, AI layer, or GUI has shipped yet; live email and mailbox
+RFQ packaging, approval-gated SMTP delivery, and Graph/Gmail inbox polling. The
+generic catalog protocol and typed AI review contracts are available; supplier-specific
+live adapters, model providers, and the GUI have not shipped. Live email and mailbox
 operations require user-provided credentials and configuration.
 
 ## Quick start

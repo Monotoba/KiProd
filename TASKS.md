@@ -20,7 +20,7 @@
 - [x] Implement default / flag / error / guess / inherit / ignore policy resolution and non-interactive exit 3 handling.
 - [x] Validate quantities, including add/remove and range shorthand.
 
-## M3 — Plugin host and sourcing (in progress)
+## M3 — Plugin host and sourcing (complete)
 
 - [x] Validate typed plugin manifests and load adapters from plugin folders.
 - [x] Discover plugins in precedence order and enforce declared network host access.
@@ -78,15 +78,22 @@
 - [x] Expand quote fixtures with alternate supplier-style headers and title/metadata preambles for CSV/XLSX, with independently labeled expected fields.
 - [ ] Validate quote extraction on independently reviewed real-world supplier samples.
 
+## M7 — Typed AI and review layer (in progress)
+
+- [x] Define a provider-neutral LLM protocol with typed messages and result metadata.
+- [x] Add deterministic BOM findings and a no-provider fallback.
+- [x] Validate AI review proposals against a strict schema, require known BOM line citations, and retain provider/model/prompt provenance.
+- [x] Minimize review payloads to BOM identity fields and require local providers for confidential projects.
+- [ ] Add provider adapters, role configuration, token/cost caps, content-hash caching, prompt overrides, and model evaluation.
+
 ## Later milestones
 
-- [ ] M7: typed AI/review layer.
 - [ ] M8–M10: GUI, KiCad launchers, and hardening.
 
 ## Recommended completion order
 
-1. Finish M6's privacy and quote-parser validation using independently reviewed CAD exports and supplier quote samples; keep format-specific confidence/review rules in place.
-2. Build M7 on the stable BOM, offer, and review-queue schemas, with all extracted commercial values remaining source-backed.
+1. Continue M6's real-world supplier quote validation while retaining the passing deterministic fixture checks.
+2. Finish M7's provider adapters, budgets, caching, prompts, and evaluation on the stable BOM and review schemas.
 3. Build the M8 GUI, then M9 KiCad launchers, then M10 hardening and release checks.
 
 M3–M5 are complete, and M4 provides durable analysis outputs. M6's real-world
