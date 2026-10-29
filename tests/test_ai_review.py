@@ -78,12 +78,12 @@ def test_ai_review_is_typed_grounded_and_data_minimized() -> None:
     )
     provider = FixtureProvider(response)
 
-    report = review_bom(bom, provider=provider, prompt_version="review-v1")
+    report = review_bom(bom, provider=provider)
 
     finding = next(item for item in report.findings if item.source == "ai_guess")
     assert finding.provider == "fixture"
     assert finding.model == "fixture-model"
-    assert finding.prompt_version == "review-v1"
+    assert finding.prompt_version == "1.0.0"
     assert finding.evidence == bom.lines[1].sources
     assert report.ai_status == "completed"
     assert provider.schema is not None
@@ -92,6 +92,21 @@ def test_ai_review_is_typed_grounded_and_data_minimized() -> None:
     assert "fields" not in payload
     assert "resolved_fields" not in payload
     assert "input_hashes" not in payload
+
+
+def test_bom_review_uses_project_prompt_override_and_records_its_version(tmp_path: Path) -> None:
+    (tmp_path / "bom_review.md").write_text(
+        "---\nrole: reasoning\nschema: bom_review_v1\nversion: project-2\n---\n"
+        "Review the BOM for assembly risks. Cite line IDs.",
+        encoding="utf-8",
+    )
+    provider = FixtureProvider('{"findings": []}')
+
+    report = review_bom(_bom(), provider=provider, prompt_dirs=[tmp_path])
+
+    assert report.prompt_version == "project-2"
+    assert provider.messages is not None
+    assert provider.messages[0].content == "Review the BOM for assembly risks. Cite line IDs."
 
 
 def test_ai_review_rejects_unknown_line_ids_and_commercial_fields() -> None:

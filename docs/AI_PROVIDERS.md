@@ -123,3 +123,32 @@ the provider must have explicit token rates; unknown pricing fails closed. Repea
 identical requests reuse a SHA-256 keyed result in memory for the lifetime of the
 manager. The key includes role, provider, model, messages, schema, token limit, and
 temperature. No result cache is written to disk.
+
+## Versioned prompt overrides
+
+Prompts are Markdown files with YAML-style scalar front matter. A BOM review prompt
+can be overridden by passing search directories in precedence order; the bundled
+`kiprod/prompts/bom_review.md` is the final fallback:
+
+```markdown
+---
+role: reasoning
+schema: bom_review_v1
+version: project-1
+---
+Review electrical and manufacturing risks. Cite the supplied BOM line IDs.
+```
+
+```python
+report = review_bom(
+    bom,
+    provider=provider,
+    prompt_dirs=[project_root / "kiprod" / "prompts", supplier_plugin / "prompts"],
+)
+```
+
+The first matching directory wins. Prompt task names are path-checked, files are
+limited to 64 KiB, front matter only accepts `role`, `schema`, and `version`, and
+the loaded prompt version is stored with each AI finding and the review report.
+Prompt text and BOM data remain separate messages; the BOM payload omits arbitrary
+fields, resolved values, and project input hashes.

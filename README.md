@@ -8,8 +8,9 @@ The CLI supports offline BOM/configuration work, board and assembly analysis, lo
 RFQ packaging, approval-gated SMTP delivery, and Graph/Gmail inbox polling. The
 generic catalog protocol, typed AI review contracts, an OpenAI-compatible model
 adapter, native OpenAI and Anthropic adapters, and role-based request budgets are
-available; supplier-specific live adapters and the GUI have not shipped. Live email,
-mailbox, and model operations require user-provided credentials and configuration.
+available; versioned project prompt overrides are supported. Supplier-specific live
+adapters and the GUI have not shipped. Live email, mailbox, and model operations
+require user-provided credentials and configuration.
 
 ## Quick start
 

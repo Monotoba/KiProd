@@ -87,7 +87,8 @@
 - [x] Add an OpenAI-compatible chat-completions adapter for HTTPS providers and explicitly allowed loopback model servers.
 - [x] Add native OpenAI Responses and Anthropic Messages adapters with structured JSON output and usage metadata.
 - [x] Add role-based provider selection, local-only role enforcement, run token/cost caps, dry-run planning, and in-memory content-hash caching.
-- [ ] Add prompt file overrides and model evaluation.
+- [x] Add versioned Markdown prompt files with validated front matter and ordered override directories.
+- [ ] Add model evaluation against labeled review fixtures.
 
 ## Later milestones
 

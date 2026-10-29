@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from kiprod.core.models import BOMLine, NormalizedBOM, SourceRef
 
+from .prompts import load_prompt
 from .provider import LLMProvider, Message
 
 
@@ -135,31 +137,26 @@ def review_bom(
     bom: NormalizedBOM,
     *,
     provider: LLMProvider | None = None,
-    prompt_version: str = "bom-review-v1",
     max_tokens: int = 2000,
     confidential: bool = False,
+    prompt_dirs: list[Path] | None = None,
 ) -> ReviewReport:
     """Run deterministic BOM checks, then optionally add grounded typed AI findings."""
     if max_tokens < 1:
         raise ValueError("max_tokens must be positive")
     findings = _deterministic_findings(bom.lines)
-    report = ReviewReport(project=bom.project, findings=findings, prompt_version=prompt_version)
+    report = ReviewReport(project=bom.project, findings=findings)
     if provider is None:
         return report
     if confidential and not provider.is_local:
         raise ValueError("confidential projects require a local AI provider")
+    prompt = load_prompt("bom_review", search_dirs=prompt_dirs)
+    if prompt.role != "reasoning" or prompt.schema != "bom_review_v1":
+        raise ValueError("BOM review prompt must use role reasoning and schema bom_review_v1")
 
     result = provider.complete(
         [
-            Message(
-                role="system",
-                content=(
-                    "Review the provided BOM for plausible production risks. "
-                    "Return only the requested JSON schema. Cite one or more supplied line_ids. "
-                    "Do not invent or estimate price, stock, lead time, duty, or other "
-                    "commercial values."
-                ),
-            ),
+            Message(role="system", content=prompt.body),
             Message(role="user", content=_review_payload(bom)),
         ],
         schema=_REVIEW_SCHEMA,
@@ -187,7 +184,7 @@ def review_bom(
                 evidence=evidence,
                 provider=result.provider,
                 model=result.model,
-                prompt_version=prompt_version,
+                prompt_version=prompt.version,
             )
         )
     return ReviewReport(
@@ -195,6 +192,6 @@ def review_bom(
         findings=findings,
         ai_provider=result.provider,
         ai_model=result.model,
-        prompt_version=prompt_version,
+        prompt_version=prompt.version,
         ai_status="completed",
     )
