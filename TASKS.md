@@ -138,15 +138,15 @@
 - [x] Review user-provided desktop screenshot: the window fits the captured screen and the overflowing tab row exposes navigation arrows (details: `docs/GUI.md`).
 - [x] Review user-provided Run All screenshots: the basic fixture completed with two BOM lines, one deterministic finding, and the expected no-PCB warning; project, BOM, review, components, reports, and settings views were inspected (details: `docs/GUI.md`).
 - [x] User confirmed the desktop Quote-only workflow with the disposable synthetic quote project (details: `docs/GUI.md`).
-- [ ] Run interactive GUI acceptance checks on supported desktop platforms (procedure: `docs/GUI.md#interactive-desktop-acceptance`).
+- [x] Run interactive GUI acceptance checks on the supported Linux desktop, including window fit/tab overflow, Run All, Quote-only, resize/display scaling, and visible queue/stop status (record: `docs/GUI.md#desktop-acceptance-record`).
 
 ## Later milestones
 
 - [x] M9: KiCad launchers (IPC action and legacy SWIG fallback).
 - [x] M9 implementation: IPC actions, SWIG fallback, installer, and BOM Generator hook.
 - [x] M9 acceptance: verify the installer and BOM hook on KiCad 10.0.7 with a generated XML netlist; BOM output matched CLI byte-for-byte.
-- [ ] M9 acceptance: verify IPC actions from the PCB Editor in KiCad 9/10 with the API server enabled.
-- [ ] M9 acceptance: verify the SWIG action from the PCB Editor in KiCad 8/10.
+- [ ] M9 acceptance: verify IPC actions from the PCB Editor in KiCad 9 and 10 with the API server enabled (procedure: `docs/KICAD_LAUNCHERS.md#pcb-editor-acceptance-procedure`).
+- [ ] M9 acceptance: verify the SWIG action from the PCB Editor in KiCad 8 and 10 (procedure: `docs/KICAD_LAUNCHERS.md#pcb-editor-acceptance-procedure`).
 - [ ] M10: hardening and release checks.
 - [x] M10 implementation: build distributions, install the wheel in an isolated environment, and verify CLI BOM output outside the checkout in CI and before releases; require lint, types, and tests before tagged release publication.
 - [x] Fix duplicate prompt-file inclusion exposed by the distribution build check.
@@ -155,13 +155,12 @@
 
 ## Recommended completion order
 
-1. Run interactive M8 GUI acceptance on a supported desktop, including the HDPI layout and the stored-data workflows; fix any issues found.
-2. Complete the M9 IPC action checks in KiCad 9/10 and SWIG checks in KiCad 8/10.
-3. Complete M10 release hardening and exercise the tagged release workflow when a versioned release is approved.
-4. Add supplier-specific live integrations only when API access, terms, endpoints, and credentials are confirmed; add dedicated GUI settings editors after those settings have defined schemas.
+1. Complete the M9 IPC action checks in KiCad 9 and 10 and SWIG checks in KiCad 8 and 10.
+2. Complete M10 release hardening and exercise the tagged release workflow when a versioned release is approved.
+3. Add supplier-specific live integrations only when API access, terms, endpoints, and credentials are confirmed; add dedicated GUI settings editors after those settings have defined schemas.
 
 M3–M5 are complete, and M4 provides durable analysis outputs. M6's reviewed
-real-world quote sample evaluation is complete. Remaining M3 supplier integrations
+real-world quote sample evaluation and M8 desktop acceptance are complete. Remaining M3 supplier integrations
 depend on supplier API access and terms; the M8 editor work depends on defined
 settings schemas. M9 acceptance requires the supported KiCad versions and API
 server setup, and M10 release-workflow acceptance waits for an approved versioned

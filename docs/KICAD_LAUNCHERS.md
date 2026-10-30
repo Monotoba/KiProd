@@ -65,6 +65,38 @@ completed the KiProd run, and its CSV output matched the normal CLI-generated BO
 byte-for-byte. The PCB Editor IPC menu actions and legacy SWIG menu action still
 need interactive verification in their supported KiCad versions.
 
+## PCB Editor acceptance procedure
+
+Create a disposable project with a saved board:
+
+```bash
+./scripts/prepare-kicad-launcher-acceptance.sh
+```
+
+The script prints the project path and baseline board hash. If the launchers are
+not installed for the KiCad version under test, install them from the KiProd
+environment as described above, then restart KiCad. Open the printed
+`basic.kicad_pcb` in the PCB Editor.
+
+For KiCad 9 or 10 IPC acceptance:
+
+1. Enable the IPC API under **Preferences → Plugins**, restart KiCad if prompted,
+   and wait for the IPC plugin dependency setup to finish.
+2. Confirm **Run KiProd production workflow**, **Refresh KiProd quote data**, and
+   **Open KiProd** appear in the PCB Editor's IPC actions.
+3. Run **Open KiProd** and confirm the standalone workspace opens on the
+   disposable project. Then exercise the Run and Quote actions and confirm each
+   selects the matching GUI mode.
+
+For KiCad 8 or 10 SWIG acceptance, use **Tools → External Plugins → Open KiProd**
+and confirm the standalone workspace opens on the same disposable project.
+
+After each path, compare the board's SHA-256 with the baseline printed by the
+script; launcher actions should leave the board unchanged. Record the exact KiCad
+version, API-server setting, action visibility, project context, result of each
+action, and post-run hash. Run the version-specific procedure on every supported
+version named in the acceptance task; one version does not stand in for another.
+
 ## Limits
 
 - KiCad 9 and 10 IPC plugins require the PCB Editor and an open, saved board.

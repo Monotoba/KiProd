@@ -69,9 +69,17 @@ does not replace visual inspection of the inbox and source-evidence panes on a
 desktop.
 
 The project owner subsequently confirmed the Quote-only desktop run with the
-prepared synthetic quote project. The M8 desktop checks still need resize and
-display-scaling coverage, plus visible confirmation of queue and stop status
-transitions.
+prepared synthetic quote project. The final acceptance status is recorded below.
+
+## Desktop acceptance record
+
+On 2026-10-30, the project owner confirmed the remaining resize, display-scaling,
+and visible queue/stop status checks passed on their Linux desktop. Combined with
+the supplied screenshots and Quote-only confirmation, desktop acceptance covers
+window fit and tab overflow, Run All on the basic fixture, Quote-only on the
+synthetic quote project, and the resize/scaling and job-control checks. The
+offscreen smoke results above provide supporting code-path evidence. Exact OS
+release and display-scale percentages were not recorded.
 
 Offscreen UI-control checks queued two Run All jobs and observed both reach
 `Complete` in sequence. A stop request issued immediately after starting Run All
