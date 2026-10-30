@@ -68,6 +68,11 @@ row references. This confirms local quote-data loading in the GUI code path but
 does not replace visual inspection of the inbox and source-evidence panes on a
 desktop.
 
+The project owner subsequently confirmed the Quote-only desktop run with the
+prepared synthetic quote project. The M8 desktop checks still need resize and
+display-scaling coverage, plus visible confirmation of queue and stop status
+transitions.
+
 Offscreen UI-control checks queued two Run All jobs and observed both reach
 `Complete` in sequence. A stop request issued immediately after starting Run All
 reached `Stopped` at a safe checkpoint and wrote no BOM output. These checks
