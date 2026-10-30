@@ -17,14 +17,27 @@ installer from that environment:
 
 On Windows, run the installer with the interpreter in `.venv\Scripts\python.exe`.
 The installer stores the selected interpreter and project source path in the
-user-level `kiprod/launcher.json` configuration file. IPC and BOM Generator files
-are copied under that KiCad version's data directory. On Linux, the installer
-uses KiCad's lowercase `kicad` data directory, matching the path reported by the
-KiCad 10.0.7 plugin manager. The SWIG action is copied to the platform's legacy
-scripting-plugin search directory. The installer prints the exact command to add
-to the Schematic Editor's BOM Generator. Pass `--documents-home PATH` to
-override the KiCad data directory used by IPC and the BOM hook.
+user-level `kiprod/launcher.json` configuration file. The BOM Generator hook is
+copied under that KiCad version's data directory. For KiCad 9 and 10, the IPC
+manifest and SWIG action are staged together under the versioned
+`3rdparty/plugins/com_github_monotoba_kiprod` directory used by KiCad's add-on
+manager. On Linux, the installer uses KiCad's lowercase `kicad` data directory,
+matching the path reported by KiCad 10.0.7. KiCad 8 uses its legacy scripting
+plugin directory. The installer prints the exact command to add to the Schematic
+Editor BOM Generator. Pass `--documents-home PATH` to override the KiCad data
+directory used by the launchers and BOM hook.
 `KICAD_DOCUMENTS_HOME` is used when present.
+
+Build a Plugin and Content Manager package with:
+
+```bash
+./.venv/bin/python scripts/package_kicad_addon.py
+```
+
+In KiCad, open **Tools → Plugin and Content Manager → Install from File** and
+select `dist/kiprod-kicad-addon.zip`, then apply the pending change and restart
+the PCB Editor. This records KiProd in the manager's Installed list. The package
+supports KiCad 9 and 10 and includes both IPC and legacy SWIG launchers.
 
 Restart KiCad after installing. In KiCad 9 and newer, enable the IPC API in
 **Preferences → Plugins**. KiCad's Python plugin environment installs the pinned
@@ -109,8 +122,9 @@ For KiCad 9 or 10 IPC acceptance:
 For KiCad 8 or 10 SWIG acceptance, use **Tools → External Plugins → Open KiProd**
 and confirm the standalone workspace opens on the same disposable project. If
 the menu entry is missing, open KiCad's scripting console and run
-`import pcbnew; print(pcbnew.PLUGIN_DIRECTORIES_SEARCH)`. Confirm the installer
-copied `kiprod/__init__.py` into one of those directories, then restart KiCad.
+`import pcbnew; print(pcbnew.PLUGIN_DIRECTORIES_SEARCH)`. Confirm
+`__init__.py` and `kiprod_launcher.py` are in a reported directory, then restart
+KiCad.
 
 After each path, compare the board's SHA-256 with the baseline printed by the
 script; launcher actions should leave the board unchanged. Record the exact KiCad

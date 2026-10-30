@@ -12,6 +12,7 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SHARED_LAUNCHER = PROJECT_ROOT / "launchers" / "shared" / "kiprod_launcher.py"
 INSTALLER = PROJECT_ROOT / "scripts" / "install_kicad_launchers.py"
+PACKAGER = PROJECT_ROOT / "scripts" / "package_kicad_addon.py"
 IPC_MANIFEST = PROJECT_ROOT / "launchers" / "ipc" / "plugin.json"
 IPC_ENTRYPOINT = PROJECT_ROOT / "launchers" / "ipc" / "launch.py"
 SWIG_ENTRYPOINT = PROJECT_ROOT / "launchers" / "swig" / "__init__.py"
@@ -243,9 +244,16 @@ def test_installer_copies_only_launchers_supported_by_kicad_version(
 
     version_root = documents_home / version
     assert (version_root / "scripting" / "kiprod_bomgen" / "bomgen.py").is_file()
-    assert (version_root / "plugins" / "kiprod").is_dir() is ipc
-    swig_dir = installer.swig_plugin_directory() / "kiprod"
-    assert swig_dir.is_dir() is swig
+    if 9 <= int(version.split(".")[0]) <= 10:
+        plugin_dir = version_root / "3rdparty" / "plugins" / "com_github_monotoba_kiprod"
+        assert plugin_dir.is_dir()
+        assert (plugin_dir / "plugin.json").is_file() is ipc
+        assert (plugin_dir / "__init__.py").is_file() is swig
+    elif version.startswith("11"):
+        assert (version_root / "plugins" / "kiprod").is_dir() is ipc
+    else:
+        assert (version_root / "plugins" / "kiprod").is_dir() is ipc
+        assert (installer.swig_plugin_directory() / "kiprod").is_dir() is swig
     saved_config = json.loads(config_path.read_text(encoding="utf-8"))
     assert saved_config["python_executable"] == str(Path(sys.executable).absolute())
     assert saved_config["source_root"] == str(PROJECT_ROOT)
@@ -263,3 +271,24 @@ def test_installer_uses_kicads_runtime_linux_plugin_directories(
 
     assert installer.documents_home() == tmp_path / "share" / "kicad"
     assert installer.swig_plugin_directory() == Path.home() / ".kicad" / "scripting" / "plugins"
+
+
+def test_kicad_pcm_package_contains_manager_metadata_and_both_launchers(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import zipfile
+
+    packager = _load_module("kiprod_pcm_packager_test", PACKAGER)
+    archive = tmp_path / "kiprod.zip"
+    monkeypatch.setattr(sys, "argv", [str(PACKAGER), "--output", str(archive)])
+
+    assert packager.main() == 0
+
+    with zipfile.ZipFile(archive) as package:
+        names = set(package.namelist())
+        metadata = json.loads(package.read("metadata.json"))
+        assert metadata["identifier"] == "com.github.monotoba.kiprod"
+        assert metadata["versions"][0]["runtime"] == "ipc"
+        assert "plugins/plugin.json" in names
+        assert "plugins/__init__.py" in names
+        assert "plugins/kiprod_launcher.py" in names

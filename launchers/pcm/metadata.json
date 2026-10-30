@@ -1,0 +1,34 @@
+{
+  "$schema": "https://go.kicad.org/pcm/schemas/v2",
+  "name": "KiProd",
+  "description": "Open KiProd's production workspace from KiCad.",
+  "description_full": "KiProd adds PCB Editor actions for opening its production workspace and running offline production and quote workflows. The launcher reads the current KiCad project path and delegates processing to the standalone KiProd application.",
+  "identifier": "com.github.monotoba.kiprod",
+  "type": "plugin",
+  "author": {
+    "name": "Monotoba",
+    "contact": {
+      "web": "https://github.com/Monotoba/KiProd"
+    }
+  },
+  "maintainer": {
+    "name": "Monotoba",
+    "contact": {
+      "web": "https://github.com/Monotoba/KiProd"
+    }
+  },
+  "license": "CC-BY-NC-SA-4.0",
+  "resources": {
+    "Homepage": "https://github.com/Monotoba/KiProd",
+    "Issues": "https://github.com/Monotoba/KiProd/issues"
+  },
+  "versions": [
+    {
+      "version": "0.1.0",
+      "status": "development",
+      "kicad_version": "9.0",
+      "kicad_version_max": "10.0",
+      "runtime": "ipc"
+    }
+  ]
+}

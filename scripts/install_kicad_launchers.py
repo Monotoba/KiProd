@@ -45,6 +45,16 @@ def swig_plugin_directory() -> Path:
     return Path.home() / ".kicad" / "scripting" / "plugins"
 
 
+def _remove_installed_files(directory: Path, filenames: tuple[str, ...]) -> None:
+    """Remove only launcher files previously installed by KiProd."""
+    for filename in filenames:
+        (directory / filename).unlink(missing_ok=True)
+    try:
+        directory.rmdir()
+    except OSError:
+        pass
+
+
 def _copy_bundle(source: Path, destination: Path, filenames: tuple[str, ...]) -> None:
     destination.mkdir(parents=True, exist_ok=True)
     for filename in filenames:
@@ -154,7 +164,30 @@ def main() -> int:
         )
         shutil.copy2(shared / "kiprod_launcher.py", bomgen_dir / "kiprod_launcher.py")
 
-        if 9 <= major:
+        if 9 <= major <= 10:
+            # KiCad's Plugin and Content Manager discovers add-ons here. Keeping
+            # both manifests in the same package makes IPC and SWIG actions
+            # available from the location KiCad 10 actually scans.
+            plugin_dir = root / "3rdparty" / "plugins" / "com_github_monotoba_kiprod"
+            _copy_bundle(
+                PROJECT_ROOT / "launchers" / "ipc",
+                plugin_dir,
+                ("plugin.json", "launch.py", "requirements.txt"),
+            )
+            _copy_bundle(PROJECT_ROOT / "launchers" / "swig", plugin_dir, ("__init__.py",))
+            shutil.copy2(shared / "kiprod_launcher.py", plugin_dir / "kiprod_launcher.py")
+
+            # Migrate files written by earlier KiProd installers to avoid
+            # duplicate actions from parallel plugin directories.
+            _remove_installed_files(
+                root / "plugins" / "kiprod",
+                ("plugin.json", "launch.py", "requirements.txt", "kiprod_launcher.py"),
+            )
+            _remove_installed_files(
+                swig_plugin_directory() / "kiprod",
+                ("__init__.py", "kiprod_launcher.py"),
+            )
+        elif major == 11:
             ipc_dir = root / "plugins" / "kiprod"
             _copy_bundle(
                 PROJECT_ROOT / "launchers" / "ipc",
@@ -162,8 +195,7 @@ def main() -> int:
                 ("plugin.json", "launch.py", "requirements.txt"),
             )
             shutil.copy2(shared / "kiprod_launcher.py", ipc_dir / "kiprod_launcher.py")
-
-        if 8 <= major <= 10:
+        elif major == 8:
             swig_dir = swig_plugin_directory() / "kiprod"
             _copy_bundle(PROJECT_ROOT / "launchers" / "swig", swig_dir, ("__init__.py",))
             shutil.copy2(shared / "kiprod_launcher.py", swig_dir / "kiprod_launcher.py")
@@ -174,6 +206,8 @@ def main() -> int:
     print(f"KiProd launcher configuration: {config_path}")
     print(f"Installed for KiCad {args.kicad_version} under {root}")
     print("Restart KiCad to load the PCB Editor launchers.")
+    if 9 <= major <= 10:
+        print("For Plugin Manager registration, install the generated KiCad add-on ZIP from file.")
     if major >= 9:
         print("In KiCad, enable the IPC API under Preferences > Plugins.")
     print("Add this command in Schematic Editor > Tools > Generate BOM:")
