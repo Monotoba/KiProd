@@ -122,7 +122,9 @@ Create a disposable project with a saved board:
 The script prints the project path and baseline board hash. If the launchers are
 not installed for the KiCad version under test, install them from the KiProd
 environment as described above, then restart KiCad. Open the printed
-`basic.kicad_pcb` in the PCB Editor.
+`launcher_acceptance.kicad_pcb` in the PCB Editor. This visual smoke-test board
+uses standard footprints and has no electrical nets; it is not a manufacturing
+design. Its source files are in `tests/projects/launcher_acceptance/`.
 
 For KiCad 9 or 10 IPC acceptance:
 
