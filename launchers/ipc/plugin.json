@@ -21,6 +21,7 @@
       "identifier": "quote-only",
       "name": "Refresh KiProd quote data",
       "description": "Open KiProd and refresh local captured quotes for this project.",
+      "show-button": true,
       "scopes": ["pcb"],
       "entrypoint": "launch.py",
       "args": ["quote-only"]
@@ -29,6 +30,7 @@
       "identifier": "open",
       "name": "Open KiProd",
       "description": "Open the KiProd desktop workspace for this project.",
+      "show-button": true,
       "scopes": ["pcb"],
       "entrypoint": "launch.py",
       "args": ["open"]

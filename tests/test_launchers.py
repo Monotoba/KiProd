@@ -107,6 +107,7 @@ def test_ipc_manifest_uses_reverse_dns_identifier_and_unique_actions() -> None:
         "quote-only",
         "open",
     }
+    assert all(action["show-button"] is True for action in manifest["actions"])
 
 
 def test_ipc_entrypoint_passes_open_board_project_and_mode(

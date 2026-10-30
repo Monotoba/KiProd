@@ -40,9 +40,14 @@ The IPC plugin registers three actions: **Run KiProd production workflow**,
 project directory from KiCad's IPC API, then start the configured KiProd Python
 environment in a separate process. The run and quote actions select the
 corresponding GUI mode; the open action starts the workspace without starting a
-run. The legacy SWIG fallback offers **Open KiProd** from **Tools → External
-Plugins** and only reads the current saved board path before launching the same
-standalone GUI.
+run. IPC actions are available in the PCB Editor's plugin preferences and as
+toolbar buttons; they are not entries in the legacy **Tools → External Plugins**
+menu. All three IPC actions request a toolbar button by default. KiCad lets users
+customize plugin toolbar buttons in the PCB Editor preferences, and toolbar
+overflow controls appear only when the enabled buttons exceed the available width.
+The legacy SWIG fallback offers **Open KiProd** from **Tools → External Plugins**
+and only reads the current saved board path before launching the same standalone
+GUI.
 
 The launchers do not edit the board. Analysis and artifact generation remain in
 the standalone application. The launchers remove credential-like environment
@@ -94,14 +99,18 @@ For KiCad 9 or 10 IPC acceptance:
 
 1. Enable the IPC API under **Preferences → Plugins**, restart KiCad if prompted,
    and wait for the IPC plugin dependency setup to finish.
-2. Confirm **Run KiProd production workflow**, **Refresh KiProd quote data**, and
-   **Open KiProd** appear in the PCB Editor's IPC actions.
+2. In the PCB Editor preferences, confirm **KiProd** and its three actions are
+   listed. Confirm the toolbar buttons are enabled; overflow controls appear
+   only when the enabled buttons exceed the available toolbar width.
 3. Run **Open KiProd** and confirm the standalone workspace opens on the
    disposable project. Then exercise the Run and Quote actions and confirm each
    selects the matching GUI mode.
 
 For KiCad 8 or 10 SWIG acceptance, use **Tools → External Plugins → Open KiProd**
-and confirm the standalone workspace opens on the same disposable project.
+and confirm the standalone workspace opens on the same disposable project. If
+the menu entry is missing, open KiCad's scripting console and run
+`import pcbnew; print(pcbnew.PLUGIN_DIRECTORIES_SEARCH)`. Confirm the installer
+copied `kiprod/__init__.py` into one of those directories, then restart KiCad.
 
 After each path, compare the board's SHA-256 with the baseline printed by the
 script; launcher actions should leave the board unchanged. Record the exact KiCad
