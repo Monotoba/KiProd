@@ -12,6 +12,7 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SHARED_LAUNCHER = PROJECT_ROOT / "launchers" / "shared" / "kiprod_launcher.py"
 INSTALLER = PROJECT_ROOT / "scripts" / "install_kicad_launchers.py"
+IPC_MANIFEST = PROJECT_ROOT / "launchers" / "ipc" / "plugin.json"
 
 
 def _load_module(name: str, path: Path) -> ModuleType:
@@ -93,6 +94,19 @@ def test_project_root_requires_a_kicad_project_file(
     assert launcher_module.project_root_from_path(board) == project.resolve()
 
 
+def test_ipc_manifest_uses_reverse_dns_identifier_and_unique_actions() -> None:
+    manifest = json.loads(IPC_MANIFEST.read_text(encoding="utf-8"))
+
+    assert manifest["identifier"] == "com.github.monotoba.kiprod"
+    identifiers = [action["identifier"] for action in manifest["actions"]]
+    assert len(identifiers) == len(set(identifiers))
+    assert {action["args"][0] for action in manifest["actions"]} == {
+        "all",
+        "quote-only",
+        "open",
+    }
+
+
 def test_bom_generator_runs_offline_flow_and_copies_bom(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, launcher_module: ModuleType
 ) -> None:
@@ -140,6 +154,8 @@ def test_installer_copies_only_launchers_supported_by_kicad_version(
     monkeypatch.syspath_prepend(str(SHARED_LAUNCHER.parent))
     installer = _load_module("kiprod_installer_test", INSTALLER)
     monkeypatch.setattr(installer, "_check_runtime", lambda _python, _root: None)
+    swig_root = tmp_path / "swig_plugins"
+    monkeypatch.setattr(installer, "swig_plugin_directory", lambda: swig_root)
     config_path = tmp_path / "config" / "launcher.json"
     monkeypatch.setenv("KIPROD_LAUNCHER_CONFIG", str(config_path))
     documents_home = tmp_path / "KiCad"
@@ -164,7 +180,22 @@ def test_installer_copies_only_launchers_supported_by_kicad_version(
     version_root = documents_home / version
     assert (version_root / "scripting" / "kiprod_bomgen" / "bomgen.py").is_file()
     assert (version_root / "plugins" / "kiprod").is_dir() is ipc
-    assert (version_root / "scripting" / "plugins" / "kiprod").is_dir() is swig
+    swig_dir = installer.swig_plugin_directory() / "kiprod"
+    assert swig_dir.is_dir() is swig
     saved_config = json.loads(config_path.read_text(encoding="utf-8"))
     assert saved_config["python_executable"] == str(Path(sys.executable).absolute())
     assert saved_config["source_root"] == str(PROJECT_ROOT)
+
+
+def test_installer_uses_kicads_runtime_linux_plugin_directories(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    if sys.platform == "darwin" or sys.platform == "win32":
+        pytest.skip("KiCad uses the platform documents directory on this OS")
+    monkeypatch.syspath_prepend(str(SHARED_LAUNCHER.parent))
+    installer = _load_module("kiprod_installer_default_path_test", INSTALLER)
+    monkeypatch.delenv("KICAD_DOCUMENTS_HOME", raising=False)
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "share"))
+
+    assert installer.documents_home() == tmp_path / "share" / "kicad"
+    assert installer.swig_plugin_directory() == Path.home() / ".kicad" / "scripting" / "plugins"

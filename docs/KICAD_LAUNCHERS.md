@@ -17,10 +17,14 @@ installer from that environment:
 
 On Windows, run the installer with the interpreter in `.venv\Scripts\python.exe`.
 The installer stores the selected interpreter and project source path in the
-user-level `kiprod/launcher.json` configuration file. It copies launcher files
-into that KiCad version's user directories and prints the exact command to add to
-the Schematic Editor's BOM Generator. Pass `--documents-home PATH` for a custom
-KiCad documents directory. `KICAD_DOCUMENTS_HOME` is used when present.
+user-level `kiprod/launcher.json` configuration file. IPC and BOM Generator files
+are copied under that KiCad version's data directory. On Linux, the installer
+uses KiCad's lowercase `kicad` data directory, matching the path reported by the
+KiCad 10.0.7 plugin manager. The SWIG action is copied to the platform's legacy
+scripting-plugin search directory. The installer prints the exact command to add
+to the Schematic Editor's BOM Generator. Pass `--documents-home PATH` to
+override the KiCad data directory used by IPC and the BOM hook.
+`KICAD_DOCUMENTS_HOME` is used when present.
 
 Restart KiCad after installing. In KiCad 9 and newer, enable the IPC API in
 **Preferences → Plugins**. KiCad's Python plugin environment installs the pinned
@@ -63,7 +67,15 @@ The installer and BOM Generator hook were exercised with KiCad CLI 10.0.7 using
 the `tests/projects/basic` fixture. KiCad generated the XML netlist, the hook
 completed the KiProd run, and its CSV output matched the normal CLI-generated BOM
 byte-for-byte. The PCB Editor IPC menu actions and legacy SWIG menu action still
-need interactive verification in their supported KiCad versions.
+need interactive invocation in their supported KiCad versions.
+
+On 2026-10-30, KiCad PCB Editor 10.0.7 scanned the installed IPC plugin on the
+disposable board with its API server enabled. Its trace accepted the reverse-DNS
+identifier `com.github.monotoba.kiprod`, registered all three actions, and
+created the plugin Python environment. This confirms IPC plugin discovery and
+action registration in KiCad 10.0.7; invoking the actions from the editor menus
+and verifying the resulting standalone GUI context remains open. The SWIG menu
+action also remains to be invoked and checked.
 
 ## PCB Editor acceptance procedure
 

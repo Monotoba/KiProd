@@ -1,6 +1,6 @@
 {
   "$schema": "https://go.kicad.org/api/schemas/v1",
-  "identifier": "kiprod",
+  "identifier": "com.github.monotoba.kiprod",
   "name": "KiProd",
   "description": "Open the KiProd production workspace from KiCad.",
   "runtime": {

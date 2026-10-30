@@ -25,7 +25,24 @@ def documents_home() -> Path:
         return Path(configured).expanduser()
     if os.name == "nt" or sys.platform == "darwin":
         return Path.home() / "Documents" / "KiCad"
-    return Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "KiCad"
+    return Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "kicad"
+
+
+def swig_plugin_directory() -> Path:
+    """Return KiCad's legacy PCB Action Plugin search directory."""
+    if os.name == "nt":
+        base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
+        return base / "kicad" / "scripting" / "plugins"
+    if sys.platform == "darwin":
+        return (
+            Path.home()
+            / "Library"
+            / "Application Support"
+            / "kicad"
+            / "scripting"
+            / "plugins"
+        )
+    return Path.home() / ".kicad" / "scripting" / "plugins"
 
 
 def _copy_bundle(source: Path, destination: Path, filenames: tuple[str, ...]) -> None:
@@ -147,7 +164,7 @@ def main() -> int:
             shutil.copy2(shared / "kiprod_launcher.py", ipc_dir / "kiprod_launcher.py")
 
         if 8 <= major <= 10:
-            swig_dir = root / "scripting" / "plugins" / "kiprod"
+            swig_dir = swig_plugin_directory() / "kiprod"
             _copy_bundle(PROJECT_ROOT / "launchers" / "swig", swig_dir, ("__init__.py",))
             shutil.copy2(shared / "kiprod_launcher.py", swig_dir / "kiprod_launcher.py")
     except (OSError, RuntimeError) as exc:

@@ -145,6 +145,7 @@
 - [x] M9: KiCad launchers (IPC action and legacy SWIG fallback).
 - [x] M9 implementation: IPC actions, SWIG fallback, installer, and BOM Generator hook.
 - [x] M9 acceptance: verify the installer and BOM hook on KiCad 10.0.7 with a generated XML netlist; BOM output matched CLI byte-for-byte.
+- [x] M9 partial acceptance: KiCad 10.0.7 with API enabled accepted the IPC manifest and registered all three actions from the disposable PCB fixture; action invocation remains unverified (record: `docs/KICAD_LAUNCHERS.md#acceptance-record`).
 - [ ] M9 acceptance: verify IPC actions from the PCB Editor in KiCad 9 and 10 with the API server enabled (procedure: `docs/KICAD_LAUNCHERS.md#pcb-editor-acceptance-procedure`).
 - [ ] M9 acceptance: verify the SWIG action from the PCB Editor in KiCad 8 and 10 (procedure: `docs/KICAD_LAUNCHERS.md#pcb-editor-acceptance-procedure`).
 - [ ] M10: hardening and release checks.
