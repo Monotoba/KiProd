@@ -4,6 +4,8 @@ This is a small, disposable KiCad PCB project for exercising KiProd's PCB Editor
 launchers. It contains a board outline, two 1x4 headers, a 0603 resistor, and a
 signal test point. The layout is a visual smoke-test fixture only: it has no
 electrical nets and is not intended for fabrication.
+An empty root schematic accompanies the board so KiProd can discover it as a
+complete KiCad project when launched from the PCB Editor.
 
 The footprints come from KiCad's standard `Connector_PinHeader_2.54mm`,
 `Resistor_SMD`, and `TestPoint` libraries. The board file uses the KiCad 8+
