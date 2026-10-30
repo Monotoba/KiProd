@@ -56,10 +56,11 @@ corresponding GUI mode; the open action starts the workspace without starting a
 run. IPC actions are available in the PCB Editor's plugin preferences and as
 toolbar buttons; they are not entries in the legacy **Tools → External Plugins**
 menu. All three IPC actions request a toolbar button by default. KiCad lets users
-customize plugin toolbar buttons in the PCB Editor preferences. KiCad does not
-show overflow menus when toolbar controls do not fit; controls outside the
-available width may be clipped. Use the Action Plugins preferences to move a
-SWIG plugin higher in the toolbar order when its button is clipped.
+customize plugin toolbar buttons in the PCB Editor preferences. The toolbar may
+provide a down-arrow overflow list for plugin actions that do not fit. A user
+reported that this dropdown intermittently disappears with a large set of
+plugins. Keep **Tools → External Plugins** as a fallback, and use the Action
+Plugins preferences to prioritize frequently used SWIG buttons.
 The legacy SWIG fallback offers **Open KiProd** from **Tools → External Plugins**
 and only reads the current saved board path before launching the same standalone
 GUI.
@@ -101,6 +102,15 @@ External Plugins** in KiCad 10.0.7 and opened the KiProd workspace. This verifie
 the SWIG launcher and project handoff for KiCad 10.0.7. IPC action invocation and
 the KiCad 8 SWIG check remain open.
 
+The same KiCad 10.0.7 setup has 73 enabled SWIG actions and 25 enabled IPC
+actions. The user reports that KiCad's scrollable toolbar overflow dropdown
+sometimes disappears when many plugins are installed, including after adding a
+plugin. KiProd's SWIG and IPC actions were moved to the beginning of their saved
+orders and given explicit icons, but the intermittent dropdown behavior has not
+been reproduced or attributed to a specific plugin. Keep root-cause isolation as
+an open compatibility task; use **Tools → External Plugins → Open KiProd** as
+the confirmed fallback.
+
 ## PCB Editor acceptance procedure
 
 Create a disposable project with a saved board:
@@ -119,8 +129,8 @@ For KiCad 9 or 10 IPC acceptance:
 1. Enable the IPC API under **Preferences → Plugins**, restart KiCad if prompted,
    and wait for the IPC plugin dependency setup to finish.
 2. In the PCB Editor preferences, confirm **KiProd** and its three actions are
-   listed. Confirm the toolbar buttons are enabled; overflow controls appear
-   only when the enabled buttons exceed the available toolbar width.
+   listed. Confirm the toolbar buttons are enabled. When the toolbar is crowded,
+   check whether KiCad displays its plugin overflow dropdown.
 3. Run **Open KiProd** and confirm the standalone workspace opens on the
    disposable project. Then exercise the Run and Quote actions and confirm each
    selects the matching GUI mode.

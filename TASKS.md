@@ -149,6 +149,7 @@
 - [ ] M9 acceptance: verify IPC actions from the PCB Editor in KiCad 9 and 10 with the API server enabled (procedure: `docs/KICAD_LAUNCHERS.md#pcb-editor-acceptance-procedure`).
 - [x] M9 acceptance: KiCad 10.0.7 SWIG action is visible under Tools → External Plugins and opens KiProd on the active project (user-confirmed 2026-10-30).
 - [ ] M9 acceptance: verify the SWIG action from the PCB Editor in KiCad 8 (procedure: `docs/KICAD_LAUNCHERS.md#pcb-editor-acceptance-procedure`).
+- [ ] M9 follow-up: reproduce and isolate the intermittent KiCad 10 plugin-toolbar overflow dropdown with a large enabled action-plugin set; the KiProd menu action remains a working fallback.
 - [ ] M10: hardening and release checks.
 - [x] M10 implementation: build distributions, install the wheel in an isolated environment, and verify CLI BOM output outside the checkout in CI and before releases; require lint, types, and tests before tagged release publication.
 - [x] Fix duplicate prompt-file inclusion exposed by the distribution build check.
