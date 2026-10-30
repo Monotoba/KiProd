@@ -92,8 +92,12 @@ disposable board with its API server enabled. Its trace accepted the reverse-DNS
 identifier `com.github.monotoba.kiprod`, registered all three actions, and
 created the plugin Python environment. This confirms IPC plugin discovery and
 action registration in KiCad 10.0.7; invoking the actions from the editor menus
-and verifying the resulting standalone GUI context remains open. The SWIG menu
-action also remains to be invoked and checked.
+and verifying the resulting standalone GUI context remains open.
+
+On 2026-10-30, the user confirmed that **Open KiProd** appeared under **Tools →
+External Plugins** in KiCad 10.0.7 and opened the KiProd workspace. This verifies
+the SWIG launcher and project handoff for KiCad 10.0.7. IPC action invocation and
+the KiCad 8 SWIG check remain open.
 
 ## PCB Editor acceptance procedure
 

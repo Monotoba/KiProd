@@ -147,7 +147,8 @@
 - [x] M9 acceptance: verify the installer and BOM hook on KiCad 10.0.7 with a generated XML netlist; BOM output matched CLI byte-for-byte.
 - [x] M9 partial acceptance: KiCad 10.0.7 with API enabled accepted the IPC manifest and registered all three actions from the disposable PCB fixture; action invocation remains unverified (record: `docs/KICAD_LAUNCHERS.md#acceptance-record`).
 - [ ] M9 acceptance: verify IPC actions from the PCB Editor in KiCad 9 and 10 with the API server enabled (procedure: `docs/KICAD_LAUNCHERS.md#pcb-editor-acceptance-procedure`).
-- [ ] M9 acceptance: verify the SWIG action from the PCB Editor in KiCad 8 and 10 (procedure: `docs/KICAD_LAUNCHERS.md#pcb-editor-acceptance-procedure`).
+- [x] M9 acceptance: KiCad 10.0.7 SWIG action is visible under Tools → External Plugins and opens KiProd on the active project (user-confirmed 2026-10-30).
+- [ ] M9 acceptance: verify the SWIG action from the PCB Editor in KiCad 8 (procedure: `docs/KICAD_LAUNCHERS.md#pcb-editor-acceptance-procedure`).
 - [ ] M10: hardening and release checks.
 - [x] M10 implementation: build distributions, install the wheel in an isolated environment, and verify CLI BOM output outside the checkout in CI and before releases; require lint, types, and tests before tagged release publication.
 - [x] Fix duplicate prompt-file inclusion exposed by the distribution build check.
