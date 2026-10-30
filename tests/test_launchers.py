@@ -13,6 +13,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SHARED_LAUNCHER = PROJECT_ROOT / "launchers" / "shared" / "kiprod_launcher.py"
 INSTALLER = PROJECT_ROOT / "scripts" / "install_kicad_launchers.py"
 IPC_MANIFEST = PROJECT_ROOT / "launchers" / "ipc" / "plugin.json"
+IPC_ENTRYPOINT = PROJECT_ROOT / "launchers" / "ipc" / "launch.py"
+SWIG_ENTRYPOINT = PROJECT_ROOT / "launchers" / "swig" / "__init__.py"
 
 
 def _load_module(name: str, path: Path) -> ModuleType:
@@ -105,6 +107,67 @@ def test_ipc_manifest_uses_reverse_dns_identifier_and_unique_actions() -> None:
         "quote-only",
         "open",
     }
+
+
+def test_ipc_entrypoint_passes_open_board_project_and_mode(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    pro_file = project / "fixture.kicad_pro"
+    pro_file.touch()
+    calls: list[tuple[str, str]] = []
+    board = SimpleNamespace(get_project=lambda: SimpleNamespace(path=str(pro_file)))
+    client = SimpleNamespace(get_board=lambda: board)
+
+    def capture_launch(path: str, mode: str) -> int:
+        calls.append((path, mode))
+        return 0
+
+    kipy = ModuleType("kipy")
+    kipy.KiCad = lambda: client  # type: ignore[attr-defined]
+    launcher = ModuleType("kiprod_launcher")
+    launcher.launch_gui = capture_launch  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "kipy", kipy)
+    monkeypatch.setitem(sys.modules, "kiprod_launcher", launcher)
+    monkeypatch.setattr(sys, "argv", [str(IPC_ENTRYPOINT), "quote-only"])
+    module = _load_module("kiprod_ipc_entrypoint_test", IPC_ENTRYPOINT)
+
+    assert module.main() == 0
+    assert calls == [(str(pro_file), "quote-only")]
+
+
+def test_swig_entrypoint_registers_action_and_passes_saved_board(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    board_file = tmp_path / "fixture.kicad_pcb"
+    board_file.touch()
+    registered: list[object] = []
+    calls: list[tuple[str, str]] = []
+
+    class FakeActionPlugin:
+        def register(self) -> None:
+            registered.append(self)
+
+    def capture_launch(path: str, mode: str) -> int:
+        calls.append((path, mode))
+        return 0
+
+    pcbnew = ModuleType("pcbnew")
+    pcbnew.ActionPlugin = FakeActionPlugin  # type: ignore[attr-defined]
+    pcbnew.GetBoard = lambda: SimpleNamespace(GetFileName=lambda: str(board_file))  # type: ignore[attr-defined]
+    launcher = ModuleType("kiprod_launcher")
+    launcher.launch_gui = capture_launch  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "pcbnew", pcbnew)
+    monkeypatch.setitem(sys.modules, "kiprod_launcher", launcher)
+    _load_module("kiprod_swig_entrypoint_test", SWIG_ENTRYPOINT)
+
+    assert len(registered) == 1
+    action = registered[0]
+    action.defaults()  # type: ignore[attr-defined]
+    assert action.name == "Open KiProd"  # type: ignore[attr-defined]
+    action.Run()  # type: ignore[attr-defined]
+    assert calls == [(str(board_file), "open")]
 
 
 def test_bom_generator_runs_offline_flow_and_copies_bom(
