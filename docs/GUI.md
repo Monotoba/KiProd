@@ -68,6 +68,12 @@ row references. This confirms local quote-data loading in the GUI code path but
 does not replace visual inspection of the inbox and source-evidence panes on a
 desktop.
 
+Offscreen UI-control checks queued two Run All jobs and observed both reach
+`Complete` in sequence. A stop request issued immediately after starting Run All
+reached `Stopped` at a safe checkpoint and wrote no BOM output. These checks
+exercise the queue and stop control paths but do not replace desktop checks of
+their visible status transitions or responsiveness.
+
 1. Install the GUI extra with `./scripts/setup-gui.sh`, then launch with
    `./scripts/run.sh gui --mode open`. Confirm the window opens and can be moved,
    resized, minimized, restored, and closed normally.
