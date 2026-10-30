@@ -13,6 +13,8 @@
       "name": "Run KiProd production workflow",
       "description": "Open KiProd and run the offline production workflow for this project.",
       "show-button": true,
+      "icons-light": ["icons/run-light-24.png", "icons/run-light-48.png"],
+      "icons-dark": ["icons/run-dark-24.png", "icons/run-dark-48.png"],
       "scopes": ["pcb"],
       "entrypoint": "launch.py",
       "args": ["all"]
@@ -22,6 +24,8 @@
       "name": "Refresh KiProd quote data",
       "description": "Open KiProd and refresh local captured quotes for this project.",
       "show-button": true,
+      "icons-light": ["icons/quote-light-24.png", "icons/quote-light-48.png"],
+      "icons-dark": ["icons/quote-dark-24.png", "icons/quote-dark-48.png"],
       "scopes": ["pcb"],
       "entrypoint": "launch.py",
       "args": ["quote-only"]
@@ -31,6 +35,8 @@
       "name": "Open KiProd",
       "description": "Open the KiProd desktop workspace for this project.",
       "show-button": true,
+      "icons-light": ["icons/open-light-24.png", "icons/open-light-48.png"],
+      "icons-dark": ["icons/open-dark-24.png", "icons/open-dark-48.png"],
       "scopes": ["pcb"],
       "entrypoint": "launch.py",
       "args": ["open"]

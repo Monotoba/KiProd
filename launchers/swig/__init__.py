@@ -15,6 +15,9 @@ class KiProdActionPlugin(pcbnew.ActionPlugin):
         self.category = "Production"
         self.description = "Open the KiProd production workspace for this project."
         self.show_toolbar_button = True
+        icon_root = Path(__file__).resolve().parent / "icons"
+        self.icon_file_name = str(icon_root / "open-light-24.png")
+        self.dark_icon_file_name = str(icon_root / "open-dark-24.png")
 
     def Run(self) -> None:
         try:

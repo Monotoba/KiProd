@@ -56,8 +56,10 @@ corresponding GUI mode; the open action starts the workspace without starting a
 run. IPC actions are available in the PCB Editor's plugin preferences and as
 toolbar buttons; they are not entries in the legacy **Tools → External Plugins**
 menu. All three IPC actions request a toolbar button by default. KiCad lets users
-customize plugin toolbar buttons in the PCB Editor preferences, and toolbar
-overflow controls appear only when the enabled buttons exceed the available width.
+customize plugin toolbar buttons in the PCB Editor preferences. KiCad does not
+show overflow menus when toolbar controls do not fit; controls outside the
+available width may be clipped. Use the Action Plugins preferences to move a
+SWIG plugin higher in the toolbar order when its button is clipped.
 The legacy SWIG fallback offers **Open KiProd** from **Tools → External Plugins**
 and only reads the current saved board path before launching the same standalone
 GUI.

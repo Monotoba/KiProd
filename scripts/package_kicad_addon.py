@@ -43,6 +43,8 @@ def main() -> int:
         archive.writestr("metadata.json", json.dumps(metadata, indent=2) + "\n")
         for archive_name, source in launcher_files.items():
             archive.write(source, f"plugins/{archive_name}")
+        for icon in sorted((PROJECT_ROOT / "launchers" / "ipc" / "icons").glob("*.png")):
+            archive.write(icon, f"plugins/icons/{icon.name}")
 
     print(f"Created KiCad add-on package: {output}")
     return 0

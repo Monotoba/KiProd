@@ -176,6 +176,11 @@ def main() -> int:
             )
             _copy_bundle(PROJECT_ROOT / "launchers" / "swig", plugin_dir, ("__init__.py",))
             shutil.copy2(shared / "kiprod_launcher.py", plugin_dir / "kiprod_launcher.py")
+            shutil.copytree(
+                PROJECT_ROOT / "launchers" / "ipc" / "icons",
+                plugin_dir / "icons",
+                dirs_exist_ok=True,
+            )
 
             # Migrate files written by earlier KiProd installers to avoid
             # duplicate actions from parallel plugin directories.
@@ -199,6 +204,11 @@ def main() -> int:
             swig_dir = swig_plugin_directory() / "kiprod"
             _copy_bundle(PROJECT_ROOT / "launchers" / "swig", swig_dir, ("__init__.py",))
             shutil.copy2(shared / "kiprod_launcher.py", swig_dir / "kiprod_launcher.py")
+            shutil.copytree(
+                PROJECT_ROOT / "launchers" / "ipc" / "icons",
+                swig_dir / "icons",
+                dirs_exist_ok=True,
+            )
     except (OSError, RuntimeError) as exc:
         print(f"KiCad launcher installation failed: {exc}", file=sys.stderr)
         return 1

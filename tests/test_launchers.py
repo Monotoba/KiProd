@@ -109,6 +109,10 @@ def test_ipc_manifest_uses_reverse_dns_identifier_and_unique_actions() -> None:
         "open",
     }
     assert all(action["show-button"] is True for action in manifest["actions"])
+    for action in manifest["actions"]:
+        for theme in ("icons-light", "icons-dark"):
+            assert action[theme]
+            assert all((IPC_MANIFEST.parent / icon).is_file() for icon in action[theme])
 
 
 def test_ipc_entrypoint_passes_open_board_project_and_mode(
@@ -292,3 +296,4 @@ def test_kicad_pcm_package_contains_manager_metadata_and_both_launchers(
         assert "plugins/plugin.json" in names
         assert "plugins/__init__.py" in names
         assert "plugins/kiprod_launcher.py" in names
+        assert "plugins/icons/open-light-24.png" in names
