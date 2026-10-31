@@ -150,11 +150,11 @@
 - [x] M9 acceptance: KiCad 10.0.7 SWIG action is visible under Tools → External Plugins and opens KiProd on the active project (user-confirmed 2026-10-30).
 - [ ] M9 acceptance: verify the SWIG action from the PCB Editor in KiCad 8 (procedure: `docs/KICAD_LAUNCHERS.md#pcb-editor-acceptance-procedure`).
 - [ ] M9 follow-up: reproduce and isolate the intermittent KiCad 10 plugin-toolbar overflow dropdown with a large enabled action-plugin set; the KiProd menu action remains a working fallback.
-- [ ] M10: hardening and release checks.
+- [x] M10: hardening and release checks.
 - [x] M10 implementation: build distributions, install the wheel in an isolated environment, and verify CLI BOM output outside the checkout in CI and before releases; require lint, types, and tests before tagged release publication.
 - [x] Fix duplicate prompt-file inclusion exposed by the distribution build check.
 - [x] M10 acceptance: GitHub CI passed distribution build/install/BOM smoke checks and tests, lint, and types on Python 3.11–3.13 (commit `c4683dc`).
-- [ ] M10 acceptance: exercise the tagged release workflow when a versioned release is approved.
+- [x] M10 acceptance: `v0.1.0a1` release workflow passed and published the wheel and source archive as a GitHub prerelease (2026-10-31).
 
 ## Recommended completion order
 
@@ -166,5 +166,4 @@ M3–M5 are complete, and M4 provides durable analysis outputs. M6's reviewed
 real-world quote sample evaluation and M8 desktop acceptance are complete. Remaining M3 supplier integrations
 depend on supplier API access and terms; the M8 editor work depends on defined
 settings schemas. M9 acceptance requires the supported KiCad versions and API
-server setup, and M10 release-workflow acceptance waits for an approved versioned
-release.
+server setup.

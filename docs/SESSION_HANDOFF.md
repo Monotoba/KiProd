@@ -7,7 +7,7 @@ work after restarting the computer.
 
 - Repository: `/home/randy/projects/KiCAD-Plugins/KiProd`
 - Branch: `main`
-- Latest pushed commit: `08546e7` (`Save launcher acceptance session handoff`)
+- Latest release tag: `v0.1.0a1` at `8fecf34` (`Release 0.1.0a1`)
 - The only untracked repository item observed was
   `C:\Users\User\Desktop\kleplace.log`. It is unrelated and must be left
   untouched.
@@ -115,8 +115,12 @@ action-invocation task.
   10 IPC invocation and board-hash integrity still need unambiguous acceptance.
 - M9 follow-up: diagnose the intermittent plugin-toolbar overflow dropdown,
   deferred as noted above.
-- M10: exercise the tagged release workflow after a versioned release is
-  approved.
+
+## Release record
+
+On 2026-10-31, GitHub Actions passed CI and the tagged release workflow for
+`v0.1.0a1`. The workflow built, validated, and published the wheel and source
+archive. The GitHub release is explicitly marked as a prerelease.
 
 See `TASKS.md` and `docs/KICAD_LAUNCHERS.md` for the maintained milestone list
 and launcher procedure.
