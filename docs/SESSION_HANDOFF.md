@@ -1,13 +1,13 @@
 # Session handoff
 
-Updated 2026-10-30. Use this note to resume the KiProd launcher acceptance
+Updated 2026-10-31. Use this note to resume the KiProd launcher acceptance
 work after restarting the computer.
 
 ## Repository checkpoint
 
 - Repository: `/home/randy/projects/KiCAD-Plugins/KiProd`
 - Branch: `main`
-- Latest pushed commit: `bf9fe3e` (`Add root schematic to launcher test project`)
+- Latest pushed commit: `08546e7` (`Save launcher acceptance session handoff`)
 - The only untracked repository item observed was
   `C:\Users\User\Desktop\kleplace.log`. It is unrelated and must be left
   untouched.
@@ -56,14 +56,58 @@ For a clean acceptance run after reboot:
 1. Generate a fresh temporary project with the script above.
 2. Open its board in the PCB Editor.
 3. Invoke **Run KiProd production workflow** and **Refresh KiProd quote data**
-   specifically from **Tools → External Plugins**. Record that these menu
-   entries are the IPC actions, and note the mode each opens.
+   from the PCB Editor's registered IPC actions (toolbar or plugin-action UI),
+   and note the mode each opens. **Tools → External Plugins → Open KiProd** is
+   the separate legacy SWIG fallback, not an IPC action.
 4. Compare the board's final SHA-256 with the script's printed baseline. If it
    changes, preserve that temporary project and record the difference; do not
    count the read-only board-integrity check as passed.
 
 Do not investigate the intermittent toolbar overflow dropdown yet. The user
 asked to defer that investigation until KiProd is working and complete.
+
+## Preserved 2026-10-31 fixture run
+
+The user opened the tracked source fixture at
+`tests/projects/launcher_acceptance/` rather than a disposable temporary copy.
+Their screenshot shows the KiProd workspace completing **Run All** against that
+project: three BOM lines, four deterministic findings, and generated BOM output.
+It does not identify whether an IPC action or the SWIG fallback launched the
+workspace, so it is supporting workflow evidence only and does not close an M9
+acceptance task.
+
+KiCad and the run materially changed that tracked fixture. Preserve all of these
+items for investigation; do not reset, overwrite, or delete them without the
+user's explicit instruction:
+
+- Modified `launcher_acceptance.kicad_pcb`, `.kicad_sch`, and `.kicad_pro`.
+- The `.history/` directory, generated `docs/production/bom/` artifacts, and
+  KiCad lock files.
+- The copied `C:\\Users\\User\\Desktop\\kleplace.log` item.
+
+The post-run PCB SHA-256 is
+`3a16ada02ae1c5e4319e9c87efa57b36efe1e5352536b7afe823a74c457c5b11`,
+which differs from the clean committed baseline
+`959ffcd4d6aca17affe31207b43c947e6016ae73ba25c8c10a234534e32e3357`.
+Do not attribute the changes to KiProd without further isolation. Future clean
+acceptance must use a newly generated temporary copy.
+
+## Clean temporary run, IPC controls unavailable (2026-10-31)
+
+The user reopened the temporary project at
+`/tmp/kiprod-kicad-acceptance.hgsR9j/launcher_acceptance/` and opened KiProd
+through the only accessible launcher UI, **Tools → External Plugins**. That is
+the SWIG fallback. They then ran the GUI's Run All workflow manually. The GUI
+completed successfully and wrote its expected local artifacts; the temporary
+PCB remained at the exact clean baseline hash
+`959ffcd4d6aca17affe31207b43c947e6016ae73ba25c8c10a234534e32e3357`.
+
+The KiCad 10 IPC toolbar controls, including **Refresh KiProd quote data**, were
+not accessible to the user; only the External Plugins menu was available. Do
+not ask the user to repeat this path as IPC acceptance. This is confirming
+evidence for the already-accepted KiCad 10 SWIG fallback and evidence for the
+open toolbar/IPC-control availability follow-up, but it does not close the IPC
+action-invocation task.
 
 ## Remaining milestones
 

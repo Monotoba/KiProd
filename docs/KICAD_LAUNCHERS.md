@@ -111,6 +111,13 @@ been reproduced or attributed to a specific plugin. Keep root-cause isolation as
 an open compatibility task; use **Tools → External Plugins → Open KiProd** as
 the confirmed fallback.
 
+On 2026-10-31, a clean temporary fixture run on KiCad 10.0.8 again exposed only
+the legacy **Tools → External Plugins** launcher controls to the user; the IPC
+toolbar controls were not accessible. The SWIG launcher opened KiProd and a
+manually selected Run All completed while preserving the fixture PCB hash. This
+does not verify IPC action invocation and is additional evidence for the open
+toolbar/IPC-control availability investigation.
+
 ## PCB Editor acceptance procedure
 
 Create a disposable project with a saved board:

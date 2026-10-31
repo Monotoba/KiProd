@@ -7,7 +7,7 @@
 KiProd creates a traceable production package from a KiCad project: a normalized
 BOM, production review findings, supplier quotes, and comparison reports.
 
-Milestones **M1–M2**, **M4–M5**, and **M7** are complete; **M3**, **M6**, **M8**, and **M9** have remaining work.
+Milestones **M1–M2**, **M4–M7** are complete; **M3**, **M8**, and **M9** have remaining work.
 The CLI supports offline BOM/configuration work, board and assembly analysis, local
 RFQ packaging, approval-gated SMTP delivery, and Graph/Gmail inbox polling. The
 generic catalog protocol, typed AI review contracts, an OpenAI-compatible model

@@ -63,7 +63,7 @@
 - [x] Discover likely fabrication/panel notes by filename and parse text or PDF documentation; project board-file count and requested production quantities are already reported separately.
 - [x] Support common fabrication, panel, assembly, manufacturing, and Gerber note filenames, with local OCR fallback for scanned PDFs.
 
-## M6 — Signed email RFQs and inbox (in progress)
+## M6 — Signed email RFQs and inbox (complete)
 
 - [x] Package only explicitly selected files, generate a SHA-256 manifest, block scanner failures, sign with GPG, and verify archive contents/signature.
 - [x] Add interactive approval records bound to exact package hashes and invalidate approval status when package bytes change.

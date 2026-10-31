@@ -161,7 +161,7 @@ TOML editor for paths and component rules. The TOML editor preserves entered com
 and unknown keys, and rejects secret-like keys so credentials stay in the OS keyring.
 Review decisions are stored separately in `review.decisions.json`.
 
-M8 still includes run-all/quote-only/stop/queue controls, dedicated editors for
-assembly, AI, email/signing, and approval settings that do not yet have project config
-schemas, and interactive desktop acceptance checks. Automated checks exercise the
-data and artifact layer headlessly.
+M8 includes run-all/quote-only/stop/queue controls. Desktop acceptance on the
+supported Linux desktop is complete; the remaining GUI work is dedicated editors for
+assembly, AI, email/signing, and approval settings once their project configuration
+schemas are defined. Automated checks exercise the data and artifact layer headlessly.
